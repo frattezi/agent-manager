@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/YoanWai/agent-manager/internal/git"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	"github.com/YoanWai/agent-manager/internal/ui/runs"
 	uilaunch "github.com/YoanWai/agent-manager/internal/ui/spawn/launch"
@@ -142,5 +143,44 @@ func TestRunLegendNamesTheLogKey(t *testing.T) {
 	legend, ok := m.runLegend()
 	if !ok || legend.Title != "Run" || len(legend.Pairs) != 1 || legend.Pairs[0][1] != "open log" {
 		t.Fatalf("legend = %+v, %v", legend, ok)
+	}
+}
+
+func TestReviewingARunOpensItsWorktreeAgainstTheBase(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	list := testRuns()
+	list[0].WorktreePath, list[0].Base = t.TempDir(), "develop"
+	loadRuns(t, m, list)
+	selectRun(t, m, "r1")
+	cmd, taken := m.runIntent(uirail.Intent{Kind: uirail.OpenReview, Target: m.railSelection()})
+	if !taken || cmd == nil || m.base != baseReview || !m.review.Active() {
+		t.Fatalf("review did not open: taken %v, cmd %v, base %v", taken, cmd, m.base)
+	}
+	if m.review.SessionID() != "run:r1" || m.review.Scope() != git.ScopeBranch {
+		t.Fatalf("target %q scope %v", m.review.SessionID(), m.review.Scope())
+	}
+	sess, ok := m.diffSession()
+	if !ok || sess.ID != "run:r1" || sess.Cwd != list[0].WorktreePath {
+		t.Fatalf("diffSession = %+v, %v", sess, ok)
+	}
+	if got := m.reviewGroupBase("run:r1"); got != "develop" {
+		t.Fatalf("base = %q", got)
+	}
+	if got := m.runsDirFor("run:r1"); got != "/registry" {
+		t.Fatalf("runs dir = %q", got)
+	}
+	if got := m.runsDirFor("some-session"); got != "" {
+		t.Fatalf("a session got runs dir %q", got)
+	}
+}
+
+func TestReviewingARunWithoutAWorktreeSaysSo(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	loadRuns(t, m, testRuns())
+	selectRun(t, m, "r2")
+	if cmd, taken := m.runIntent(uirail.Intent{Kind: uirail.OpenReview, Target: m.railSelection()}); !taken || cmd != nil || m.errBar.text == "" || m.review.Active() {
+		t.Fatalf("taken %v, cmd %v, status %q", taken, cmd, m.errBar.text)
 	}
 }

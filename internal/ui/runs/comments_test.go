@@ -79,3 +79,16 @@ func TestAddCommentRefusesAnIDThatEscapesTheDir(t *testing.T) {
 		t.Fatal("wrote outside the registry")
 	}
 }
+
+func TestAddCommentIgnoresAnIDAlreadyWritten(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Now()
+	for range 2 {
+		if err := AddComment(dir, "r1", Comment{ID: "c1", Path: "a.go", Line: 1, Body: "x"}, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if file := readComments(t, dir, "r1"); len(file.Comments) != 1 {
+		t.Fatalf("comments = %+v; want the retry not to double c1", file.Comments)
+	}
+}

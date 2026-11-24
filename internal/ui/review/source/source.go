@@ -78,6 +78,9 @@ type Request struct {
 	Round         int
 	Count         int
 	SendTarget    SendTarget
+	// RunsDir is the Run registry when the target is a Run: a round is then
+	// written there as comments for Fractory instead of typed into a pane.
+	RunsDir string
 }
 
 type Result struct {

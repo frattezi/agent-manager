@@ -1,7 +1,9 @@
 package source
 
 import (
+	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -438,5 +440,69 @@ func TestSetBaseWorkerUsesCapturedValues(t *testing.T) {
 	stored, err := st.ReviewBase("s1", "/captured/repo")
 	if err != nil || stored != "feature" {
 		t.Fatalf("worker persisted base=%q err=%v", stored, err)
+	}
+}
+
+func TestSendToARunWritesCommentsAndTypesNothing(t *testing.T) {
+	st := openTestStore(t)
+	dir := t.TempDir()
+	writer := &scriptedWriter{alive: true, sendResult: tmux.SendResult{Phase: tmux.SendPhaseSubmitted}}
+	state := uireview.SavedState{Round: uireview.Round{Number: 1}, Comments: []uireview.Comment{
+		{ID: "c1", File: "a.go", Line: 3, Text: "rename this", Round: 1},
+		{ID: "c2", File: "b.go", Line: 9, Text: "why", Round: 1},
+		{ID: "old", File: "c.go", Line: 1, Text: "already sent", Round: 0},
+	}}
+	req := Request{
+		Op: Send, TargetID: RunTargetPrefix + "r1", TargetName: "jira:ABC-1", RepoRoot: "/wt", RunsDir: dir,
+		State: state, CommentIDs: []string{"c1", "c2"}, Round: 1, Count: 2,
+	}
+	result, err := Run(req, st, writer)
+	if err != nil || result.Send.Outcome != uireview.SendConfirmed || result.Send.Err != nil {
+		t.Fatalf("result = %+v, err %v", result.Send, err)
+	}
+	if len(writer.sendCalls) != 0 {
+		t.Fatalf("typed into a pane: %q", writer.sendCalls)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "r1.comments.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var file struct {
+		Version  int
+		Comments []struct {
+			ID, Path, Body string
+			Line           int
+		}
+	}
+	if err := json.Unmarshal(data, &file); err != nil {
+		t.Fatal(err)
+	}
+	if file.Version != 1 || len(file.Comments) != 2 || file.Comments[0].ID != "c1" || file.Comments[0].Path != "a.go" || file.Comments[0].Body != "rename this" || file.Comments[1].Line != 9 {
+		t.Fatalf("comments file = %s", data)
+	}
+	saved, err := st.ReviewState(RunTargetPrefix+"r1", "/wt")
+	if err != nil || saved.Round.Number != 1 {
+		t.Fatalf("round was not kept under the run id: %+v, %v", saved, err)
+	}
+}
+
+func TestSendToARunRollsBackWhenTheCommentsCannotBeWritten(t *testing.T) {
+	st := openTestStore(t)
+	blocked := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(blocked, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	req := Request{
+		Op: Send, TargetID: RunTargetPrefix + "r1", RepoRoot: "/wt", RunsDir: blocked,
+		State:         uireview.SavedState{Round: uireview.Round{Number: 1}, Comments: []uireview.Comment{{ID: "c1", Text: "x", Round: 1}}},
+		PreviousState: uireview.SavedState{},
+		CommentIDs:    []string{"c1"}, Round: 1, Count: 1,
+	}
+	result, err := Run(req, st, &scriptedWriter{})
+	if err != nil || result.Send.Outcome != uireview.SendRefused || result.Send.Err == nil {
+		t.Fatalf("result = %+v, err %v", result.Send, err)
+	}
+	if saved, _ := st.ReviewState(RunTargetPrefix+"r1", "/wt"); saved.Round.Number != 0 || len(saved.Comments) != 0 {
+		t.Fatalf("round survived a failed write: %+v", saved)
 	}
 }

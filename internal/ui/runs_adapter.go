@@ -3,13 +3,19 @@ package ui
 import (
 	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
+	"github.com/YoanWai/agent-manager/internal/deps"
+	"github.com/YoanWai/agent-manager/internal/git"
 	"github.com/YoanWai/agent-manager/internal/keybind"
 	"github.com/YoanWai/agent-manager/internal/launch"
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
+	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
+	uireview "github.com/YoanWai/agent-manager/internal/ui/review"
+	uireviewsource "github.com/YoanWai/agent-manager/internal/ui/review/source"
 	"github.com/YoanWai/agent-manager/internal/ui/runs"
 	uilaunch "github.com/YoanWai/agent-manager/internal/ui/spawn/launch"
 	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
@@ -99,7 +105,11 @@ func (m *Model) runIntent(intent uirail.Intent) (tea.Cmd, bool) {
 		}
 		return m.openRunLog(run), true
 	case uirail.OpenReview:
-		m.reportErr("review of a Run is not available yet")
+		run, ok := m.selectedRun()
+		if !ok {
+			return nil, true
+		}
+		return m.openRunDiff(run), true
 	default:
 		m.reportErr("Runs are read-only: Fractory owns them")
 	}
@@ -166,4 +176,55 @@ func (m *Model) runContentLines(width int) ([]contentLine, bool) {
 		}
 	}
 	return lines, true
+}
+
+const runCommentsSavedNotice = "Comments saved; the factory will pick them up on the next tick"
+
+// runByTarget is the Run a review target id names; a session id names none.
+func (m *Model) runByTarget(targetID string) (runs.Record, bool) {
+	id, ok := strings.CutPrefix(targetID, uireviewsource.RunTargetPrefix)
+	if !ok {
+		return runs.Record{}, false
+	}
+	for _, run := range m.workspace.runs.list {
+		if run.ID == id {
+			return run, true
+		}
+	}
+	return runs.Record{}, false
+}
+
+// runDiffSession stands in for the session a Run's review is keyed under, so
+// its drafts live under the Run's own id and no session row is touched.
+func (m *Model) runDiffSession() (store.Session, bool) {
+	run, ok := m.runByTarget(m.review.SessionID())
+	if !ok {
+		return store.Session{}, false
+	}
+	return store.Session{ID: uireviewsource.RunTargetPrefix + run.ID, Name: run.TicketRef, Cwd: run.WorktreePath}, true
+}
+
+func (m *Model) runsDirFor(targetID string) string {
+	if _, ok := m.runByTarget(targetID); !ok {
+		return ""
+	}
+	return m.workspace.runs.dir
+}
+
+// openRunDiff opens Review on the Run's worktree against its base branch.
+func (m *Model) openRunDiff(run runs.Record) tea.Cmd {
+	if m.services.gitDrv == nil {
+		m.reportErr("git not found in PATH, " + deps.Hint("git"))
+		return nil
+	}
+	if run.WorktreePath == "" {
+		m.reportErr("this Run has no worktree to review")
+		return nil
+	}
+	m.reviewNav.Set(uireviewsource.Return{Kind: uireviewsource.ReturnList})
+	m.clearSurfaces()
+	m.base = baseReview
+	m.clearErr()
+	target := uireview.Target{ID: uireviewsource.RunTargetPrefix + run.ID, Name: run.TicketRef, Cwd: run.WorktreePath}
+	return m.reviewLoadCmd(m.review.Open(target, git.ScopeBranch, ""))
 }

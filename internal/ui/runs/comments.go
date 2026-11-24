@@ -39,7 +39,8 @@ func CommentsPath(dir, runID string) string {
 
 // AddComment appends a comment to the Run's file, creating it when absent.
 // The write is atomic, so Fractory never reads a half-written file. A file
-// that exists but cannot be read back is an error, never overwritten.
+// that exists but cannot be read back is an error, never overwritten. A
+// comment id already in the file is left as it is, so a retry never doubles it.
 func AddComment(dir, runID string, comment Comment, now time.Time) error {
 	if runID == "" || strings.ContainsRune(runID, filepath.Separator) {
 		return errors.New("invalid run id")
@@ -57,6 +58,11 @@ func AddComment(dir, runID string, comment Comment, now time.Time) error {
 		}
 	case !errors.Is(err, fs.ErrNotExist):
 		return err
+	}
+	for _, existing := range file.Comments {
+		if existing.ID == comment.ID {
+			return nil
+		}
 	}
 	comment.CreatedAt = now.UTC().Format(time.RFC3339)
 	file.Comments = append(file.Comments, comment)

@@ -100,3 +100,31 @@ func TestDirHonoursFractoryHome(t *testing.T) {
 		t.Fatalf("Dir = %q", got)
 	}
 }
+
+func TestBaseBranchReadsTheRepoConfigAndDefaultsToMain(t *testing.T) {
+	repo := t.TempDir()
+	if got := BaseBranch(repo); got != "main" {
+		t.Fatalf("no config: %q", got)
+	}
+	writeRun(t, repo, ".fractory.json", `{"baseBranch":"develop","other":1}`)
+	if got := BaseBranch(repo); got != "develop" {
+		t.Fatalf("configured: %q", got)
+	}
+	writeRun(t, repo, ".fractory.json", `{broken`)
+	if got := BaseBranch(repo); got != "main" {
+		t.Fatalf("malformed: %q", got)
+	}
+	if got := BaseBranch(""); got != "main" {
+		t.Fatalf("empty repo path: %q", got)
+	}
+}
+
+func TestLoadFillsTheBaseFromTheRunsRepo(t *testing.T) {
+	dir, repo := t.TempDir(), t.TempDir()
+	writeRun(t, repo, ".fractory.json", `{"baseBranch":"develop"}`)
+	writeRun(t, dir, "a.json", `{"version":1,"id":"a","ticketRef":"jira:ABC-1","status":"done","logPath":"/l","repoPath":"`+repo+`","updatedAt":"2026-01-02T00:00:00Z"}`)
+	got, err := Load(dir)
+	if err != nil || len(got) != 1 || got[0].Base != "develop" {
+		t.Fatalf("Load = %+v, %v", got, err)
+	}
+}

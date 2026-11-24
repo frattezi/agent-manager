@@ -34,12 +34,16 @@ type Record struct {
 	ID           string    `json:"id"`
 	TicketRef    string    `json:"ticketRef"`
 	Status       string    `json:"status"`
+	RepoPath     string    `json:"repoPath"`
 	Branch       string    `json:"branch"`
 	WorktreePath string    `json:"worktreePath"`
 	PRURL        string    `json:"prUrl"`
 	LogPath      string    `json:"logPath"`
 	Result       *Result   `json:"result"`
 	UpdatedAt    time.Time `json:"updatedAt"`
+	// Base is the branch the Run is reviewed against; Load reads it from the
+	// repo, the record does not carry it.
+	Base string `json:"-"`
 }
 
 // Result is the agent's final answer; the manager reads only a question.
@@ -101,6 +105,7 @@ func Load(dir string) ([]Record, error) {
 		return nil, err
 	}
 	var records []Record
+	bases := map[string]string{}
 	for _, entry := range entries {
 		name := entry.Name()
 		if entry.IsDir() || !strings.HasSuffix(name, ".json") || strings.HasSuffix(name, commentsSuffix) {
@@ -111,6 +116,10 @@ func Load(dir string) ([]Record, error) {
 			continue
 		}
 		if record, err := Parse(data); err == nil {
+			if _, seen := bases[record.RepoPath]; !seen {
+				bases[record.RepoPath] = BaseBranch(record.RepoPath)
+			}
+			record.Base = bases[record.RepoPath]
 			records = append(records, record)
 		}
 	}
@@ -124,4 +133,26 @@ func Load(dir string) ([]Record, error) {
 		return cmp.Compare(b.UpdatedAt.UnixNano(), a.UpdatedAt.UnixNano())
 	})
 	return records, nil
+}
+
+// DefaultBase is the base branch of a repo that names none.
+const DefaultBase = "main"
+
+// BaseBranch is the `baseBranch` a repo sets in `.fractory.json`, else
+// DefaultBase. An unreadable or malformed file is no setting.
+func BaseBranch(repoPath string) string {
+	if repoPath == "" {
+		return DefaultBase
+	}
+	data, err := os.ReadFile(filepath.Join(repoPath, ".fractory.json"))
+	if err != nil {
+		return DefaultBase
+	}
+	var config struct {
+		BaseBranch string `json:"baseBranch"`
+	}
+	if json.Unmarshal(data, &config) != nil || config.BaseBranch == "" {
+		return DefaultBase
+	}
+	return config.BaseBranch
 }

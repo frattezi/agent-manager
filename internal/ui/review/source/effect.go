@@ -3,9 +3,13 @@ package source
 import (
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
+	"time"
 
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	uireview "github.com/YoanWai/agent-manager/internal/ui/review"
+	uiruns "github.com/YoanWai/agent-manager/internal/ui/runs"
 	uisession "github.com/YoanWai/agent-manager/internal/ui/session"
 )
 
@@ -77,6 +81,9 @@ func runSend(request Request, st Store, writer Writer) (Result, error) {
 		PreviousRound: request.PreviousRound, Round: request.Round, Count: request.Count, TargetName: request.TargetName,
 		Outcome: uireview.SendRefused,
 	}
+	if request.RunsDir != "" {
+		return runSendToRun(request, st, result), nil
+	}
 	current, targetErr := st.Get(request.TargetID)
 	if targetErr != nil {
 		result.Err = fmt.Errorf("check review target identity: %w", targetErr)
@@ -123,4 +130,34 @@ func runSend(request Request, st Store, writer Writer) (Result, error) {
 	result.Outcome = uireview.SendConfirmed
 	result.AckErr = st.SetAcked(request.TargetID, false)
 	return Result{Op: Send, Send: result}, nil
+}
+
+// RunTargetPrefix starts the review target id of a Run, which has no session.
+const RunTargetPrefix = "run:"
+
+// runSendToRun saves the round and writes its drafted comments to the Run's
+// comments file. Fractory turns that file into a Trigger; nothing is typed
+// anywhere, so there is no pane to probe and no ack to clear.
+func runSendToRun(request Request, st Store, result uireview.SendResult) Result {
+	if err := st.MergeReviewState(request.TargetID, request.RepoRoot, StateToStore(request.State)); err != nil {
+		result.Err = fmt.Errorf("saving review round: %w", err)
+		return Result{Op: Send, Send: result}
+	}
+	runID := strings.TrimPrefix(request.TargetID, RunTargetPrefix)
+	now := time.Now()
+	for _, note := range request.State.Comments {
+		if !slices.Contains(request.CommentIDs, note.ID) {
+			continue
+		}
+		comment := uiruns.Comment{ID: note.ID, Path: note.File, Line: note.Line, Body: note.Text}
+		if err := uiruns.AddComment(request.RunsDir, runID, comment, now); err != nil {
+			result.Err = fmt.Errorf("writing review comments: %w", err)
+			if rollback := st.MergeReviewState(request.TargetID, request.RepoRoot, StateToStore(request.PreviousState)); rollback != nil {
+				result.Err = fmt.Errorf("%w; restoring review drafts: %w", result.Err, rollback)
+			}
+			return Result{Op: Send, Send: result}
+		}
+	}
+	result.Outcome = uireview.SendConfirmed
+	return Result{Op: Send, Send: result}
 }

@@ -21,6 +21,9 @@ import (
 // reviewGroupBase is the base the target's group sets for its branch scope.
 // A base picked in review wins over it.
 func (m *Model) reviewGroupBase(targetID string) string {
+	if run, ok := m.runByTarget(targetID); ok {
+		return run.Base
+	}
 	for _, sess := range m.workspace.sessions {
 		if sess.ID == targetID {
 			return m.groupBase(sess.Group)
@@ -103,6 +106,7 @@ func (m *Model) reviewSendCmd(req uireview.SendRequest) tea.Cmd {
 		Round:         req.Round,
 		Count:         req.Count,
 		SendTarget:    uireviewsource.CaptureSendTarget(session),
+		RunsDir:       m.runsDirFor(req.Target.ID),
 	}}, 0, false)
 	return nil
 }
@@ -225,6 +229,9 @@ func (m *Model) handleReviewRoute(kind uireviewsource.Message, msg tea.Msg) (tea
 }
 
 func (m *Model) diffSession() (store.Session, bool) {
+	if sess, ok := m.runDiffSession(); ok {
+		return sess, true
+	}
 	for _, sess := range m.workspace.sessions {
 		if sess.ID == m.review.SessionID() {
 			return sess, true
@@ -415,10 +422,15 @@ func (m *Model) handleReviewComment(result uireview.HandleCommentResult) tea.Cmd
 }
 
 func (m *Model) handleReviewSend(result uireview.SendResult) tea.Cmd {
-	if result.Outcome == uireview.SendConfirmed {
+	_, forRun := m.runByTarget(result.TargetID)
+	if result.Outcome == uireview.SendConfirmed && !forRun {
 		m.emitReviewRound(result)
 	}
-	return m.applyReviewResult(m.review.ApplySend(result))
+	applied := m.review.ApplySend(result)
+	if forRun && applied.Notice != "" {
+		applied.Notice = runCommentsSavedNotice
+	}
+	return m.applyReviewResult(applied)
 }
 
 func (m *Model) emitReviewRound(result uireview.SendResult) {
