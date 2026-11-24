@@ -51,6 +51,8 @@ type Snapshot struct {
 	// Hosts are the SSH connections, listed after the local tree in this
 	// order.
 	Hosts []Host
+	// Runs are Fractory's Runs, listed read-only after the local tree.
+	Runs []Run
 }
 
 type RowKind uint8
@@ -59,6 +61,9 @@ const (
 	SessionRow RowKind = iota
 	GroupRow
 	ConnectionRow
+	// RunsRow is the Runs section's header; RunRow is one Run under it.
+	RunsRow
+	RunRow
 )
 
 // Selection names a row without exposing Rail's cursor or row storage.
@@ -69,12 +74,18 @@ type Selection struct {
 	SessionID string
 	Group     string
 	Host      string
+	// Run is the Run's id on a RunRow.
+	Run string
 }
 
 func (s Selection) Remote() bool { return s.Host != "" }
 
 func (s Selection) key() string {
 	switch s.Kind {
+	case RunsRow:
+		return "runs"
+	case RunRow:
+		return "r:" + s.Run
 	case ConnectionRow:
 		return "c:" + s.Host
 	case GroupRow:
@@ -135,10 +146,15 @@ type treeRow struct {
 	depth int
 	sess  Session
 	host  string
+	run   Run
 }
 
 func (r treeRow) selection() Selection {
 	switch r.kind {
+	case RunsRow:
+		return Selection{Kind: RunsRow}
+	case RunRow:
+		return Selection{Kind: RunRow, Run: r.run.ID}
 	case ConnectionRow:
 		return Selection{Kind: ConnectionRow, Host: r.host}
 	case GroupRow:
@@ -194,6 +210,7 @@ func cloneSnapshot(snapshot Snapshot) Snapshot {
 		Groups:         append([]string(nil), snapshot.Groups...),
 		ArchivedGroups: make(map[string]bool, len(snapshot.ArchivedGroups)),
 		Hosts:          make([]Host, len(snapshot.Hosts)),
+		Runs:           append([]Run(nil), snapshot.Runs...),
 	}
 	for path, archived := range snapshot.ArchivedGroups {
 		copyOf.ArchivedGroups[path] = archived
@@ -249,6 +266,10 @@ func (m Model) Rows() []Row {
 			Status:    row.sess.Status,
 		}
 		switch {
+		case row.kind == RunsRow:
+			rows[i].Name = "runs"
+		case row.kind == RunRow:
+			rows[i].Name = row.run.Ticket
 		case row.kind == ConnectionRow:
 			rows[i].Name = row.host
 		case row.isRoot():
@@ -369,6 +390,7 @@ func (m *Model) rebuildRows() {
 	}
 	rows := []treeRow{{kind: GroupRow}}
 	rows = append(rows, m.treeRows("", m.snapshot.Sessions, m.snapshot.Groups, m.snapshot.ArchivedGroups, 0)...)
+	rows = append(rows, m.runRows()...)
 	for _, host := range m.snapshot.Hosts {
 		rows = append(rows, treeRow{kind: ConnectionRow, host: host.Name})
 		if m.honorFolds() && m.folded(host.Name, "") {

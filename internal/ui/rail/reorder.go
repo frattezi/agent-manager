@@ -18,6 +18,9 @@ func (m *Model) requestReorder(delta int) Decision {
 	if row.host != "" {
 		return Decision{Consumed: true, Error: RemoteRefusal("reorder")}
 	}
+	if row.isRun() {
+		return Decision{Consumed: true, Error: "Runs are read-only"}
+	}
 	request, ok := m.swapRequest(row, delta)
 	if !ok {
 		edge, what := "top", "group"
@@ -292,7 +295,7 @@ func (m Model) resolveDrop(target Selection) (dropTarget, bool) {
 		return dropTarget{}, false
 	}
 	lifted, targetRow := m.rows[liftedIndex], m.rows[targetIndex]
-	if lifted.host != "" || targetRow.host != "" {
+	if lifted.host != "" || targetRow.host != "" || targetRow.isRun() {
 		return dropTarget{}, false
 	}
 	if lifted.kind == GroupRow {

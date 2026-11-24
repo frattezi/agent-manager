@@ -39,6 +39,7 @@ Under `internal/`:
   - `ui/review/source`: the git, store and tmux work for a Review load, draft save, comment mark, round send, base pick and picker read.
   - `ui/session/lifecycle`: archive, restore, delete, kill, restart, revive, after-turn and attach, with the ledger a stale poll is reconciled against.
   - `ui/spawn/launch`: the spawn and group creation, the catalog and worktree answers, and the base ref and its fetch.
+- `ui/runs`: Fractory's Run registry, a directory of `<id>.json` files read every 2s, and the review-comment file written beside it. Runs are listed read-only in the rail.
 - `ui/theme`: the built-in palettes and color math, a leaf any UI package may import.
 - `ui/presentation`: pure text helpers shared by `ui` and its feature packages.
 - `ui/surface`: the surface stack's contract, a leaf a feature package implements to put its own screen on the root's stack. `ui/help`, `ui/review`, `ui/notices`, `ui/onboarding`, `ui/connections`, `ui/settings`, `ui/dialogs`, `ui/geometry`, `ui/focus`, `ui/spawn` and `ui/quick` do. See [Decisions](#decisions).

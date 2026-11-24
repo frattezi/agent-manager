@@ -20,10 +20,18 @@ func (m *Model) openMenu(selection Selection, x, y int, held bool) Decision {
 		title = sessionName(row.sess)
 	case ConnectionRow:
 		title = row.host
+	case RunRow:
+		title = row.run.Ticket
+	case RunsRow:
+		title = "Runs"
+	}
+	items := m.rowMenuItems(row)
+	if len(items) == 0 {
+		return Decision{Consumed: true}
 	}
 	m.menu = rowMenu{
 		active: true, held: held, pressed: -1, key: row.key(), title: presentation.EscapeControlsInline(title),
-		items: m.rowMenuItems(row), anchorX: x, anchorY: y,
+		items: items, anchorX: x, anchorY: y,
 	}
 	m.menu.index = m.menu.nextItem(-1, 1)
 	return previewSelectionDecision(previous != index, row.selection())
@@ -34,6 +42,12 @@ func (m Model) rowMenuItems(row treeRow) []menuItem {
 		{label: "Quick prompt mode", action: Prompt},
 		{label: "New session", action: NewSession},
 		{label: "New terminal", action: NewTerminal},
+	}
+	if row.kind == RunRow {
+		return runMenuItems()
+	}
+	if row.kind == RunsRow {
+		return nil
 	}
 	editor := menuItem{label: "Open in editor", action: OpenEditor}
 	manage := []menuItem{editor, {label: "Rename", action: RenameAction}, {label: "Move to group", action: MoveToGroup}}

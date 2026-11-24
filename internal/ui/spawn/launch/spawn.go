@@ -126,7 +126,7 @@ func Run(services Services, request Request) (Result, error) {
 	result.Dir = dir
 	result.Worktree = request.Worktree
 	plan := launch.Plan{}
-	if request.Kind == Shell {
+	if request.Kind == Shell && request.Plan == nil {
 		plan.Command = tool.Command
 	} else if request.Plan != nil {
 		plan = *request.Plan

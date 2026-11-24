@@ -50,6 +50,7 @@ func (m *Model) railSnapshot() uirail.Snapshot {
 		Groups:         append([]string(nil), m.workspace.groups...),
 		ArchivedGroups: make(map[string]bool, len(m.workspace.archivedGroups)),
 		Hosts:          m.ssh.RailHosts(),
+		Runs:           m.railRuns(),
 	}
 	for path, archived := range m.workspace.archivedGroups {
 		snapshot.ArchivedGroups[path] = archived
@@ -287,6 +288,9 @@ func (m *Model) rowLegend() legendSection {
 			}
 		}
 	}
+	if legend, ok := m.runLegend(); ok {
+		return legend
+	}
 	if !ctx.RowOK {
 		return m.remoteRowLegend()
 	}
@@ -471,6 +475,9 @@ func (m *Model) swapGroupInventory(path, targetPath string) {
 
 func (m *Model) runRailIntent(intent uirail.Intent) (tea.Model, tea.Cmd) {
 	if cmd, taken := m.connectionIntent(intent); taken {
+		return m, cmd
+	}
+	if cmd, taken := m.runIntent(intent); taken {
 		return m, cmd
 	}
 	switch intent.Kind {

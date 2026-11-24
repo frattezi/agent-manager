@@ -341,6 +341,10 @@ func (r renderer) renderTreeRow(row treeRow, selected bool, width, index int, ba
 		return renderedTreeRow{text: line, handleX: -1}
 	}
 	switch row.kind {
+	case RunsRow:
+		return r.renderRunsHeader(selected, width, pad, background)
+	case RunRow:
+		return r.renderRun(row, selected, width, pad, guides, background)
 	case ConnectionRow:
 		return r.renderConnection(row, selected, width, pad, background)
 	case GroupRow:
