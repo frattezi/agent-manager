@@ -264,6 +264,11 @@ func (m *Model) action(action string, ctx KeyContext) Decision {
 		return m.intent(OpenEditor)
 	case keybind.EmptyGroups:
 		return m.toggleEmptyGroups()
+	case keybind.FinishedRuns:
+		if row, ok := m.row(); !ok || !row.isRun() || m.snapshot.RunsFinished == 0 {
+			return Decision{Consumed: true}
+		}
+		return m.intent(ToggleFinishedRuns)
 	case keybind.Search:
 		m.searching = true
 		return Decision{Consumed: true}

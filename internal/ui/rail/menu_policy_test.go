@@ -319,3 +319,29 @@ func TestRunMenuOffersRerunOnlyWhenPossible(t *testing.T) {
 		t.Fatalf("done menu = %+v", got)
 	}
 }
+
+func TestRunsMenusOfferTheFinishedToggleWhenThereAreFinished(t *testing.T) {
+	model := New(nil)
+	snapshot := Snapshot{Runs: []Run{{ID: "d", Ticket: "jira:D-1", Status: "done"}}}
+	model.Reconcile(snapshot)
+	header := func() []menuItem {
+		return model.rowMenuItems(model.rows[model.rowIndex(Selection{Kind: RunsRow}.key())])
+	}
+	if got := header(); len(got) != 0 {
+		t.Fatalf("header menu with nothing finished = %+v", got)
+	}
+	snapshot.RunsFinished = 4
+	model.Reconcile(snapshot)
+	if got := header(); len(got) != 1 || got[0].label != "Show finished" || got[0].action != ToggleFinishedRuns {
+		t.Fatalf("header menu = %+v", got)
+	}
+	run := model.rowMenuItems(model.rows[model.rowIndex(Selection{Kind: RunRow, Run: "d"}.key())])
+	if last := run[len(run)-1]; last.label != "Show finished" {
+		t.Fatalf("run menu = %+v", run)
+	}
+	snapshot.RunsShowFinished = true
+	model.Reconcile(snapshot)
+	if got := header(); len(got) != 1 || got[0].label != "Hide finished" {
+		t.Fatalf("header menu while shown = %+v", got)
+	}
+}

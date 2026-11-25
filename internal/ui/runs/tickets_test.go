@@ -1,6 +1,7 @@
 package runs
 
 import (
+	"slices"
 	"testing"
 	"time"
 )
@@ -52,5 +53,40 @@ func TestTicketsPendingUntilTheRerunRunExists(t *testing.T) {
 	}
 	if got := Tickets([]Record{failed}, nil); got[0].Pending {
 		t.Fatal("no request, no pending")
+	}
+}
+
+func TestListedHidesOnlyDoneTicketsThatWereCleanedUp(t *testing.T) {
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	cleaned := func(r Record) Record { r.CleanedAt = t0.Add(time.Hour); return r }
+	list := []Record{
+		run("q", "jira:Q", "jira:Q", StatusQueued, t0),
+		run("r", "jira:R", "jira:R", StatusRunning, t0),
+		cleaned(run("f", "jira:F", "jira:F", StatusFailed, t0)),
+		cleaned(run("n", "jira:N", "jira:N", StatusNeedsHuman, t0)),
+		run("o", "jira:O", "jira:O", StatusDone, t0),
+		cleaned(run("d", "jira:D", "jira:D", StatusDone, t0)),
+		// An older cleaned Run does not hide a Ticket whose latest Run is open.
+		cleaned(run("x1", "jira:X", "jira:X", StatusDone, t0)),
+		run("x2", "jira:X", "jira:X:ci:x", StatusRunning, t0.Add(time.Minute)),
+	}
+	tickets := Tickets(list, nil)
+	refs := func(tickets []Ticket) []string {
+		var out []string
+		for _, ticket := range tickets {
+			out = append(out, ticket.Ref)
+		}
+		return out
+	}
+	listed, finished := Listed(tickets, false)
+	if got, want := refs(listed), []string{"jira:Q", "jira:R", "jira:F", "jira:N", "jira:O", "jira:X"}; !slices.Equal(got, want) || finished != 1 {
+		t.Fatalf("hidden: listed %v finished %d; want %v and 1", got, finished, want)
+	}
+	listed, finished = Listed(tickets, true)
+	if got, want := refs(listed), refs(tickets); !slices.Equal(got, want) || finished != 1 {
+		t.Fatalf("shown: listed %v finished %d; want %v and 1", got, finished, want)
+	}
+	if len(tickets[6].Runs) != 2 {
+		t.Fatalf("history of jira:X = %d Runs, want both", len(tickets[6].Runs))
 	}
 }

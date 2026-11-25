@@ -93,6 +93,8 @@ const (
 	OpenReview
 	CancelEnd
 	NewConnection
+	// ToggleFinishedRuns shows or hides the Runs whose Tickets are finished.
+	ToggleFinishedRuns
 )
 
 type Intent struct {

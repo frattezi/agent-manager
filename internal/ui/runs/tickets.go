@@ -21,6 +21,28 @@ type Ticket struct {
 // Latest is the Ticket's newest Run.
 func (t Ticket) Latest() Record { return t.Runs[0] }
 
+// Finished reports whether the Ticket needs nothing more: its latest Run is
+// done and Fractory has cleaned it up.
+func (t Ticket) Finished() bool {
+	latest := t.Latest()
+	return latest.Status == StatusDone && !latest.CleanedAt.IsZero()
+}
+
+// Listed is the Tickets the rail lists, in order, and how many are finished.
+// Finished Tickets are left out unless showFinished.
+func Listed(tickets []Ticket, showFinished bool) (listed []Ticket, finished int) {
+	for _, ticket := range tickets {
+		if ticket.Finished() {
+			finished++
+			if !showFinished {
+				continue
+			}
+		}
+		listed = append(listed, ticket)
+	}
+	return listed, finished
+}
+
 func (r Record) created() int64 {
 	if r.CreatedAt.IsZero() {
 		return r.UpdatedAt.UnixNano()

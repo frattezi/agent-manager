@@ -53,6 +53,10 @@ type Snapshot struct {
 	Hosts []Host
 	// Runs are Fractory's Runs, listed read-only after the local tree.
 	Runs []Run
+	// RunsFinished counts the finished Tickets; RunsShowFinished is true when
+	// Runs lists them too.
+	RunsFinished     int
+	RunsShowFinished bool
 }
 
 type RowKind uint8
@@ -211,6 +215,9 @@ func cloneSnapshot(snapshot Snapshot) Snapshot {
 		ArchivedGroups: make(map[string]bool, len(snapshot.ArchivedGroups)),
 		Hosts:          make([]Host, len(snapshot.Hosts)),
 		Runs:           append([]Run(nil), snapshot.Runs...),
+
+		RunsFinished:     snapshot.RunsFinished,
+		RunsShowFinished: snapshot.RunsShowFinished,
 	}
 	for path, archived := range snapshot.ArchivedGroups {
 		copyOf.ArchivedGroups[path] = archived

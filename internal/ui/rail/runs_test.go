@@ -162,3 +162,78 @@ func TestRunRowsPaintTheRerunMarkerPerGlyphMode(t *testing.T) {
 		}
 	}
 }
+
+func headerLine(t *testing.T, model rail.Model) string {
+	t.Helper()
+	for _, line := range model.Render(renderContext(48, 8), rail.Frame{}).Lines {
+		if text := strings.TrimSpace(ansi.Strip(line.Text)); strings.HasPrefix(text, "Runs") {
+			return text
+		}
+	}
+	t.Fatal("no Runs header")
+	return ""
+}
+
+func TestRunsHeaderCountsListedAndFinishedTickets(t *testing.T) {
+	model := rail.New(nil)
+	model.Reconcile(runsSnapshot())
+	if got := headerLine(t, model); !strings.HasPrefix(got, "Runs (2) fractory") {
+		t.Fatalf("header = %q; want the listed count alone", got)
+	}
+	snapshot := runsSnapshot()
+	snapshot.RunsFinished = 9
+	model.Reconcile(snapshot)
+	if got := headerLine(t, model); !strings.HasPrefix(got, "Runs (2, 9 finished) fractory") {
+		t.Fatalf("header = %q; want the finished count too", got)
+	}
+}
+
+func TestRunsHeaderStaysWhenEveryTicketIsFinished(t *testing.T) {
+	model := rail.New(nil)
+	model.Reconcile(rail.Snapshot{RunsFinished: 3})
+	if got := headerLine(t, model); !strings.HasPrefix(got, "Runs (0, 3 finished)") {
+		t.Fatalf("header = %q", got)
+	}
+}
+
+func TestFinishedRunsKeyAsksForTheToggleOnlyInRuns(t *testing.T) {
+	ctx := rail.KeyContext{ListKeys: keybind.DefaultList()}
+	model := rail.New(nil)
+	snapshot := runsSnapshot()
+	snapshot.RunsFinished = 1
+	model.Reconcile(snapshot)
+	for _, selection := range []rail.Selection{{Kind: rail.RunRow, Run: "r1"}, {Kind: rail.RunsRow}} {
+		model.Focus(selection)
+		if decision := model.Key(keyFor("H"), rail.Frame{}, ctx); decision.Intent.Kind != rail.ToggleFinishedRuns {
+			t.Fatalf("H on %+v: intent = %+v", selection, decision.Intent)
+		}
+	}
+	model.Focus(rail.Selection{Kind: rail.SessionRow, SessionID: "one"})
+	if decision := model.Key(keyFor("H"), rail.Frame{}, ctx); decision.Intent.Kind != rail.NoAction {
+		t.Fatalf("H on a session: intent = %+v", decision.Intent)
+	}
+	model.Reconcile(runsSnapshot())
+	model.Focus(rail.Selection{Kind: rail.RunsRow})
+	if decision := model.Key(keyFor("H"), rail.Frame{}, ctx); decision.Intent.Kind != rail.NoAction {
+		t.Fatalf("H with nothing finished: intent = %+v", decision.Intent)
+	}
+}
+
+func TestFinishedRunsActionFollowsTheToggle(t *testing.T) {
+	model := rail.New(nil)
+	snapshot := runsSnapshot()
+	model.Reconcile(snapshot)
+	if got := model.FinishedRunsAction(); got != "" {
+		t.Fatalf("nothing finished: %q", got)
+	}
+	snapshot.RunsFinished = 2
+	model.Reconcile(snapshot)
+	if got := model.FinishedRunsAction(); got != "show finished" {
+		t.Fatalf("hidden: %q", got)
+	}
+	snapshot.RunsShowFinished = true
+	model.Reconcile(snapshot)
+	if got := model.FinishedRunsAction(); got != "hide finished" {
+		t.Fatalf("shown: %q", got)
+	}
+}
