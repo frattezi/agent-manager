@@ -44,7 +44,7 @@ func (m Model) rowMenuItems(row treeRow) []menuItem {
 		{label: "New terminal", action: NewTerminal},
 	}
 	if row.kind == RunRow {
-		return runMenuItems()
+		return runMenuItems(row.run)
 	}
 	if row.kind == RunsRow {
 		return nil
