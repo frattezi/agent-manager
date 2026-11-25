@@ -32,6 +32,9 @@ const (
 type Record struct {
 	Version      int       `json:"version"`
 	ID           string    `json:"id"`
+	Key          string    `json:"key"`
+	Trigger      Trigger   `json:"trigger"`
+	CreatedAt    time.Time `json:"createdAt"`
 	TicketRef    string    `json:"ticketRef"`
 	Status       string    `json:"status"`
 	RepoPath     string    `json:"repoPath"`
@@ -50,6 +53,11 @@ type Record struct {
 	// Base is the branch the Run is reviewed against; Load reads it from the
 	// repo, the record does not carry it.
 	Base string `json:"-"`
+}
+
+// Trigger is what started the Run: manual, ci-failed, review-comment, ...
+type Trigger struct {
+	Kind string `json:"kind"`
 }
 
 // Result is the agent's final answer; the manager reads only a question.
@@ -115,7 +123,7 @@ func Load(dir string) ([]Record, error) {
 	configs := map[string]*RepoConfig{}
 	for _, entry := range entries {
 		name := entry.Name()
-		if entry.IsDir() || !strings.HasSuffix(name, ".json") || strings.HasSuffix(name, commentsSuffix) {
+		if entry.IsDir() || !strings.HasSuffix(name, ".json") || strings.HasSuffix(name, commentsSuffix) || strings.HasSuffix(name, rerunSuffix) {
 			continue
 		}
 		data, err := os.ReadFile(filepath.Join(dir, name))
