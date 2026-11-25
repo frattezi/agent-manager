@@ -1,0 +1,12 @@
+{
+  "mode": "personal",
+  "ticketSource": {
+    "kind": "github",
+    "repo": "frattezi/agent-manager"
+  },
+  "hasCi": false,
+  "ticketGate": false,
+  "baseBranch": "fractory/runs-view",
+  "sandboxImage": "sandcastle:agent-manager",
+  "maxIterations": 10
+}
