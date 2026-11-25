@@ -184,3 +184,29 @@ func TestReviewingARunWithoutAWorktreeSaysSo(t *testing.T) {
 		t.Fatalf("taken %v, cmd %v, status %q", taken, cmd, m.errBar.text)
 	}
 }
+
+func TestRunDetailShowsModeFlowAgentsAndRules(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	list := testRuns()
+	list[0].Mode, list[0].Flow, list[0].Agents = runs.ModeWork, "standard", []string{"claude@work"}
+	loadRuns(t, m, list)
+	text := func(id string) string {
+		selectRun(t, m, id)
+		lines, _ := m.runContentLines(80)
+		var out []string
+		for _, line := range lines {
+			out = append(out, ansi.Strip(line.Text))
+		}
+		return strings.Join(out, "\n")
+	}
+	work := text("r1")
+	for _, want := range []string{"Mode", "work", "standard", "claude@work", "Workflow rules", "PR Gate: human merges"} {
+		if !strings.Contains(work, want) {
+			t.Fatalf("work detail lacks %q:\n%s", want, work)
+		}
+	}
+	if unknown := text("r2"); !strings.Contains(unknown, "unknown") || strings.Contains(unknown, "PR Gate") {
+		t.Fatalf("a Run with no mode must say unknown:\n%s", unknown)
+	}
+}

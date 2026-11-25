@@ -41,6 +41,12 @@ type Record struct {
 	LogPath      string    `json:"logPath"`
 	Result       *Result   `json:"result"`
 	UpdatedAt    time.Time `json:"updatedAt"`
+	// Mode, Flow and Agents are optional: older records do not carry them.
+	Mode   string   `json:"mode"`
+	Flow   string   `json:"flow"`
+	Agents []string `json:"agents"`
+	// Config is the repo's `.fractory.json`; Load reads it, nil when unreadable.
+	Config *RepoConfig `json:"-"`
 	// Base is the branch the Run is reviewed against; Load reads it from the
 	// repo, the record does not carry it.
 	Base string `json:"-"`
@@ -106,6 +112,7 @@ func Load(dir string) ([]Record, error) {
 	}
 	var records []Record
 	bases := map[string]string{}
+	configs := map[string]*RepoConfig{}
 	for _, entry := range entries {
 		name := entry.Name()
 		if entry.IsDir() || !strings.HasSuffix(name, ".json") || strings.HasSuffix(name, commentsSuffix) {
@@ -118,7 +125,9 @@ func Load(dir string) ([]Record, error) {
 		if record, err := Parse(data); err == nil {
 			if _, seen := bases[record.RepoPath]; !seen {
 				bases[record.RepoPath] = BaseBranch(record.RepoPath)
+				configs[record.RepoPath] = ReadRepoConfig(record.RepoPath)
 			}
+			record.Config = configs[record.RepoPath]
 			record.Base = bases[record.RepoPath]
 			records = append(records, record)
 		}

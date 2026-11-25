@@ -99,3 +99,30 @@ func TestRunRowsPaintTicketAndStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestRunRowsPaintTheModeBadge(t *testing.T) {
+	model := rail.New(nil)
+	model.Reconcile(rail.Snapshot{Runs: []rail.Run{
+		{ID: "w", Ticket: "jira:W-1", Status: "done", Mode: "work"},
+		{ID: "p", Ticket: "jira:P-1", Status: "done", Mode: "personal"},
+		{ID: "u", Ticket: "jira:U-1", Status: "done"},
+	}})
+	frame := model.Render(renderContext(48, 8), rail.Frame{})
+	got := map[string]string{}
+	for _, line := range frame.Lines {
+		text := ansi.Strip(line.Text)
+		for _, ticket := range []string{"W-1", "P-1", "U-1"} {
+			if strings.Contains(text, ticket) {
+				got[ticket] = strings.TrimSpace(text)
+			}
+		}
+	}
+	for ticket, badge := range map[string]string{"W-1": "W done", "P-1": "P done"} {
+		if !strings.Contains(got[ticket], badge) {
+			t.Fatalf("row %s = %q; want %q", ticket, got[ticket], badge)
+		}
+	}
+	if strings.Contains(got["U-1"], " done") && strings.ContainsAny(strings.Fields(got["U-1"])[len(strings.Fields(got["U-1"]))-2], "WP") {
+		t.Fatalf("row without a mode shows a badge: %q", got["U-1"])
+	}
+}

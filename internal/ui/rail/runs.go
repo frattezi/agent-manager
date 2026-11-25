@@ -16,6 +16,8 @@ type Run struct {
 	// Status is the Run's own: queued, running, done, failed or needs-human.
 	Status string
 	Branch string
+	// Mode is work or personal; empty when the Run does not say.
+	Mode string
 }
 
 func (r treeRow) isRun() bool { return r.kind == RunRow || r.kind == RunsRow }
@@ -76,9 +78,13 @@ func (r renderer) renderRun(row treeRow, selected bool, width int, pad, guides, 
 	if selected {
 		nameStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(r.ctx.Theme.Bright)).Bold(true)
 	}
-	meta := lipgloss.NewStyle().Foreground(r.palette.statusColor(state)).Render(row.run.Status)
+	status := row.run.Status
+	if badge := modeBadge(row.run.Mode); badge != "" {
+		status = badge + " " + status
+	}
+	meta := lipgloss.NewStyle().Foreground(r.palette.statusColor(state)).Render(status)
 	lead := pad + guides + glyph + " "
-	room := width - railGutter - ansi.StringWidth(lead) - ansi.StringWidth(row.run.Status) - 2
+	room := width - railGutter - ansi.StringWidth(lead) - ansi.StringWidth(status) - 2
 	name := presentation.EscapeControlsInline(row.run.Ticket)
 	if ansi.StringWidth(name) > room {
 		name = ansi.Truncate(name, max(room, 0), "…")
@@ -89,4 +95,15 @@ func (r renderer) renderRun(row treeRow, selected bool, width int, pad, guides, 
 
 func runMenuItems() []menuItem {
 	return []menuItem{{label: "Open log", action: Attach}}
+}
+
+// modeBadge is the one-letter Mode marker: W for work, P for personal.
+func modeBadge(mode string) string {
+	switch mode {
+	case "work":
+		return "W"
+	case "personal":
+		return "P"
+	}
+	return ""
 }

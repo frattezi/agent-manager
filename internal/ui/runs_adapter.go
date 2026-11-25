@@ -69,7 +69,7 @@ func (m *Model) routeRunsMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 func (m *Model) railRuns() []uirail.Run {
 	out := make([]uirail.Run, len(m.workspace.runs.list))
 	for i, run := range m.workspace.runs.list {
-		out[i] = uirail.Run{ID: run.ID, Ticket: run.TicketRef, Status: run.Status, Branch: run.Branch}
+		out[i] = uirail.Run{ID: run.ID, Ticket: run.TicketRef, Status: run.Status, Branch: run.Branch, Mode: run.EffectiveMode()}
 	}
 	return out
 }
@@ -169,6 +169,22 @@ func (m *Model) runContentLines(width int) ([]contentLine, bool) {
 	add("PR", run.PRURL)
 	add("Worktree", run.WorktreePath)
 	add("Log", run.LogPath)
+	orUnknown := func(value string) string {
+		if value == "" {
+			return runs.Unknown
+		}
+		return value
+	}
+	rules := run.Rules()
+	agents := strings.Join(run.Agents, ", ")
+	lines = append(lines, contentLine{})
+	add("Mode", orUnknown(run.EffectiveMode()))
+	add("Flow", orUnknown(run.EffectiveFlow()))
+	add("Agents", orUnknown(agents))
+	lines = append(lines, contentLine{Text: gutter + uitheme.LabelStyle().Render("Workflow rules")})
+	add("Merge", rules.Merge)
+	add("Ticket Gate", rules.TicketGate)
+	add("Allowed agents", rules.Agents)
 	if question := run.Question(); question != "" {
 		lines = append(lines, contentLine{}, contentLine{Text: gutter + uitheme.WarnStyle().Render("Needs a human")})
 		for _, line := range uitheme.SplitLines(ansi.Wrap(question, inner, "")) {
