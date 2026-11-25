@@ -16,7 +16,7 @@ import (
 // mark's own gradient, lit by a highlight that sweeps across it on launch
 // and again once in a while. One row: a header, not a splash screen.
 const (
-	Word = "agent manager"
+	Word = "Fractory Manager"
 	Rows = 1
 
 	// Frames is how long a sweep runs. Between sweeps the wordmark holds
