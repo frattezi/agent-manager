@@ -1,11 +1,14 @@
 package ui
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/git"
+	"github.com/YoanWai/agent-manager/internal/status"
+	"github.com/YoanWai/agent-manager/internal/store"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	"github.com/YoanWai/agent-manager/internal/ui/runs"
 	uilaunch "github.com/YoanWai/agent-manager/internal/ui/spawn/launch"
@@ -139,7 +142,7 @@ func TestRunLegendNamesTheLogKey(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
 	loadRuns(t, m, testRuns())
-	selectRun(t, m, "r1")
+	selectRun(t, m, "r2")
 	legend, ok := m.runLegend()
 	if !ok || legend.Title != "Run" || len(legend.Pairs) != 1 || legend.Pairs[0][1] != "open log" {
 		t.Fatalf("legend = %+v, %v", legend, ok)
@@ -208,5 +211,141 @@ func TestRunDetailShowsModeFlowAgentsAndRules(t *testing.T) {
 	}
 	if unknown := text("r2"); !strings.Contains(unknown, "unknown") || strings.Contains(unknown, "PR Gate") {
 		t.Fatalf("a Run with no mode must say unknown:\n%s", unknown)
+	}
+}
+
+func ticketRuns() []runs.Record {
+	t0 := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	mk := func(id, key, kind, status string, at time.Time) runs.Record {
+		return runs.Record{Version: 1, ID: id, Key: key, TicketRef: "jira:ABC-1", Trigger: runs.Trigger{Kind: kind}, Status: status,
+			LogPath: "/tmp/" + id + ".log", CreatedAt: at, UpdatedAt: at}
+	}
+	return []runs.Record{
+		mk("r3", "jira:ABC-1:rerun:r2", "manual", runs.StatusFailed, t0.Add(2*time.Hour)),
+		mk("r2", "jira:ABC-1:rerun:r1", "manual", runs.StatusFailed, t0.Add(time.Hour)),
+		mk("r1", "jira:ABC-1", "ticket-ready", runs.StatusFailed, t0),
+	}
+}
+
+func TestRunsListsOneRowPerTicketWithTheLatestRun(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	loadRuns(t, m, ticketRuns())
+	var rows []uirail.Selection
+	for _, row := range m.rail.Rows() {
+		if row.Kind == uirail.RunRow {
+			rows = append(rows, row.Selection)
+		}
+	}
+	if len(rows) != 1 || rows[0].Run != "r3" {
+		t.Fatalf("run rows = %+v; want only the latest Run r3", rows)
+	}
+	selectRun(t, m, "r3")
+	lines, _ := m.runContentLines(100)
+	var text []string
+	for _, line := range lines {
+		text = append(text, ansi.Strip(line.Text))
+	}
+	joined := strings.Join(text, "\n")
+	for _, want := range []string{"ticket-ready", "manual", "/tmp/r1.log", "/tmp/r2.log", "/tmp/r3.log"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("history lacks %q:\n%s", want, joined)
+		}
+	}
+	if strings.Index(joined, "/tmp/r3.log") > strings.Index(joined, "/tmp/r1.log") {
+		t.Fatalf("history is not newest first:\n%s", joined)
+	}
+}
+
+func TestRerunKeyWritesOneRequestAndShowsPending(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	dir := t.TempDir()
+	m.applyTestMsg(t, runsLoadedMsg{dir: dir, list: ticketRuns()})
+	selectRun(t, m, "r3")
+	legend, _ := m.runLegend()
+	if len(legend.Pairs) != 2 || legend.Pairs[1][1] != "re-run" {
+		t.Fatalf("legend = %+v; want the re-run hint for a failed Run", legend)
+	}
+	intent := uirail.Intent{Kind: uirail.Restart, Target: m.railSelection()}
+	if _, taken := m.runIntent(intent); !taken {
+		t.Fatal("R was not taken by the Runs view")
+	}
+	path := runs.RerunPath(dir, "r3")
+	first, err := os.ReadFile(path)
+	if err != nil || !strings.HasPrefix(string(first), `{"version":1,"requestedAt":"`) {
+		t.Fatalf("request = %q, %v", first, err)
+	}
+	m.runIntent(intent)
+	if again, _ := os.ReadFile(path); string(again) != string(first) {
+		t.Fatal("a second press changed the request")
+	}
+	if !m.workspace.runs.requested["r3"] {
+		t.Fatal("the row does not show the pending Re-run")
+	}
+}
+
+func TestRerunIsOfferedOnlyForFailedOrNeedsHuman(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	dir := t.TempDir()
+	m.applyTestMsg(t, runsLoadedMsg{dir: dir, list: testRuns()})
+	selectRun(t, m, "r2") // done
+	if legend, _ := m.runLegend(); len(legend.Pairs) != 1 {
+		t.Fatalf("a done Run's legend = %+v", legend)
+	}
+	m.runIntent(uirail.Intent{Kind: uirail.Restart, Target: m.railSelection()})
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 || m.errBar.text == "" {
+		t.Fatalf("a done Run was re-run: %v, status %q", entries, m.errBar.text)
+	}
+	selectRun(t, m, "r1") // needs-human
+	if legend, _ := m.runLegend(); len(legend.Pairs) != 2 {
+		t.Fatalf("a needs-human Run's legend = %+v", legend)
+	}
+}
+
+func TestHeldLineShowsAboveTheRunsDetail(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	host := &runs.HostState{Held: true, Reason: "Docker memory 0.8 GB free < 1 GB", HeldSince: time.Now().Add(-42*time.Minute - time.Second)}
+	m.applyTestMsg(t, runsLoadedMsg{dir: "/registry", list: testRuns(), host: host})
+	selectRun(t, m, "r2")
+	lines, _ := m.runContentLines(100)
+	if len(lines) == 0 || !strings.Contains(ansi.Strip(lines[0].Text), "Held 42 min: Docker memory 0.8 GB free < 1 GB") {
+		t.Fatalf("first line = %+v", lines)
+	}
+	m.applyTestMsg(t, runsLoadedMsg{dir: "/registry", list: testRuns()})
+	lines, _ = m.runContentLines(100)
+	if strings.Contains(ansi.Strip(lines[0].Text), "Held") {
+		t.Fatal("a Held line without host.json")
+	}
+}
+
+func TestOpeningARunLogTwiceReusesTheTab(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	loadRuns(t, m, testRuns())
+	run := testRuns()[0]
+	if got := runLogName(run); got != "log-ABC-1-r1" {
+		t.Fatalf("name = %q", got)
+	}
+	selectRun(t, m, "r1")
+	m.openRunLog(run)
+	request, ok := m.effects.Main.Active.Request.(uilaunch.Request)
+	if !ok || request.Name != "log-ABC-1-r1" {
+		t.Fatalf("spawn = %+v", m.effects.Main.Active)
+	}
+	m.effects.Main.Active = nil
+	m.workspace.sessions = append(m.workspace.sessions, store.Session{ID: "tab", Name: "log-ABC-1-r1", Tool: "zsh", Status: status.Idle})
+	m.rebuildRows()
+	selectRun(t, m, "r1")
+	m.openRunLog(run)
+	if m.effects.Main.Active != nil && m.effects.Main.Active.Request != nil {
+		if _, spawned := m.effects.Main.Active.Request.(uilaunch.Request); spawned {
+			t.Fatal("a second tab was spawned for the same Run")
+		}
+	}
+	if sel, _ := m.rail.SelectedSession(); sel != "tab" {
+		t.Fatalf("selected session = %q, want the existing tab", sel)
 	}
 }

@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"cmp"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/keybind"
 	"github.com/YoanWai/agent-manager/internal/launch"
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
+	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
@@ -30,11 +33,17 @@ const runsPollInterval = 2 * time.Second
 type runsState struct {
 	dir  string
 	list []runs.Record
+	// requested holds the ids of Runs with a Re-run request file.
+	requested map[string]bool
+	// host is Fractory's host.json, nil when absent or invalid.
+	host *runs.HostState
 }
 
 type runsLoadedMsg struct {
-	dir  string
-	list []runs.Record
+	dir       string
+	list      []runs.Record
+	requested map[string]bool
+	host      *runs.HostState
 }
 
 type runsTickMsg struct{}
@@ -48,15 +57,16 @@ func runsLoadCmd() tea.Cmd {
 		}
 		// An unreadable registry lists nothing; the next poll tries again.
 		list, _ := runs.Load(dir)
-		return runsLoadedMsg{dir: dir, list: list}
+		return runsLoadedMsg{dir: dir, list: list, requested: runs.Requested(dir), host: runs.LoadHost(dir)}
 	}
 }
 
 func (m *Model) routeRunsMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	switch msg := msg.(type) {
 	case runsLoadedMsg:
-		if !reflect.DeepEqual(m.workspace.runs.list, msg.list) || m.workspace.runs.dir != msg.dir {
-			m.workspace.runs = runsState{dir: msg.dir, list: msg.list}
+		next := runsState{dir: msg.dir, list: msg.list, requested: msg.requested, host: msg.host}
+		if !reflect.DeepEqual(m.workspace.runs, next) {
+			m.workspace.runs = next
 			m.rebuildRows()
 		}
 		return routed(m, tea.Tick(runsPollInterval, func(time.Time) tea.Msg { return runsTickMsg{} }))
@@ -67,11 +77,66 @@ func (m *Model) routeRunsMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 }
 
 func (m *Model) railRuns() []uirail.Run {
-	out := make([]uirail.Run, len(m.workspace.runs.list))
-	for i, run := range m.workspace.runs.list {
-		out[i] = uirail.Run{ID: run.ID, Ticket: run.TicketRef, Status: run.Status, Branch: run.Branch, Mode: run.EffectiveMode()}
+	tickets := m.runTickets()
+	out := make([]uirail.Run, len(tickets))
+	for i, ticket := range tickets {
+		run := ticket.Latest()
+		out[i] = uirail.Run{
+			ID: run.ID, Ticket: run.TicketRef, Status: run.Status, Branch: run.Branch, Mode: run.EffectiveMode(),
+			Reruns: ticket.Reruns, RerunPending: ticket.Pending, CanRerun: run.CanRerun(),
+		}
 	}
 	return out
+}
+
+// runTickets is the registry grouped by Ticket: one rail row each.
+func (m *Model) runTickets() []runs.Ticket {
+	return runs.Tickets(m.workspace.runs.list, m.workspace.runs.requested)
+}
+
+// selectedTicket is the Ticket the rail's cursor is on.
+func (m *Model) selectedTicket() (runs.Ticket, bool) {
+	selection, ok := m.rail.Selected()
+	if !ok || selection.Kind != uirail.RunRow {
+		return runs.Ticket{}, false
+	}
+	for _, ticket := range m.runTickets() {
+		if ticket.Latest().ID == selection.Run {
+			return ticket, true
+		}
+	}
+	return runs.Ticket{}, false
+}
+
+// requestRerun asks Fractory to re-run the selected Ticket's latest Run when it
+// failed or needs a human. A request already on disk is left as it is.
+func (m *Model) requestRerun() {
+	ticket, ok := m.selectedTicket()
+	if !ok {
+		return
+	}
+	run := ticket.Latest()
+	if !run.CanRerun() {
+		m.reportErr("Only a failed or needs-human Run can be re-run")
+		return
+	}
+	if m.workspace.runs.dir == "" {
+		m.reportErr("no Run registry to write a Re-run request to")
+		return
+	}
+	wrote, err := runs.RequestRerun(m.workspace.runs.dir, run.ID, time.Now())
+	if err != nil {
+		m.reportErr("could not request a Re-run: " + err.Error())
+		return
+	}
+	m.clearErr()
+	if wrote {
+		if m.workspace.runs.requested == nil {
+			m.workspace.runs.requested = map[string]bool{}
+		}
+		m.workspace.runs.requested[run.ID] = true
+		m.rebuildRows()
+	}
 }
 
 // selectedRun is the Run the rail's cursor is on.
@@ -104,6 +169,9 @@ func (m *Model) runIntent(intent uirail.Intent) (tea.Cmd, bool) {
 			return nil, true
 		}
 		return m.openRunLog(run), true
+	case uirail.Restart:
+		m.requestRerun()
+		return nil, true
 	case uirail.OpenReview:
 		run, ok := m.selectedRun()
 		if !ok {
@@ -116,16 +184,42 @@ func (m *Model) runIntent(intent uirail.Intent) (tea.Cmd, bool) {
 	return nil, true
 }
 
-// openRunLog follows the Run's log in a new shell tab. -F keeps trying when a
-// queued Run has not created its log yet.
+var nonNameChars = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
+
+// runLogName names a Run's log tab from the Run, so the same Run always finds
+// the same tab: log-<short ticket ref>-<first 4 of the run id>.
+func runLogName(run runs.Record) string {
+	ref := run.TicketRef
+	if i := strings.LastIndexAny(ref, ":/"); i >= 0 {
+		ref = ref[i+1:]
+	}
+	ref = strings.Trim(nonNameChars.ReplaceAllString(ref, "-"), "-")
+	return "log-" + ref + "-" + run.ID[:min(4, len(run.ID))]
+}
+
+// openRunLog follows the Run's log in a shell tab. -F keeps trying when a
+// queued Run has not created its log yet. A live tab already named for the Run
+// is focused instead of spawning another.
 func (m *Model) openRunLog(run runs.Record) tea.Cmd {
+	name := runLogName(run)
+	for _, sess := range m.workspace.sessions {
+		if sess.Name != name || sess.Archived || sess.Status == status.Dead {
+			continue
+		}
+		m.clearErr()
+		if m.focusSession(sess.ID) {
+			_, cmd := m.focusSelected()
+			return cmd
+		}
+		return m.attachCmd(sess.ID)
+	}
 	toolName, _ := m.shellTool()
 	width, height := m.paneTargetSize()
 	m.clearErr()
 	m.dispatchSpawn(uilaunch.Request{
 		Kind:     uilaunch.Shell,
 		ToolName: toolName,
-		Name:     sessioncmd.ShellName(toolName, "", newID()[:4], m.workspace.sessions),
+		Name:     name,
 		Dir:      filepath.Dir(run.LogPath),
 		Pane:     sessioncmd.PaneSize{Width: width, Height: height},
 		Plan:     &launch.Plan{Command: "tail -n 200 -F " + tmux.ShellQuote(run.LogPath)},
@@ -141,19 +235,32 @@ func (m *Model) runLegend() (legendSection, bool) {
 	if selection.Kind == uirail.RunsRow {
 		return legendSection{Title: "Runs"}, true
 	}
-	return legendSection{Title: "Run", Pairs: [][2]string{{m.listGlyph(keybind.Open, keybind.Attach), "open log"}}}, true
+	pairs := [][2]string{{m.listGlyph(keybind.Open, keybind.Attach), "open log"}}
+	if ticket, ok := m.selectedTicket(); ok && ticket.Latest().CanRerun() {
+		pairs = append(pairs, [2]string{m.listGlyph(keybind.Restart), "re-run"})
+	}
+	return legendSection{Title: "Run", Pairs: pairs}, true
 }
 
 // runContentLines fills the content column for a Run: its facts and, when it
 // waits on a human, the question.
 func (m *Model) runContentLines(width int) ([]contentLine, bool) {
+	gutter := "  "
+	inner := max(width-len(gutter)*2, 10)
+	var lines []contentLine
+	if held := runs.HeldLine(m.workspace.runs.host, time.Now()); held != "" {
+		for _, line := range uitheme.SplitLines(ansi.Wrap(held, inner, "")) {
+			lines = append(lines, contentLine{Text: gutter + uitheme.WarnStyle().Render(line)})
+		}
+		lines = append(lines, contentLine{})
+	}
+	if selection, ok := m.rail.Selected(); ok && selection.Kind == uirail.RunsRow && len(lines) > 0 {
+		return lines, true
+	}
 	run, ok := m.selectedRun()
 	if !ok {
 		return nil, false
 	}
-	gutter := "  "
-	inner := max(width-len(gutter)*2, 10)
-	var lines []contentLine
 	add := func(label, value string) {
 		if value == "" {
 			return
@@ -189,6 +296,12 @@ func (m *Model) runContentLines(width int) ([]contentLine, bool) {
 		lines = append(lines, contentLine{}, contentLine{Text: gutter + uitheme.WarnStyle().Render("Needs a human")})
 		for _, line := range uitheme.SplitLines(ansi.Wrap(question, inner, "")) {
 			lines = append(lines, contentLine{Text: gutter + line})
+		}
+	}
+	if ticket, ok := m.selectedTicket(); ok && len(ticket.Runs) > 1 {
+		lines = append(lines, contentLine{}, contentLine{Text: gutter + uitheme.LabelStyle().Render("Runs of this Ticket, newest first")})
+		for _, past := range ticket.Runs {
+			add(cmp.Or(past.Trigger.Kind, "run")+" "+runClock(past), runResult(past)+" "+past.LogPath)
 		}
 	}
 	return lines, true
@@ -243,4 +356,21 @@ func (m *Model) openRunDiff(run runs.Record) tea.Cmd {
 	m.clearErr()
 	target := uireview.Target{ID: uireviewsource.RunTargetPrefix + run.ID, Name: run.TicketRef, Cwd: run.WorktreePath}
 	return m.reviewLoadCmd(m.review.Open(target, git.ScopeBranch, ""))
+}
+
+// runClock is when a history entry was created, in the local time zone.
+func runClock(run runs.Record) string {
+	at := run.CreatedAt
+	if at.IsZero() {
+		at = run.UpdatedAt
+	}
+	return at.Local().Format("2006-01-02 15:04")
+}
+
+// runResult is a history entry's status, with the outcome when it differs.
+func runResult(run runs.Record) string {
+	if run.Result != nil && run.Result.Outcome != "" && run.Result.Outcome != run.Status {
+		return run.Status + " (" + run.Result.Outcome + ")"
+	}
+	return run.Status
 }

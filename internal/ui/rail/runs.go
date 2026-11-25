@@ -1,6 +1,7 @@
 package rail
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/YoanWai/agent-manager/internal/ui/presentation"
@@ -18,6 +19,14 @@ type Run struct {
 	Branch string
 	// Mode is work or personal; empty when the Run does not say.
 	Mode string
+	// Reruns is how many Re-runs the Run's Ticket has needed; the row is the
+	// Ticket's latest Run.
+	Reruns int
+	// RerunPending is true while a Re-run request waits for Fractory's tick.
+	RerunPending bool
+	// CanRerun is true when the Run failed or needs a human, so R asks for a
+	// Re-run.
+	CanRerun bool
 }
 
 func (r treeRow) isRun() bool { return r.kind == RunRow || r.kind == RunsRow }
@@ -78,6 +87,9 @@ func (r renderer) renderRun(row treeRow, selected bool, width int, pad, guides, 
 	if selected {
 		nameStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(r.ctx.Theme.Bright)).Bold(true)
 	}
+	if marker := r.rerunMarker(row.run); marker != "" {
+		glyph += " " + r.palette.subtle.Render(marker)
+	}
 	status := row.run.Status
 	if badge := modeBadge(row.run.Mode); badge != "" {
 		status = badge + " " + status
@@ -93,8 +105,30 @@ func (r renderer) renderRun(row treeRow, selected bool, width int, pad, guides, 
 	return renderedTreeRow{text: paint(rowColumns(head, meta, width-railGutter), width, background), handleX: -1}
 }
 
-func runMenuItems() []menuItem {
-	return []menuItem{{label: "Open log", action: Attach}}
+func runMenuItems(run Run) []menuItem {
+	items := []menuItem{{label: "Open log", action: Attach}}
+	if run.CanRerun {
+		items = append(items, menuItem{label: "Re-run", action: Restart})
+	}
+	return items
+}
+
+// rerunMarker is the Re-run count after the status dot: ↻N in Advanced glyph
+// mode, RN in Compatible, with … for N while a request waits for the tick.
+func (r renderer) rerunMarker(run Run) string {
+	count := ""
+	switch {
+	case run.RerunPending:
+		count = "…"
+	case run.Reruns > 0:
+		count = strconv.Itoa(run.Reruns)
+	default:
+		return ""
+	}
+	if r.ctx.GlyphMode.Effective() == presentation.GlyphModeAdvanced {
+		return "↻" + count
+	}
+	return "R" + count
 }
 
 // modeBadge is the one-letter Mode marker: W for work, P for personal.

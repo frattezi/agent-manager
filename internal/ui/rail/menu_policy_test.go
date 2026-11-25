@@ -302,3 +302,20 @@ func TestStepInFollowsTheArrowStepValue(t *testing.T) {
 		}
 	}
 }
+
+func TestRunMenuOffersRerunOnlyWhenPossible(t *testing.T) {
+	model := New(nil)
+	model.Reconcile(Snapshot{Runs: []Run{
+		{ID: "f", Ticket: "jira:F-1", Status: "failed", CanRerun: true},
+		{ID: "d", Ticket: "jira:D-1", Status: "done"},
+	}})
+	items := func(id string) []menuItem {
+		return model.rowMenuItems(model.rows[model.rowIndex(Selection{Kind: RunRow, Run: id}.key())])
+	}
+	if got := items("f"); len(got) != 2 || got[1].label != "Re-run" || got[1].action != Restart {
+		t.Fatalf("failed menu = %+v", got)
+	}
+	if got := items("d"); len(got) != 1 || got[0].label != "Open log" {
+		t.Fatalf("done menu = %+v", got)
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	"github.com/YoanWai/agent-manager/internal/ui/rail"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -124,5 +125,40 @@ func TestRunRowsPaintTheModeBadge(t *testing.T) {
 	}
 	if strings.Contains(got["U-1"], " done") && strings.ContainsAny(strings.Fields(got["U-1"])[len(strings.Fields(got["U-1"]))-2], "WP") {
 		t.Fatalf("row without a mode shows a badge: %q", got["U-1"])
+	}
+}
+
+func TestRunRowsPaintTheRerunMarkerPerGlyphMode(t *testing.T) {
+	snapshot := rail.Snapshot{Runs: []rail.Run{
+		{ID: "a", Ticket: "jira:A-1", Status: "failed", Reruns: 2},
+		{ID: "b", Ticket: "jira:B-1", Status: "failed", RerunPending: true},
+		{ID: "c", Ticket: "jira:C-1", Status: "failed"},
+	}}
+	rowFor := func(mode presentation.GlyphMode, ticket string) string {
+		model := rail.New(nil)
+		model.Reconcile(snapshot)
+		ctx := renderContext(48, 8)
+		ctx.GlyphMode = mode
+		for _, line := range model.Render(ctx, rail.Frame{}).Lines {
+			if text := ansi.Strip(line.Text); strings.Contains(text, ticket) {
+				return text
+			}
+		}
+		t.Fatalf("no row for %s", ticket)
+		return ""
+	}
+	for mode, want := range map[presentation.GlyphMode][2]string{
+		presentation.GlyphModeAdvanced: {"↻2", "↻…"},
+		presentation.GlyphModeBasic:    {"R2", "R…"},
+	} {
+		if got := rowFor(mode, "A-1"); !strings.Contains(got, want[0]) {
+			t.Errorf("%s: row %q lacks %q", mode, got, want[0])
+		}
+		if got := rowFor(mode, "B-1"); !strings.Contains(got, want[1]) {
+			t.Errorf("%s: row %q lacks %q", mode, got, want[1])
+		}
+		if got := rowFor(mode, "C-1"); strings.Contains(got, "↻") || strings.Contains(got, " R") {
+			t.Errorf("%s: row without Re-runs shows a marker: %q", mode, got)
+		}
 	}
 }
