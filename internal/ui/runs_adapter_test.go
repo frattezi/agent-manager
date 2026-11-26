@@ -8,11 +8,14 @@ import (
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/git"
+	"github.com/YoanWai/agent-manager/internal/keybind"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
+	uirailpersist "github.com/YoanWai/agent-manager/internal/ui/rail/persist"
 	"github.com/YoanWai/agent-manager/internal/ui/runs"
 	uilaunch "github.com/YoanWai/agent-manager/internal/ui/spawn/launch"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -446,5 +449,41 @@ func TestRunsHeaderAndLegendNameTheFinishedTickets(t *testing.T) {
 	}
 	if view := ansi.Strip(preparedView(plain)); !strings.Contains(view, "Runs (2)") || strings.Contains(view, "finished)") {
 		t.Fatalf("header without finished Tickets:\n%s", view)
+	}
+}
+
+func TestEnterFoldsTheRunsSectionAndTheFoldSurvivesARestart(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	loadRuns(t, m, finishedRuns())
+	m.rail.Focus(uirail.Selection{Kind: uirail.RunsRow})
+	legend, _ := m.runLegend()
+	if !slices.Contains(legend.Pairs, [2]string{m.listGlyph(keybind.Open), "fold"}) {
+		t.Fatalf("open header legend = %+v", legend)
+	}
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m.drainEffects(t)
+	m.applyCmd(t, cmd)
+	m.drainEffects(t)
+	if got := listedRuns(m); len(got) != 0 {
+		t.Fatalf("a folded section listed %v", got)
+	}
+	if view := ansi.Strip(preparedView(m)); !strings.Contains(view, "▸ Runs (1, 2 finished)") {
+		t.Fatalf("folded header lost its counts:\n%s", view)
+	}
+	legend, _ = m.runLegend()
+	if !slices.Contains(legend.Pairs, [2]string{m.listGlyph(keybind.Open), "unfold"}) || !slices.Contains(legend.Pairs, [2]string{"click ▸", "unfold"}) ||
+		!slices.Contains(legend.Pairs, [2]string{"H", "show finished"}) {
+		t.Fatalf("folded header legend = %+v", legend)
+	}
+	if footer := ansi.Strip(m.viewFooter()); !strings.Contains(footer, "unfold") {
+		t.Fatalf("footer lacks the fold hint:\n%s", footer)
+	}
+	restarted := uirailpersist.Load(m.services.store)
+	if !restarted.SelectionCollapsed(uirail.Selection{Kind: uirail.RunsRow}) {
+		t.Fatal("the Runs fold did not survive a restart")
+	}
+	if restarted.IsCollapsed("runs") {
+		t.Fatal("the Runs fold landed on a local group path")
 	}
 }

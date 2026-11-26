@@ -171,8 +171,11 @@ func (r treeRow) key() string { return r.selection().key() }
 
 func (r treeRow) isRoot() bool { return r.kind == GroupRow && r.group == "" && r.host == "" }
 
-// folds reports whether the row opens and closes: a group or a connection.
-func (r treeRow) folds() bool { return r.kind == GroupRow || r.kind == ConnectionRow }
+// folds reports whether the row opens and closes: a group, a connection or
+// the Runs header.
+func (r treeRow) folds() bool {
+	return r.kind == GroupRow || r.kind == ConnectionRow || r.kind == RunsRow
+}
 
 type statusFilter uint8
 

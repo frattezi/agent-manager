@@ -388,10 +388,10 @@ func (m *Model) toggleCollapse() Decision {
 	if !ok {
 		return Decision{Consumed: true}
 	}
-	if row.host == "" && row.foldPath() == "" {
+	if row.kind != RunsRow && row.host == "" && row.foldPath() == "" {
 		return Decision{Consumed: true}
 	}
-	m.setFolded(row.host, row.foldPath(), !m.rowFolded(row))
+	m.setRowFolded(row, !m.rowFolded(row))
 	m.rebuildRows()
 	return m.collapsedDecision()
 }
@@ -404,6 +404,9 @@ func (m *Model) toggleCollapseAll() Decision {
 	for _, fold := range m.foldable() {
 		m.setFolded(fold.Host, fold.Path, collapse)
 	}
+	if m.hasRunsSection() {
+		m.hostFolds[RunsFold] = collapse
+	}
 	m.rebuildRows()
 	return m.collapsedDecision()
 }
@@ -415,6 +418,9 @@ func (m Model) AllGroupsCollapsed() bool {
 			return false
 		}
 		any = true
+	}
+	if m.hasRunsSection() {
+		return m.hostFolds[RunsFold]
 	}
 	return any
 }

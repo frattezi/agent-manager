@@ -245,7 +245,15 @@ func (m *Model) runLegend() (legendSection, bool) {
 		finished = [][2]string{{m.listGlyph(keybind.FinishedRuns), action}}
 	}
 	if selection.Kind == uirail.RunsRow {
-		return legendSection{Title: "Runs", Pairs: finished}, true
+		fold, mark := "fold", m.glyphs().GroupOpenGlyph
+		if m.rail.SelectionCollapsed(selection) {
+			fold, mark = "unfold", m.glyphs().GroupClosedGlyph
+		}
+		pairs := [][2]string{{m.listGlyph(keybind.Open), fold}}
+		if !m.prefs.mouseDisabled {
+			pairs = append(pairs, [2]string{"click " + mark, fold})
+		}
+		return legendSection{Title: "Runs", Pairs: append(pairs, finished...)}, true
 	}
 	pairs := [][2]string{{m.listGlyph(keybind.Open, keybind.Attach), "open log"}}
 	if ticket, ok := m.selectedTicket(); ok && ticket.Latest().CanRerun() {
