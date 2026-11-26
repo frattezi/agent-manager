@@ -162,6 +162,18 @@ CREATE TABLE IF NOT EXISTS settings (
 		// One statement so a database that already has the column skips it
 		// through the duplicate-column swallow below.
 		`ALTER TABLE sessions ADD COLUMN spawned_by TEXT NOT NULL DEFAULT ''`,
+		// The configuration is the owner's document, kept as the bytes a
+		// request hands Fractory; enabled and the watermark are state the
+		// manager changes, so they sit beside it.
+		`CREATE TABLE IF NOT EXISTS automations (
+			id             TEXT PRIMARY KEY,
+			name           TEXT NOT NULL,
+			config         TEXT NOT NULL,
+			enabled        INTEGER NOT NULL DEFAULT 1,
+			last_fired_for INTEGER NOT NULL DEFAULT 0,
+			created_at     INTEGER NOT NULL,
+			updated_at     INTEGER NOT NULL
+		)`,
 	}
 	for _, migration := range migrations {
 		if _, err := s.db.Exec(migration); err != nil {
