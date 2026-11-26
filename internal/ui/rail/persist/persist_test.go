@@ -75,3 +75,17 @@ func TestSavedCollapsedSnapshotRoundTripsThroughJSON(t *testing.T) {
 		t.Fatalf("stored = %v", stored)
 	}
 }
+
+func TestSavedRunsFoldComesBackWithoutTouchingAGroupNamedRuns(t *testing.T) {
+	st := openStore(t)
+	if err := SaveFolds(st, nil, []uirail.HostFold{uirail.RunsFold}); err != nil {
+		t.Fatalf("save folds: %v", err)
+	}
+	rail := Load(st)
+	if !rail.SelectionCollapsed(uirail.Selection{Kind: uirail.RunsRow}) {
+		t.Fatal("the Runs fold was not restored")
+	}
+	if rail.IsCollapsed(uirail.RunsFold.Path) {
+		t.Fatal("the Runs fold folded a local group named like it")
+	}
+}

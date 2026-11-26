@@ -27,6 +27,7 @@ func (m Model) Render(ctx RenderContext, previous Frame) Frame {
 		frame: Frame{
 			Width:   ctx.Width,
 			Handles: map[string]int{},
+			Folds:   map[string]int{},
 			visible: map[string]bool{},
 		},
 	}
@@ -303,6 +304,9 @@ func (r *renderer) entryRowLines(row treeRow, index int, tone string) []Line {
 	rendered := r.renderTreeRow(row, selected, width, index, tone)
 	if rendered.handleX >= 0 {
 		r.frame.Handles[row.key()] = 1 + rendered.handleX
+	}
+	if row.kind == RunsRow && !r.ctx.MouseDisabled {
+		r.frame.Folds[row.key()] = 1 + rendered.foldX
 	}
 	var lines []Line
 	for lineIndex, text := range splitLines(rendered.text) {
@@ -622,6 +626,8 @@ func (r renderer) groupGlyph(row treeRow) string {
 type renderedTreeRow struct {
 	text    string
 	handleX int
+	// foldX is where the Runs header paints its fold mark.
+	foldX int
 }
 
 func withRowHandle(text, lead, handle string) renderedTreeRow {

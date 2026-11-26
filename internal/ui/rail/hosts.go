@@ -63,7 +63,25 @@ func (r treeRow) foldPath() string {
 	return r.group
 }
 
-func (m Model) rowFolded(row treeRow) bool { return m.folded(row.host, row.foldPath()) }
+// RunsFold is the Runs section's fold. It is saved with the connection
+// folds under an empty host, which no connection can be named, so it never
+// meets a local group path or a connection's own folds.
+var RunsFold = HostFold{Path: "runs"}
+
+func (m Model) rowFolded(row treeRow) bool {
+	if row.kind == RunsRow {
+		return m.hostFolds[RunsFold]
+	}
+	return m.folded(row.host, row.foldPath())
+}
+
+func (m *Model) setRowFolded(row treeRow, folded bool) {
+	if row.kind == RunsRow {
+		m.hostFolds[RunsFold] = folded
+		return
+	}
+	m.setFolded(row.host, row.foldPath(), folded)
+}
 
 func (m Model) host(name string) (Host, bool) {
 	for _, host := range m.snapshot.Hosts {
@@ -136,13 +154,16 @@ func (m *Model) ForgetHost(name string) Decision {
 
 func (m *Model) RestoreHostFolds(folds []HostFold) {
 	for _, fold := range folds {
-		if fold.Host != "" {
+		if fold.Host != "" || fold == RunsFold {
 			m.hostFolds[fold] = true
 		}
 	}
 }
 
 func (m Model) SelectionCollapsed(selection Selection) bool {
+	if selection.Kind == RunsRow {
+		return m.hostFolds[RunsFold]
+	}
 	return m.folded(selection.Host, selection.Group)
 }
 

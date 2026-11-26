@@ -71,10 +71,12 @@ type RenderContext struct {
 // Frame is the immutable geometry and content prepared for one display.
 // The following input receives this exact value.
 type Frame struct {
-	Lines     []Line
-	Window    Range
-	Width     int
-	Handles   map[string]int
+	Lines   []Line
+	Window  Range
+	Width   int
+	Handles map[string]int
+	// Folds is the column of a fold mark a single click toggles, by row.
+	Folds     map[string]int
 	Menu      []string
 	MenuRect  Rect
 	FootStart int

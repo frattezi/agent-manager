@@ -47,7 +47,7 @@ func (m Model) rowMenuItems(row treeRow) []menuItem {
 		return menuSections(runMenuItems(row.run), m.finishedRunsMenuItems())
 	}
 	if row.kind == RunsRow {
-		return m.finishedRunsMenuItems()
+		return m.runsHeaderMenuItems()
 	}
 	editor := menuItem{label: "Open in editor", action: OpenEditor}
 	manage := []menuItem{editor, {label: "Rename", action: RenameAction}, {label: "Move to group", action: MoveToGroup}}
@@ -222,6 +222,9 @@ func (m *Model) runMenuItem(index int) Decision {
 	m.cursor = rowIndex
 	selected := m.rows[rowIndex].selection()
 	decision := previewSelectionDecision(previous != rowIndex, selected)
+	if item.action == ToggleFold {
+		return m.foldDecision(decision)
+	}
 	decision.Intent = Intent{Kind: item.action, Target: selected}
 	return decision
 }

@@ -87,6 +87,11 @@ func (m *Model) mousePress(msg tea.MouseMsg, frame Frame, ctx MouseContext) Deci
 		m.enterReorder(key)
 		return previewSelectionDecision(previous != index, selection)
 	}
+	if m.onFoldMark(msg.X, localY, selection, frame) {
+		m.cursor = index
+		m.listClickAt = time.Time{}
+		return m.foldDecision(previewSelectionDecision(previous != index, selection))
+	}
 	if m.onMenuButton(msg.X, localY, selection, frame) {
 		m.listClickAt = time.Time{}
 		return m.openMenu(selection, msg.X, msg.Y, true)
@@ -107,11 +112,7 @@ func (m *Model) mousePress(msg tea.MouseMsg, frame Frame, ctx MouseContext) Deci
 	}
 	m.listClickAt = time.Time{}
 	if row.folds() {
-		collapse := m.toggleCollapse()
-		collapse.SelectionChanged = decision.SelectionChanged
-		collapse.SelectionEffect = decision.SelectionEffect
-		collapse.Selection = selection
-		return collapse
+		return m.foldDecision(decision)
 	}
 	if row.sess.Archived {
 		return decision
@@ -163,6 +164,21 @@ func (m Model) onRowHead(localY int, selection Selection, frame Frame) bool {
 func (m Model) onHandle(x, localY int, selection Selection, frame Frame) bool {
 	handle, ok := frame.Handles[selection.key()]
 	return ok && x >= handle-1 && x <= handle+1 && m.onRowHead(localY, selection, frame)
+}
+
+// foldDecision folds or unfolds the row under the cursor, keeping the
+// selection change a click or a menu entry made on the way.
+func (m *Model) foldDecision(selected Decision) Decision {
+	collapse := m.toggleCollapse()
+	collapse.SelectionChanged = selected.SelectionChanged
+	collapse.SelectionEffect = selected.SelectionEffect
+	collapse.Selection = selected.Selection
+	return collapse
+}
+
+func (m Model) onFoldMark(x, localY int, selection Selection, frame Frame) bool {
+	fold, ok := frame.Folds[selection.key()]
+	return ok && x >= fold && x <= fold+1 && m.onRowHead(localY, selection, frame)
 }
 
 func (m Model) onMenuButton(x, localY int, selection Selection, frame Frame) bool {
