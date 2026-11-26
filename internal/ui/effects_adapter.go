@@ -4,6 +4,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/YoanWai/agent-manager/internal/ui/automations"
 	uilink "github.com/YoanWai/agent-manager/internal/ui/connections/link"
 	uiapply "github.com/YoanWai/agent-manager/internal/ui/dialogs/apply"
 	uieffects "github.com/YoanWai/agent-manager/internal/ui/effects"
@@ -168,7 +169,7 @@ func (m *Model) handleEffectCompleted(msg uieffects.Completed) (tea.Model, tea.C
 // long as the installer runs or the review stays open (#880).
 func pollAfterEffect(request uieffects.Request) bool {
 	switch request := request.(type) {
-	case uiinstall.SettleRequest:
+	case uiinstall.SettleRequest, automations.CheckRequest:
 		return false
 	case uireviewsource.Change:
 		return request.Op != uireviewsource.Status

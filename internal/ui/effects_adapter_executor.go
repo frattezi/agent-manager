@@ -13,6 +13,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/tmux"
+	"github.com/YoanWai/agent-manager/internal/ui/automations"
 	uilink "github.com/YoanWai/agent-manager/internal/ui/connections/link"
 	uiapply "github.com/YoanWai/agent-manager/internal/ui/dialogs/apply"
 	uieffects "github.com/YoanWai/agent-manager/internal/ui/effects"
@@ -73,6 +74,7 @@ func (m *Model) bindEffect(request uieffects.Request) func() (uieffects.Result, 
 		uieffects.Binder(func() uilifecycle.Services { return capture().lifecycleServices() }),
 		uieffects.Binder(func() uilaunch.Services { return capture().launchServices() }),
 		uieffects.Binder(func() uiquicksend.Services { return capture().quickServices() }),
+		uieffects.Binder(func() automations.Services { return capture().automationServices() }),
 	}
 	for _, bind := range binders {
 		if work, ok := bind(request); ok {
@@ -170,6 +172,8 @@ func (m *Model) applyEffect(job *uieffects.Job, result uieffects.Result, err err
 		return nil
 	case uiquicksend.SendRequest:
 		return uiquicksend.Apply(quickSendRoot{m}, request, as[uiquicksend.SendResult](result), err)
+	case automations.CheckRequest:
+		return m.applyAutomationsCheck(as[automations.CheckResult](result), err)
 	}
 	if err != nil {
 		m.reportErr(err.Error())
