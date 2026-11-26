@@ -1,7 +1,9 @@
 # Agents reaching each other
 
 How one session in Fractory Manager sends work, questions and results to another.
-Vocabulary: [GLOSSARY.md](../GLOSSARY.md).
+Vocabulary: [GLOSSARY.md](../GLOSSARY.md). This page is the command reference and a way
+to try the whole thing in one sitting; the behaviour behind each command is described in
+[Usage](usage.md#coordination).
 
 ## A note on names
 
@@ -136,6 +138,65 @@ The new session cannot see your conversation, so the prompt must state the whole
 Repo work takes `--worktree` so parallel sessions never share a checkout. A spawned
 session owes you nothing: there is no result reported back, and nothing marks it as
 working for you. Closing that gap is [Spec 0002](specs/0002-agent-coordination.md).
+
+## Trying it on a throwaway workspace
+
+Everything here writes to `state.db` in the config directory, so a trial run points the
+manager at a directory of its own and leaves your real sessions untouched. Two variables
+do it: `AGENT_MANAGER_CONFIG_DIR` moves the store, and `TMUX_TMPDIR` moves the tmux
+socket so the trial's sessions cannot collide with the ones already running. `$TMUX`
+overrides `TMUX_TMPDIR`, so it has to go.
+
+```bash
+make build
+dir=/tmp/am-trial && mkdir -p "$dir/cfg" "$dir/sock"
+env -u TMUX -u AGENT_MANAGER_SESSION_ID \
+    AGENT_MANAGER_CONFIG_DIR="$dir/cfg" TMUX_TMPDIR="$dir/sock" \
+    ./agent-manager
+```
+
+Run that in a terminal of its own: the manager needs a real TTY and refuses a pipe. From
+a second shell, the same two variables reach the same store, which is how you read a
+message's state while an agent is mid-turn:
+
+```bash
+env -u TMUX -u AGENT_MANAGER_SESSION_ID \
+    AGENT_MANAGER_CONFIG_DIR="$dir/cfg" TMUX_TMPDIR="$dir/sock" \
+    ./agent-manager sessions
+```
+
+Delete `$dir` when you are done. Nothing outside it was written.
+
+## A walkthrough
+
+Nine steps, each one checking a property that the code actually holds. Start two sessions
+with `n`, named **alpha** and **bravo**.
+
+1. **They find each other.** Ask alpha to run `agent-manager sessions`: both rows, with
+   alpha marked as itself. Addressing is by id.
+2. **A message is queued, not typed.** Give bravo something slow, then have alpha send it
+   a message. Nothing appears in bravo's pane while it works. From the second shell,
+   `agent-manager message-status <id>` goes `queued` → `delivered`. That gate is what
+   makes messaging safe.
+3. **`answered` is an inference.** Once bravo has replied, have bravo send alpha something
+   unrelated, then re-read the status of alpha's original question: `answered`, though
+   nothing answered it. It means "they have since spoken".
+4. **Duplicates are refused.** Send the same body twice inside ten minutes: the second is
+   refused. Reword it to get through.
+5. **The rate cap bites.** Six distinct messages from alpha to bravo inside a minute: the
+   sixth is refused.
+6. **Waiting beats polling.** Have alpha send bravo a task and then `agent-manager wait
+   <bravo-id> --timeout 2m` instead of reading bravo's screen. The wait counts from
+   alpha's own message, so bravo resting *before* delivery does not release it.
+7. **Dependencies are enforced.** `task create`, then `task create --depends-on <first>`,
+   then claim the second: refused until the first is `done`.
+8. **A claim is owned.** Have bravo try to finish a task alpha claimed: refused.
+9. **Reservations are advisory.** alpha reserves a path, bravo sees it in
+   `agent-manager reservations`, and bravo can still write the file.
+
+Steps 3, 4 and 5 are limitations, not bugs to report: they are what the current design
+buys, and [Spec 0002](specs/0002-agent-coordination.md) is where the first of them is
+addressed.
 
 ## What is not here yet
 

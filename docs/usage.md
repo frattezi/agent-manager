@@ -305,6 +305,8 @@ When you have added SSH connections, `list_sessions`, `list_terminals` and `list
 
 ### Coordination
 
+The command reference for everything in this section, with a walkthrough that exercises it on a throwaway store, is [Agents reaching each other](agent-to-agent.md).
+
 The `coordination` row in Settings (`s`) sets how far agents go with the other sessions on their own. `on request`, the default, tells each new session that the others exist and that it lists, messages, spawns or waits on them, and creates or claims shared tasks, only when you ask. "Spawn an agent for this" and "wait for the api session, then deploy" keep working, since every tool stays registered. `proactive` has agents delegate a parallel workstream to a new session and check the shared task list before starting work, without waiting to be asked. The mode reaches an MCP client through the server's initialization instructions and the `create_session` and `task` descriptions, and Pi through a note on its first prompt and the `agent-manager help` text. A session is briefed when it starts, so the ones already running keep the mode they started with.
 
 ### Spawning and steering other agents
