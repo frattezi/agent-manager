@@ -388,7 +388,7 @@ func (m *Model) toggleCollapse() Decision {
 	if !ok {
 		return Decision{Consumed: true}
 	}
-	if row.kind != RunsRow && row.host == "" && row.foldPath() == "" {
+	if row.kind != RunsRow && row.kind != AutomationsRow && row.kind != AutomationRow && row.host == "" && row.foldPath() == "" {
 		return Decision{Consumed: true}
 	}
 	m.setRowFolded(row, !m.rowFolded(row))

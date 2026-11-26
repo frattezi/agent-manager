@@ -68,16 +68,36 @@ func (r treeRow) foldPath() string {
 // meets a local group path or a connection's own folds.
 var RunsFold = HostFold{Path: "runs"}
 
+// AutomationsFold is the Automations section's fold, saved the way
+// RunsFold is.
+var AutomationsFold = HostFold{Path: "automations"}
+
 func (m Model) rowFolded(row treeRow) bool {
-	if row.kind == RunsRow {
+	switch row.kind {
+	case RunsRow:
 		return m.hostFolds[RunsFold]
+	case AutomationsRow:
+		return m.hostFolds[AutomationsFold]
+	case AutomationRow:
+		return !m.openAutomations[row.auto.ID]
 	}
 	return m.folded(row.host, row.foldPath())
 }
 
 func (m *Model) setRowFolded(row treeRow, folded bool) {
-	if row.kind == RunsRow {
+	switch row.kind {
+	case RunsRow:
 		m.hostFolds[RunsFold] = folded
+		return
+	case AutomationsRow:
+		m.hostFolds[AutomationsFold] = folded
+		return
+	case AutomationRow:
+		if folded {
+			delete(m.openAutomations, row.auto.ID)
+		} else {
+			m.openAutomations[row.auto.ID] = true
+		}
 		return
 	}
 	m.setFolded(row.host, row.foldPath(), folded)
@@ -154,15 +174,20 @@ func (m *Model) ForgetHost(name string) Decision {
 
 func (m *Model) RestoreHostFolds(folds []HostFold) {
 	for _, fold := range folds {
-		if fold.Host != "" || fold == RunsFold {
+		if fold.Host != "" || fold == RunsFold || fold == AutomationsFold {
 			m.hostFolds[fold] = true
 		}
 	}
 }
 
 func (m Model) SelectionCollapsed(selection Selection) bool {
-	if selection.Kind == RunsRow {
+	switch selection.Kind {
+	case RunsRow:
 		return m.hostFolds[RunsFold]
+	case AutomationsRow:
+		return m.hostFolds[AutomationsFold]
+	case AutomationRow:
+		return !m.openAutomations[selection.Automation]
 	}
 	return m.folded(selection.Host, selection.Group)
 }

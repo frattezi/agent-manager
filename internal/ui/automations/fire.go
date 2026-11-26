@@ -11,6 +11,7 @@ import (
 // document as the store keeps it, and the state beside it.
 type Row struct {
 	ID           string
+	Name         string
 	Document     []byte
 	Enabled      bool
 	LastFiredFor time.Time
@@ -48,8 +49,11 @@ type Failure struct {
 }
 
 // CheckResult is what one check did. Fired holds the instants it wrote a
-// request for.
+// request for. Rows and Records are what it read, so the view lists them
+// without reading the store and the records a second time.
 type CheckResult struct {
+	Rows       []Row
+	Records    []Record
 	Fired      []Firing
 	Skipped    []Firing
 	Failed     []Failure
@@ -79,7 +83,7 @@ func Check(services Services, now time.Time) (CheckResult, error) {
 			return CheckResult{}, fmt.Errorf("listing Automation Runs: %w", err)
 		}
 	}
-	var result CheckResult
+	result := CheckResult{Rows: rows, Records: records}
 	stored := make([]Stored, 0, len(rows))
 	for _, row := range rows {
 		var config Config
