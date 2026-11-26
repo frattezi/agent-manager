@@ -205,6 +205,9 @@ func (r *renderer) entryLines(height int) []Line {
 }
 
 func (r renderer) entryHeight(row treeRow) int {
+	if row.kind == AutomationRow {
+		return 2
+	}
 	if row.kind != SessionRow || !r.ctx.ComfortableRows {
 		return 1
 	}
@@ -305,14 +308,14 @@ func (r *renderer) entryRowLines(row treeRow, index int, tone string) []Line {
 	if rendered.handleX >= 0 {
 		r.frame.Handles[row.key()] = 1 + rendered.handleX
 	}
-	if row.kind == RunsRow && !r.ctx.MouseDisabled {
+	if (row.kind == RunsRow || row.kind == AutomationsRow || row.kind == AutomationRow) && !r.ctx.MouseDisabled {
 		r.frame.Folds[row.key()] = 1 + rendered.foldX
 	}
 	var lines []Line
 	for lineIndex, text := range splitLines(rendered.text) {
 		if button && lineIndex == 0 {
 			text += r.menuButton(selected, tone)
-		} else if button {
+		} else if button && ansi.StringWidth(text) < r.ctx.Width {
 			text += paint("", menuButtonWidth, tone)
 		}
 		lines = append(lines, Line{Text: text, Tone: tone, Hit: row.selection(), HitOK: true})
@@ -349,6 +352,12 @@ func (r renderer) renderTreeRow(row treeRow, selected bool, width, index int, ba
 		return r.renderRunsHeader(selected, width, pad, background)
 	case RunRow:
 		return r.renderRun(row, selected, width, pad, guides, background)
+	case AutomationsRow:
+		return r.renderAutomationsHeader(selected, width, pad, background)
+	case AutomationRow:
+		return r.renderAutomation(row, selected, width, pad, guides, trail, background)
+	case FiringRow:
+		return r.renderFiring(row, selected, width, pad, guides, background)
 	case ConnectionRow:
 		return r.renderConnection(row, selected, width, pad, background)
 	case GroupRow:

@@ -53,6 +53,7 @@ func (m *Model) railSnapshot() uirail.Snapshot {
 	}
 	snapshot.Runs, snapshot.RunsFinished = m.railRuns()
 	snapshot.RunsShowFinished = m.workspace.runs.showFinished
+	snapshot.Automations = m.workspace.automations.shown
 	for path, archived := range m.workspace.archivedGroups {
 		snapshot.ArchivedGroups[path] = archived
 	}
@@ -292,6 +293,9 @@ func (m *Model) rowLegend() legendSection {
 	if legend, ok := m.runLegend(); ok {
 		return legend
 	}
+	if legend, ok := m.automationLegend(); ok {
+		return legend
+	}
 	if !ctx.RowOK {
 		return m.remoteRowLegend()
 	}
@@ -479,6 +483,9 @@ func (m *Model) runRailIntent(intent uirail.Intent) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	if cmd, taken := m.runIntent(intent); taken {
+		return m, cmd
+	}
+	if cmd, taken := m.automationIntent(intent); taken {
 		return m, cmd
 	}
 	switch intent.Kind {

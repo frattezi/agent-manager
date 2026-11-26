@@ -150,6 +150,16 @@ func connectionRowHelpRows(list keybind.Table, mode presentation.GlyphMode) [][2
 	return h.rows
 }
 
+func automationRowHelpRows(list keybind.Table, mode presentation.GlyphMode) [][2]string {
+	h := helpRows{list: list, mode: mode}
+	h.action("fold the header, show an Automation's firings, open a firing's log", keybind.Open)
+	h.action("open the firing's log, on an Automation its newest firing's", keybind.Attach)
+	h.fixed("", "a log tab follows a running firing and stays readable after")
+	h.fixed("click "+presentation.GlyphsFor(mode).GroupOpenGlyph, "on the header or an Automation, fold or unfold it")
+	h.fixed("double click", "on a firing, open its log")
+	return h.rows
+}
+
 // helpSections is the catalog for one setting of the arrow-step pair: off,
 // the rows that pair would answer are left out rather than named as dead.
 func helpSections(ctx Context) []helpSection {
@@ -161,6 +171,7 @@ func helpSections(ctx Context) []helpSection {
 		{title: "the mark on a session row", rows: markHelpRows(list, ctx.Glyphs)},
 		{title: "group under the cursor", rows: groupRowHelpRows(list, mode)},
 		{title: "SSH connection under the cursor", rows: connectionRowHelpRows(list, mode)},
+		{title: "Automation under the cursor", rows: automationRowHelpRows(list, mode)},
 		{title: titledWith("quick prompt mode", list, mode, keybind.Prompt), rows: [][2]string{
 			{"↵", "send"},
 			{presentation.NavigationLabel(mode, "↑↓"), "switch the target session, or step the caret in a taller prompt"},

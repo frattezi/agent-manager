@@ -6,6 +6,7 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/ui/automations"
+	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -15,6 +16,10 @@ type automationsState struct {
 	// reported is the failure last put on the status bar, so a firing that
 	// keeps failing is reported once rather than on every check.
 	reported string
+	// entries are the stored Automations and their firings as the last
+	// check read them; shown is how the rail lists them.
+	entries []automations.Entry
+	shown   []uirail.Automation
 }
 
 type automationsTickMsg struct{}
@@ -43,6 +48,9 @@ func (m *Model) applyAutomationsCheck(result automations.CheckResult, err error)
 	}
 	for _, unreadable := range result.Unreadable {
 		problems = append(problems, "Automation "+unreadable.ID+" cannot be scheduled: "+unreadable.Reason.Error())
+	}
+	if err == nil {
+		m.showAutomations(result.Rows, result.Records)
 	}
 	report := strings.Join(problems, "; ")
 	if report != "" && report != m.workspace.automations.reported {
@@ -77,7 +85,7 @@ func (s automationStore) SetLastFired(id string, firedFor time.Time) error {
 }
 
 func automationRow(a store.Automation) automations.Row {
-	return automations.Row{ID: a.ID, Document: a.Config, Enabled: a.Enabled, LastFiredFor: a.LastFiredFor, CreatedAt: a.CreatedAt}
+	return automations.Row{ID: a.ID, Name: a.Name, Document: a.Config, Enabled: a.Enabled, LastFiredFor: a.LastFiredFor, CreatedAt: a.CreatedAt}
 }
 
 // automationServices is the store and the Fractory directories a check runs
