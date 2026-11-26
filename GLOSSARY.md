@@ -49,3 +49,67 @@ A stored configuration that starts work on a schedule, without anyone asking. It
 where the work runs, which CLI runs it, and under which environment, and it is owned and
 remembered by the manager rather than by the tool it starts.
 _Avoid_: Job, cronjob, task, routine, hook, trigger
+
+## Agents reaching each other
+
+Sessions in one workspace coordinate by messaging each other. The words below separate
+a message that expects nothing from one that expects an answer, and a Session that was
+merely started from one that owes a result.
+
+**Message**:
+One item in a recipient Session's inbox, typed into that Session once its Pane is at
+rest. The unit of everything in this section: a Tell, an Ask and an Answer are all
+Messages differing in what they carry.
+_Avoid_: Notification, event, ping
+
+**Tell**:
+A Message that expects nothing back.
+_Avoid_: Handoff, fire-and-forget
+
+**Ask**:
+A Message that expects an Answer, and so opens a Thread. Asking does not oblige the
+sender to wait; an Ask nobody waits on is delivered like a Tell.
+_Avoid_: Question, request, query
+
+**Answer**:
+A Message replying to an Ask on its Thread. Alone among Messages, an Answer can be
+taken by the asker's waiting call and returned as that call's result, in which case it
+never reaches a Pane.
+_Avoid_: Reply, response, result
+
+**Thread**:
+The identity shared by an Ask and the Answers to it. What makes "answered" a fact
+rather than an inference, and what a waiting Session waits on.
+_Avoid_: Conversation, channel, topic
+
+**Coordinator**:
+A Session that dispatched another. Not a role a Session holds but a relation between
+two: the same Session is a Coordinator to those it dispatched and a Worker to whoever
+dispatched it.
+_Avoid_: Parent, supervisor, orchestrator, manager
+
+**Worker**:
+A Session that was dispatched and owes its Coordinator a Result. A Session started
+without that obligation is just a Session.
+_Avoid_: Child, subagent
+
+**Dispatch**:
+Creating a Worker with the obligation to report a Result, on a Thread minted for it.
+Distinct from starting a Session, which carries no obligation.
+_Avoid_: Spawn, fork, delegate
+
+**Result**:
+What a Worker owes its Coordinator: one summary the Worker writes, and the facts the
+manager assembles itself. It travels as the Answer on the Dispatch's Thread, and a
+Worker that dies has one written for it.
+_Avoid_: Report, output, return value
+
+**Task**:
+One item on the shared list, which any Session may create and any may claim, and which
+may depend on others. A Task is the work; a Thread is a conversation about work.
+_Avoid_: Ticket, job, issue
+
+**Reservation**:
+An advisory, expiring lease a Session holds on a path, so Sessions sharing a checkout
+can see who is editing what. Never enforced against a writer.
+_Avoid_: Lock, mutex
