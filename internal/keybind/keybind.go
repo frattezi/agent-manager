@@ -279,6 +279,12 @@ const (
 const NewConnection = "new_connection"
 
 const (
+	NewAutomation = "new_automation"
+	EnableToggle  = "enable_toggle"
+	RunNow        = "run_now"
+)
+
+const (
 	ScopeSession = "session"
 	ScopeList    = "list"
 )
@@ -305,6 +311,9 @@ var listActions = []Action{
 	{Terminal, "new terminal tab", keys("T")},
 	{NewGroup, "new group", keys("g")},
 	{NewConnection, "new SSH connection", keys("C")},
+	{NewAutomation, "new Automation", keys("S")},
+	{EnableToggle, "Automation: enable / disable it", keys("E")},
+	{RunNow, "Automation: run it now, outside its schedule", keys("!")},
 	{Fork, "fork the session", keys("f")},
 	{Prompt, "quick prompt mode", keys("space")},
 	{CopyReply, "copy the session's newest reply to the clipboard", keys("y")},

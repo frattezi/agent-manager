@@ -97,6 +97,10 @@ const (
 	ToggleFinishedRuns
 	// ToggleFold folds or unfolds the row; the rail carries it out itself.
 	ToggleFold
+	NewAutomation
+	// ToggleEnabled enables a disabled Automation and disables an enabled one.
+	ToggleEnabled
+	RunNow
 )
 
 type Intent struct {

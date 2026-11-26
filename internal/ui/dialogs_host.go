@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/ui/automations"
 	"github.com/YoanWai/agent-manager/internal/ui/composer"
 	uilink "github.com/YoanWai/agent-manager/internal/ui/connections/link"
 	uidialogs "github.com/YoanWai/agent-manager/internal/ui/dialogs"
@@ -30,6 +31,8 @@ type confirmTarget struct {
 	connection string
 	// remote is a call on an SSH row, run on the host once confirmed.
 	remote *uilink.Call
+	// automation is the id of the Automation a yes deletes.
+	automation string
 }
 
 // confirmRoot is the root as the confirm card reaches it, holding the
@@ -139,6 +142,8 @@ func (m *Model) runConfirmed(target confirmTarget) tea.Cmd {
 		return m.queueRemote(*target.remote)
 	case target.connection != "":
 		m.removeConnection(target.connection)
+	case target.automation != "":
+		m.enqueueEffect(automations.RemoveRequest{ID: target.automation}, 0, false)
 	default:
 		m.queueLifecycle(target.lifecycle, false, "")
 	}

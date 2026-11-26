@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/YoanWai/agent-manager/internal/feed"
 	"go/ast"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path"
@@ -2126,6 +2127,7 @@ var mouseOpeners = map[string]func(t *testing.T, m *Model){
 	"settings.Surface":         func(t *testing.T, m *Model) { m.applyCmd(t, m.openSettings()) },
 	"dialogs.GroupFormSurface": func(t *testing.T, m *Model) { m.openGroupForm() },
 	"connections.Surface":      func(t *testing.T, m *Model) { m.openConnectionDialog(remote.Connection{}) },
+	"form.Surface":             func(t *testing.T, m *Model) { m.openAutomationDialog(nil) },
 	"quick.Surface":            func(t *testing.T, m *Model) { m.applyCmd(t, m.openQuickMode()) },
 	"spawn.Surface":            func(t *testing.T, m *Model) { m.applyCmd(t, m.openForm()) },
 	"geometry.Surface":         func(t *testing.T, m *Model) { m.enterResizeMode() },
@@ -2196,15 +2198,21 @@ func surfaceName(s uisurface.Surface) string {
 // surface does, and nothing else.
 func declaredSurfaces(t *testing.T) []string {
 	t.Helper()
-	entries, err := os.ReadDir(".")
+	var dirs []string
+	err := filepath.WalkDir(".", func(dir string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() && entry.Name() == "testdata" {
+			return filepath.SkipDir
+		}
+		if entry.IsDir() {
+			dirs = append(dirs, dir)
+		}
+		return nil
+	})
 	if err != nil {
 		t.Fatal(err)
-	}
-	dirs := []string{"."}
-	for _, entry := range entries {
-		if entry.IsDir() && entry.Name() != "testdata" {
-			dirs = append(dirs, entry.Name())
-		}
 	}
 	var names []string
 	for _, dir := range dirs {

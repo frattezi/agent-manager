@@ -28,9 +28,11 @@ type Store interface {
 
 // Services is what a check runs against: the store, where requests go and
 // where Fractory writes its records. An empty directory is a Fractory home
-// that does not resolve.
+// that does not resolve. Book is the same store with the writes the
+// commands make.
 type Services struct {
 	Store       Store
+	Book        Book
 	RequestsDir string
 	RecordsDir  string
 }

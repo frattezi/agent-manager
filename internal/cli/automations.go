@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,7 +11,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/ui/automations"
-	"github.com/google/uuid"
+	uiautomationspersist "github.com/YoanWai/agent-manager/internal/ui/automations/persist"
 )
 
 const (
@@ -73,50 +72,33 @@ func automationTools() ([]string, error) {
 
 // findAutomation takes an id, or a name exactly one Automation carries.
 func findAutomation(st *store.Store, key string) (store.Automation, error) {
-	if a, found, err := st.Automation(key); err != nil || found {
-		return a, err
-	}
-	all, err := st.Automations()
+	row, err := automations.Find(uiautomationspersist.Book{Store: st}, key)
 	if err != nil {
 		return store.Automation{}, err
 	}
-	var named []store.Automation
-	for _, a := range all {
-		if a.Name == key {
-			named = append(named, a)
-		}
-	}
-	switch len(named) {
-	case 0:
-		return store.Automation{}, fmt.Errorf("no Automation has the id or name %q", key)
-	case 1:
-		return named[0], nil
-	}
-	ids := make([]string, len(named))
-	for i, a := range named {
-		ids[i] = a.ID
-	}
-	return store.Automation{}, fmt.Errorf("%d Automations are named %q; name one by id: %s", len(named), key, strings.Join(ids, ", "))
+	a, _, err := st.Automation(row.ID)
+	return a, err
 }
 
-func readAutomationConfig(input io.Reader, operands []string) (automations.Config, error) {
+func readAutomationConfig(input io.Reader, operands []string) (automations.Config, []string, error) {
 	if len(operands) == 1 && operands[0] != "-" {
 		file, err := os.Open(operands[0])
 		if err != nil {
-			return automations.Config{}, err
+			return automations.Config{}, nil, err
 		}
 		defer file.Close()
 		input = file
 	}
 	data, err := io.ReadAll(input)
 	if err != nil {
-		return automations.Config{}, err
+		return automations.Config{}, nil, err
 	}
 	tools, err := automationTools()
 	if err != nil {
-		return automations.Config{}, err
+		return automations.Config{}, nil, err
 	}
-	return automations.Parse(data, tools)
+	config, err := automations.Parse(data, tools)
+	return config, tools, err
 }
 
 func runAutomationsList(out io.Writer, _ io.Reader, args []string, configDir string, _ time.Time) error {
@@ -182,14 +164,7 @@ func runAutomationsAdd(out io.Writer, input io.Reader, args []string, configDir 
 	if err != nil {
 		return err
 	}
-	cfg, err := readAutomationConfig(input, operands)
-	if err != nil {
-		return err
-	}
-	if cfg.ID == "" {
-		cfg.ID = uuid.NewString()
-	}
-	encoded, err := cfg.Encode()
+	cfg, tools, err := readAutomationConfig(input, operands)
 	if err != nil {
 		return err
 	}
@@ -198,10 +173,7 @@ func runAutomationsAdd(out io.Writer, input io.Reader, args []string, configDir 
 		return err
 	}
 	defer st.Close()
-	if err := st.AddAutomation(store.Automation{ID: cfg.ID, Name: cfg.Name, Config: encoded, Enabled: !*disabled}, now); err != nil {
-		if errors.Is(err, store.ErrAutomationTaken) {
-			return fmt.Errorf("id: %q is already another Automation's", cfg.ID)
-		}
+	if cfg, err = automations.Add(uiautomationspersist.Book{Store: st}, cfg, !*disabled, tools, now); err != nil {
 		return err
 	}
 	return emitAutomation(out, st, *asJSON, cfg.ID, "added "+cfg.Name+" ("+cfg.ID+")")
@@ -214,7 +186,7 @@ func runAutomationsChange(out io.Writer, input io.Reader, args []string, configD
 	if err != nil {
 		return err
 	}
-	cfg, err := readAutomationConfig(input, operands[1:])
+	cfg, tools, err := readAutomationConfig(input, operands[1:])
 	if err != nil {
 		return err
 	}
@@ -227,15 +199,7 @@ func runAutomationsChange(out io.Writer, input io.Reader, args []string, configD
 	if err != nil {
 		return err
 	}
-	if cfg.ID != "" && cfg.ID != current.ID {
-		return fmt.Errorf("id: is %q, but an Automation's id never changes; leave it out or write %q", cfg.ID, current.ID)
-	}
-	cfg.ID = current.ID
-	encoded, err := cfg.Encode()
-	if err != nil {
-		return err
-	}
-	if err := st.UpdateAutomation(current.ID, cfg.Name, encoded, now); err != nil {
+	if cfg, err = automations.Change(uiautomationspersist.Book{Store: st}, current.ID, cfg, tools, now); err != nil {
 		return err
 	}
 	return emitAutomation(out, st, *asJSON, current.ID, "changed "+cfg.Name+" ("+current.ID+")")
@@ -257,7 +221,7 @@ func runAutomationsRemove(out io.Writer, _ io.Reader, args []string, configDir s
 	if err != nil {
 		return err
 	}
-	if err := st.DeleteAutomation(a.ID); err != nil {
+	if err := automations.Remove(uiautomationspersist.Book{Store: st}, a.ID); err != nil {
 		return err
 	}
 	return emit(out, *asJSON, newAutomationRecord(a), "removed "+a.Name+" ("+a.ID+")")
@@ -287,7 +251,7 @@ func setAutomationEnabled(out io.Writer, usage string, enabled bool, args []stri
 	if err != nil {
 		return err
 	}
-	if err := st.SetAutomationEnabled(a.ID, enabled, now); err != nil {
+	if err := automations.SetEnabled(uiautomationspersist.Book{Store: st}, a.ID, enabled, now); err != nil {
 		return err
 	}
 	verb := "enabled "

@@ -12,8 +12,22 @@ import (
 	"github.com/YoanWai/agent-manager/internal/ui/automations"
 )
 
-const automationDoc = `{"name":"weekly","kind":"agent","repoPath":"/src/repo","cron":"0 7 * * 1",
+// automationDoc is a valid configuration whose directory is a Fractory
+// repository made for the test.
+func automationDoc(t *testing.T) string {
+	t.Helper()
+	repo := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repo, ".fractory.json"), []byte(`{"mode":"work"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return automationDocAt(repo)
+}
+
+func automationDocAt(repo string) string {
+	path, _ := json.Marshal(repo)
+	return `{"name":"weekly","kind":"agent","repoPath":` + string(path) + `,"cron":"0 7 * * 1",
 "timezone":"Europe/Lisbon","mode":"work","tool":"claude","flags":[],"entry":"prompts/weekly.md","retention":5}`
+}
 
 var automationNow = time.Date(2026, 11, 26, 9, 0, 0, 0, time.UTC)
 
@@ -50,7 +64,7 @@ func TestAutomationsListIsEmptyOnAFreshStore(t *testing.T) {
 
 func TestAutomationsAddShowListAndRemove(t *testing.T) {
 	configDir := t.TempDir()
-	added := addAutomation(t, configDir, automationDoc)
+	added := addAutomation(t, configDir, automationDoc(t))
 	if added.ID == "" || added.Name != "weekly" || !added.Enabled || added.LastFiredFor != nil || !added.CreatedAt.Equal(automationNow) {
 		t.Fatalf("added = %+v", added)
 	}
@@ -97,7 +111,7 @@ func TestAutomationsAddShowListAndRemove(t *testing.T) {
 func TestAutomationsAddReadsAFileAndCanStartDisabled(t *testing.T) {
 	configDir := t.TempDir()
 	path := filepath.Join(t.TempDir(), "weekly.json")
-	if err := os.WriteFile(path, []byte(automationDoc), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(automationDoc(t)), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
@@ -115,7 +129,7 @@ func TestAutomationsAddReadsAFileAndCanStartDisabled(t *testing.T) {
 
 func TestAutomationsChangeKeepsTheIDAndState(t *testing.T) {
 	configDir := t.TempDir()
-	added := addAutomation(t, configDir, automationDoc)
+	added := addAutomation(t, configDir, automationDoc(t))
 	if err := settingsStore(t, configDir).SetAutomationLastFired(added.ID, automationNow); err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +137,7 @@ func TestAutomationsChangeKeepsTheIDAndState(t *testing.T) {
 	if err := runAutomationsDisable(&out, nil, []string{added.ID}, configDir, automationNow); err != nil {
 		t.Fatal(err)
 	}
-	renamed := strings.Replace(automationDoc, `"weekly"`, `"monday sweep"`, 1)
+	renamed := strings.Replace(automationDoc(t), `"weekly"`, `"monday sweep"`, 1)
 	later := automationNow.Add(time.Hour)
 	out.Reset()
 	if err := runAutomationsChange(&out, strings.NewReader(renamed), []string{"weekly", "--json"}, configDir, later); err != nil {
@@ -142,12 +156,12 @@ func TestAutomationsChangeKeepsTheIDAndState(t *testing.T) {
 		t.Fatalf("change touched the state: %+v", changed)
 	}
 
-	withOtherID := strings.Replace(automationDoc, `{`, `{"id":"other",`, 1)
+	withOtherID := strings.Replace(automationDoc(t), `{`, `{"id":"other",`, 1)
 	err := runAutomationsChange(&out, strings.NewReader(withOtherID), []string{added.ID}, configDir, later)
 	if err == nil || !strings.HasPrefix(err.Error(), "id: ") {
 		t.Fatalf("change to another id = %v, want a refusal naming id", err)
 	}
-	withSameID := strings.Replace(automationDoc, `{`, `{"id":"`+added.ID+`",`, 1)
+	withSameID := strings.Replace(automationDoc(t), `{`, `{"id":"`+added.ID+`",`, 1)
 	if err := runAutomationsChange(&out, strings.NewReader(withSameID), []string{added.ID}, configDir, later); err != nil {
 		t.Fatalf("change naming its own id = %v", err)
 	}
@@ -155,7 +169,7 @@ func TestAutomationsChangeKeepsTheIDAndState(t *testing.T) {
 
 func TestAutomationsEnableAndDisable(t *testing.T) {
 	configDir := t.TempDir()
-	added := addAutomation(t, configDir, automationDoc, "--disabled")
+	added := addAutomation(t, configDir, automationDoc(t), "--disabled")
 	var out bytes.Buffer
 	if err := runAutomationsEnable(&out, nil, []string{added.ID}, configDir, automationNow); err != nil {
 		t.Fatal(err)
@@ -185,21 +199,25 @@ func TestAutomationsEnableAndDisable(t *testing.T) {
 func TestAutomationsRefusesAMalformedConfigurationNamingTheField(t *testing.T) {
 	configDir := t.TempDir()
 	var out bytes.Buffer
-	bad := strings.Replace(automationDoc, `"cron":"0 7 * * 1"`, `"cron":"every monday"`, 1)
+	bad := strings.Replace(automationDoc(t), `"cron":"0 7 * * 1"`, `"cron":"every monday"`, 1)
 	err := runAutomationsAdd(&out, strings.NewReader(bad), nil, configDir, automationNow)
 	if err == nil || !strings.HasPrefix(err.Error(), "cron: ") {
 		t.Fatalf("add = %v, want a refusal naming cron", err)
 	}
-	unknownTool := strings.Replace(automationDoc, `"tool":"claude"`, `"tool":"not-a-cli"`, 1)
+	unknownTool := strings.Replace(automationDoc(t), `"tool":"claude"`, `"tool":"not-a-cli"`, 1)
 	if err := runAutomationsAdd(&out, strings.NewReader(unknownTool), nil, configDir, automationNow); err == nil || !strings.HasPrefix(err.Error(), "tool: ") {
 		t.Fatalf("add = %v, want a refusal naming tool", err)
+	}
+	if err := runAutomationsAdd(&out, strings.NewReader(automationDocAt(t.TempDir())), nil, configDir, automationNow); err == nil ||
+		!strings.HasPrefix(err.Error(), "repoPath: ") || !strings.Contains(err.Error(), "not a Fractory repository") {
+		t.Fatalf("add = %v, want a refusal naming repoPath", err)
 	}
 	if all, _ := settingsStore(t, configDir).Automations(); len(all) != 0 {
 		t.Fatalf("a refused configuration was stored: %+v", all)
 	}
 
-	added := addAutomation(t, configDir, automationDoc)
-	noEntry := strings.Replace(automationDoc, `"entry":"prompts/weekly.md"`, `"entry":""`, 1)
+	added := addAutomation(t, configDir, automationDoc(t))
+	noEntry := strings.Replace(automationDoc(t), `"entry":"prompts/weekly.md"`, `"entry":""`, 1)
 	if err := runAutomationsChange(&out, strings.NewReader(noEntry), []string{added.ID}, configDir, automationNow); err == nil || !strings.HasPrefix(err.Error(), "entry: ") {
 		t.Fatalf("change = %v, want a refusal naming entry", err)
 	}
@@ -210,7 +228,7 @@ func TestAutomationsRefusesAMalformedConfigurationNamingTheField(t *testing.T) {
 
 func TestAutomationsRefusesASharedID(t *testing.T) {
 	configDir := t.TempDir()
-	doc := strings.Replace(automationDoc, `{`, `{"id":"fixed",`, 1)
+	doc := strings.Replace(automationDoc(t), `{`, `{"id":"fixed",`, 1)
 	addAutomation(t, configDir, doc)
 	var out bytes.Buffer
 	err := runAutomationsAdd(&out, strings.NewReader(doc), nil, configDir, automationNow)
@@ -221,8 +239,8 @@ func TestAutomationsRefusesASharedID(t *testing.T) {
 
 func TestAutomationsNameThatTwoCarryIsAmbiguous(t *testing.T) {
 	configDir := t.TempDir()
-	first := addAutomation(t, configDir, automationDoc)
-	second := addAutomation(t, configDir, automationDoc)
+	first := addAutomation(t, configDir, automationDoc(t))
+	second := addAutomation(t, configDir, automationDoc(t))
 	var out bytes.Buffer
 	err := runAutomationsShow(&out, nil, []string{"weekly"}, configDir, automationNow)
 	if err == nil || !strings.Contains(err.Error(), first.ID) || !strings.Contains(err.Error(), second.ID) {

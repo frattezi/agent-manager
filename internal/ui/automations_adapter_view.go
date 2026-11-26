@@ -99,10 +99,14 @@ func isAutomationRow(kind uirail.RowKind) bool {
 }
 
 // automationIntent runs a rail intent aimed at the Automations section and
-// reports whether it took it. Open and attach on a firing open its log, and
-// on an Automation its newest firing's; the rest refuse, since an Automation
-// is managed from its dialog and the shell.
+// reports whether it took it. New Automation opens the dialog from any row.
+// Open and attach on a firing open its log, and on an Automation its newest
+// firing's; an Automation row takes its own actions, and the rest refuse.
 func (m *Model) automationIntent(intent uirail.Intent) (tea.Cmd, bool) {
+	if intent.Kind == uirail.NewAutomation {
+		m.openAutomationDialog(nil)
+		return nil, true
+	}
 	if !isAutomationRow(intent.Target.Kind) {
 		return nil, false
 	}
@@ -127,7 +131,10 @@ func (m *Model) automationIntent(intent uirail.Intent) (tea.Cmd, bool) {
 		}
 		return m.openFiringLog(last), true
 	default:
-		m.reportErr("Automations are managed with agent-manager automations")
+		if intent.Target.Kind == uirail.AutomationRow && m.automationRowIntent(intent.Kind) {
+			return m.nextEffectCmd(), true
+		}
+		m.reportErr(m.automationManageHint())
 	}
 	return nil, true
 }
@@ -166,13 +173,20 @@ func (m *Model) automationLegend() (legendSection, bool) {
 	}
 	switch selection.Kind {
 	case uirail.AutomationsRow:
-		return legendSection{Title: "Automations", Pairs: foldPairs("fold", "unfold")}, true
+		pairs := append(foldPairs("fold", "unfold"), [2]string{m.listGlyph(keybind.NewAutomation), "new Automation"})
+		return legendSection{Title: "Automations", Pairs: pairs}, true
 	case uirail.AutomationRow:
 		pairs := foldPairs("hide firings", "show firings")
 		if entry, ok := m.selectedAutomation(); ok {
 			if _, fired := entry.Last(); fired {
 				pairs = append(pairs, [2]string{m.listGlyph(keybind.Attach), "open last log"})
 			}
+			toggle := "disable"
+			if !entry.Enabled {
+				toggle = "enable"
+			}
+			pairs = append(pairs, [2]string{m.listGlyph(keybind.Rename), "edit"}, [2]string{m.listGlyph(keybind.EnableToggle), toggle},
+				[2]string{m.listGlyph(keybind.RunNow), "run now"}, [2]string{m.listGlyph(keybind.Delete), "delete"})
 		}
 		return legendSection{Title: "Automation", Pairs: pairs}, true
 	}

@@ -222,6 +222,12 @@ func (m *Model) action(action string, ctx KeyContext) Decision {
 		return m.intent(NewGroup)
 	case keybind.NewConnection:
 		return m.intent(NewConnection)
+	case keybind.NewAutomation:
+		return m.intent(NewAutomation)
+	case keybind.EnableToggle:
+		return m.automationIntent(ToggleEnabled)
+	case keybind.RunNow:
+		return m.automationIntent(RunNow)
 	case keybind.Fork:
 		return m.intent(Fork)
 	case keybind.Revive:

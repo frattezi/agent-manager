@@ -89,11 +89,14 @@ func (m Model) listedAutomations() []Automation {
 	return listed
 }
 
+var newAutomation = menuItem{label: "New Automation", action: NewAutomation}
+
 func automationsHeaderMenuItems(folded bool) []menuItem {
+	fold := menuItem{label: "Fold", action: ToggleFold}
 	if folded {
-		return []menuItem{{label: "Unfold", action: ToggleFold}}
+		fold.label = "Unfold"
 	}
-	return []menuItem{{label: "Fold", action: ToggleFold}}
+	return menuSections([]menuItem{fold}, []menuItem{newAutomation})
 }
 
 func automationMenuItems(automation Automation, folded bool) []menuItem {
@@ -101,11 +104,25 @@ func automationMenuItems(automation Automation, folded bool) []menuItem {
 	if folded {
 		fold.label = "Show firings"
 	}
-	items := []menuItem{fold}
+	view := []menuItem{fold}
 	if len(automation.Firings) > 0 {
-		items = append(items, menuItem{label: "Open last log", action: Attach})
+		view = append(view, menuItem{label: "Open last log", action: Attach})
 	}
-	return items
+	toggle := menuItem{label: "Disable", action: ToggleEnabled}
+	if !automation.Enabled {
+		toggle.label = "Enable"
+	}
+	manage := []menuItem{{label: "Edit", action: RenameAction}, toggle, {label: "Run now", action: RunNow}, newAutomation}
+	return menuSections(view, manage, []menuItem{{label: "Delete", action: Delete, danger: true}})
+}
+
+// automationIntent is an Automation action, which only an Automation row
+// takes; anywhere else the key does nothing.
+func (m *Model) automationIntent(kind ActionKind) Decision {
+	if row, ok := m.row(); !ok || row.kind != AutomationRow {
+		return Decision{Consumed: true}
+	}
+	return m.intent(kind)
 }
 
 func (r renderer) renderAutomationsHeader(selected bool, width int, pad, background string) renderedTreeRow {
