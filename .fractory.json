@@ -8,5 +8,10 @@
   "ticketGate": false,
   "baseBranch": "fractory/runs-view",
   "sandboxImage": "sandcastle:agent-manager",
-  "maxIterations": 10
+  "maxIterations": 10,
+  "rebuild": [
+    "make build VERSION=0.50.0-fractory",
+    "install -m 755 agent-manager ~/.local/bin/fractory-manager",
+    "rm agent-manager"
+  ]
 }
