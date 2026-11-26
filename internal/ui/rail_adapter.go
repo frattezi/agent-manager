@@ -17,6 +17,7 @@ import (
 	uiframe "github.com/YoanWai/agent-manager/internal/ui/frame"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	uirailpersist "github.com/YoanWai/agent-manager/internal/ui/rail/persist"
+	uilifecycle "github.com/YoanWai/agent-manager/internal/ui/session/lifecycle"
 	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -50,6 +51,13 @@ func (m *Model) railSnapshot() uirail.Snapshot {
 		Groups:         append([]string(nil), m.workspace.groups...),
 		ArchivedGroups: make(map[string]bool, len(m.workspace.archivedGroups)),
 		Hosts:          m.ssh.RailHosts(),
+	}
+	for _, host := range snapshot.Hosts {
+		for i, session := range host.Sessions {
+			if action, busy := m.remoteLifecycleInFlight(host.Name, session.ID); busy {
+				host.Sessions[i].Pending = uilifecycle.PendingWord(action)
+			}
+		}
 	}
 	for path, archived := range m.workspace.archivedGroups {
 		snapshot.ArchivedGroups[path] = archived
@@ -85,6 +93,7 @@ func (m *Model) railSnapshot() uirail.Snapshot {
 			Elsewhere:      m.elsewhereNote(session) != "",
 			AfterTurn:      session.AfterTurn,
 			AfterTurnGlyph: m.afterTurnGlyph(session.AfterTurn),
+			Pending:        uilifecycle.PendingWord(m.ledger.lifecycle.Pending[session.ID]),
 		})
 	}
 	return snapshot

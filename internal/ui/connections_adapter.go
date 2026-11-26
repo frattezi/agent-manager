@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/YoanWai/agent-manager/internal/catalog"
@@ -17,6 +18,7 @@ import (
 	uiquick "github.com/YoanWai/agent-manager/internal/ui/quick"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	uisession "github.com/YoanWai/agent-manager/internal/ui/session"
+	uilifecycle "github.com/YoanWai/agent-manager/internal/ui/session/lifecycle"
 	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	uilaunch "github.com/YoanWai/agent-manager/internal/ui/spawn/launch"
 	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
@@ -108,7 +110,92 @@ func (m *Model) remoteSessionIntent(row uiconnections.Row, call uiconnections.Ca
 	request := remoteCall(row.Host, row.Ref, row.Name)
 	request.Op = remoteOp[call.Op]
 	request.Dead = call.Dead
+	if m.remoteAnyInFlight(request) {
+		return nil, true
+	}
 	return m.confirmRemote(request, call, row.Terminals), true
+}
+
+// remotePendingAction is the row word each remote lifecycle call shows
+// while it is on its way to the host.
+var remotePendingAction = map[uilink.Op]uilifecycle.Action{
+	uilink.Kill:          uilifecycle.Kill,
+	uilink.CloseTerminal: uilifecycle.Kill,
+	uilink.Revive:        uilifecycle.Revive,
+	uilink.Archive:       uilifecycle.Archive,
+	uilink.Restore:       uilifecycle.Restore,
+	uilink.Delete:        uilifecycle.Remove,
+	uilink.DeleteGroup:   uilifecycle.Remove,
+}
+
+// remoteLifecycleTargets are the session ids a remote call acts on: a group
+// delete's confirmed members, an agent's delete with its nested terminals,
+// or the one row of any other call.
+func (m *Model) remoteLifecycleTargets(call uilink.Call) []string {
+	switch call.Op {
+	case uilink.DeleteGroup:
+		return call.Sessions
+	case uilink.Delete:
+		return append([]string{call.Ref.ID}, m.ssh.Nested(call.Host, call.Ref.ID)...)
+	}
+	return []string{call.Ref.ID}
+}
+
+// remoteAdmissionIDs are the rows that must be idle before a remote call
+// queues: its targets, and for a kill or revive the nested terminals too.
+func (m *Model) remoteAdmissionIDs(call uilink.Call) []string {
+	ids := m.remoteLifecycleTargets(call)
+	if call.Op == uilink.Kill || call.Op == uilink.Revive {
+		ids = append(ids, m.ssh.Nested(call.Host, call.Ref.ID)...)
+	}
+	return ids
+}
+
+// remoteLifecycleJobs are the lifecycle calls queued or running on the
+// remote lane.
+func (m *Model) remoteLifecycleJobs() []uilink.Call {
+	var calls []uilink.Call
+	for _, job := range append([]*uieffects.Job{m.effects.Remote.Active}, m.effects.Remote.Pending...) {
+		if job == nil {
+			continue
+		}
+		if call := job.Request.(uilink.Call); remotePendingAction[call.Op] != "" {
+			calls = append(calls, call)
+		}
+	}
+	return calls
+}
+
+// remoteLifecycleInFlight finds a lifecycle call queued or running for the
+// session id on host.
+func (m *Model) remoteLifecycleInFlight(host, id string) (uilifecycle.Action, bool) {
+	for _, call := range m.remoteLifecycleJobs() {
+		if call.Host == host && slices.Contains(m.remoteLifecycleTargets(call), id) {
+			return remotePendingAction[call.Op], true
+		}
+	}
+	return "", false
+}
+
+// remoteAnyInFlight reports whether a queued or running lifecycle call on
+// host covers any of ids, counting the rows each call waits on, so a kill
+// and a close of one of its agent's terminals refuse each other.
+func (m *Model) remoteAnyInFlight(request uilink.Call) bool {
+	ids := m.remoteAdmissionIDs(request)
+	for _, call := range m.remoteLifecycleJobs() {
+		if call.Host != request.Host {
+			continue
+		}
+		busy := m.remoteAdmissionIDs(call)
+		if slices.ContainsFunc(ids, func(id string) bool { return slices.Contains(busy, id) }) {
+			return true
+		}
+		if request.Op == uilink.DeleteGroup && call.Op == uilink.DeleteGroup &&
+			(uilifecycle.InSubtree(request.Name, call.Name) || uilifecycle.InSubtree(call.Name, request.Name)) {
+			return true
+		}
+	}
+	return false
 }
 
 // openRemoteRename types a remote agent's, terminal's or group's new name
@@ -176,6 +263,9 @@ func (m *Model) confirmRemoteGroupDelete(row uiconnections.Row) tea.Cmd {
 	}
 	subgroups, sessions := m.ssh.Subtree(row.Host, row.Group)
 	request := uilink.Call{Op: uilink.DeleteGroup, Host: row.Host, Name: row.Group, Sessions: sessions}
+	if m.remoteAnyInFlight(request) {
+		return nil
+	}
 	m.openConfirm(confirmTarget{
 		prompt: uidialogs.Confirm{Action: uidialogs.ConfirmDelete, Group: true,
 			Label: uisession.GroupDeleteLabel(presentation.EscapeControlsInline(row.Group+" on "+row.Host), subgroups, len(sessions), "kills their tmux sessions there.")},
@@ -242,12 +332,18 @@ func (m *Model) queueRemote(request uilink.Call) tea.Cmd {
 		m.reportErr(refusal)
 		return nil
 	}
+	if _, lifecycle := remotePendingAction[request.Op]; lifecycle {
+		if m.remoteAnyInFlight(request) {
+			return nil
+		}
+	}
 	m.clearErr()
 	m.enqueueEffect(request, 0, false)
+	m.rebuildRows()
 	if request.FromQuick() {
 		m.acceptQuick(request.Submission)
 	}
-	return m.nextEffectCmd()
+	return tea.Batch(m.nextEffectCmd(), m.startStartupTick())
 }
 
 // remoteRepeat refuses a second enter on a New Session form or a name field

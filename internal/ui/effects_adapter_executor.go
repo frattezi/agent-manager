@@ -156,6 +156,7 @@ func (m *Model) applyEffect(job *uieffects.Job, result uieffects.Result, err err
 	case uitheme.PaneRequest:
 		return uitheme.ApplyPane(themeHost{m}, err)
 	case uilifecycle.Request:
+		m.ledger.lifecycle.ClearPending(request.Target)
 		return m.applyLifecycleEffect(request, as[uilifecycle.Result](result), err)
 	case uilifecycle.AfterTurnRequest:
 		return m.applyAfterTurn(request, as[uilifecycle.AfterTurnResult](result), err)
@@ -209,14 +210,6 @@ func (m *Model) captureServices() effectServices {
 		services.lifecycle = m.services.lifecycle.Capture(cfg, m.services.setSnapshot)
 	}
 	return services
-}
-
-func (s effectServices) reflow(ids []string, work func()) error {
-	if s.runner == nil {
-		work()
-		return nil
-	}
-	return s.runner.ReflowSessions(ids, work)
 }
 
 // focusRuntime is the store, tmux server, watcher, engine and paste transport

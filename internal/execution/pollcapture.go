@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"slices"
 	"sort"
 
 	"time"
@@ -22,16 +23,41 @@ func (p *Runner) idMinting(sess store.Session, panes map[string]tmux.Pane) bool 
 		p.sessionStores[sess.Tool] != ""
 }
 
+func (p *Runner) isHeld(id string) bool {
+	p.holdMu.Lock()
+	defer p.holdMu.Unlock()
+	return p.held[id]
+}
+
+func (p *Runner) holdGeneration() uint64 {
+	p.holdMu.Lock()
+	defer p.holdMu.Unlock()
+	return p.holdSeq
+}
+
+// bindUnlessHeld binds under the hold lock, so a hold on any of waitOn that
+// is active, or started or ended after since (read before the session list),
+// keeps the bind off until a later pass.
+func (p *Runner) bindUnlessHeld(sess store.Session, agentID string, waitOn []string, since uint64) (bound, held bool, err error) {
+	p.holdMu.Lock()
+	defer p.holdMu.Unlock()
+	if slices.ContainsFunc(waitOn, func(id string) bool { return p.held[id] || p.holdChangedAt[id] > since }) {
+		return false, true, nil
+	}
+	bound, err = p.store.BindAgentSessionID(sess.ID, agentID, sess.AgentLaunchedAt)
+	return bound, false, err
+}
+
 // startCaptureIfIdle runs id capture off the poll lock. Capturing an
 // some ids shell out to the tool's CLI, which can take seconds;
 // doing it inside refreshOnce would hold runMu and stall every refresh,
 // including a freshly submitted session's first appearance. One pass runs at
 // a time, on a snapshot, and a pass that captures anything pokes a refresh so
 // the UI and store pick up the new ids.
-func (p *Runner) startCaptureIfIdle(sessions []store.Session, panes map[string]tmux.Pane) {
+func (p *Runner) startCaptureIfIdle(sessions []store.Session, panes map[string]tmux.Pane, since uint64) {
 	hasWork := false
 	for _, sess := range sessions {
-		if p.idMinting(sess, panes) {
+		if p.idMinting(sess, panes) && !p.isHeld(sess.ID) {
 			hasWork = true
 			break
 		}
@@ -44,7 +70,7 @@ func (p *Runner) startCaptureIfIdle(sessions []store.Session, panes map[string]t
 	go func() {
 		defer p.captureWait.Done()
 		defer p.captureBusy.Store(false)
-		captured, err := p.captureAgentSessionIDs(snapshot, panes)
+		captured, err := p.captureAgentSessionIDs(snapshot, panes, since)
 		if err != nil {
 			p.mu.Lock()
 			p.captureErr = err
@@ -63,7 +89,7 @@ func (p *Runner) startCaptureIfIdle(sessions []store.Session, panes map[string]t
 // started in the same directory then skips that one via claimed and captures
 // its own. Launch times carry nanosecond precision, so sessions launched a
 // moment apart in the same directory still order deterministically.
-func (p *Runner) captureAgentSessionIDs(sessions []store.Session, panes map[string]tmux.Pane) (int, error) {
+func (p *Runner) captureAgentSessionIDs(sessions []store.Session, panes map[string]tmux.Pane, since uint64) (int, error) {
 	claimed := make(map[string]bool, len(sessions))
 	for _, sess := range sessions {
 		if sess.AgentSessionID != "" {
@@ -101,16 +127,42 @@ func (p *Runner) captureAgentSessionIDs(sessions []store.Session, panes map[stri
 			recaptureCounts[recaptureScope(sessions[i])]++
 		}
 	}
+	// A first launch takes the earliest unclaimed conversation in its
+	// directory, which may be a held peer's, so the directory waits out the hold.
+	heldDirs := map[string]bool{}
+	// Archived rows count too: a restore holds its session while still archived.
+	everySession, err := p.store.ListSessions(true)
+	if err != nil {
+		return 0, err
+	}
+	scopePeers := map[string][]string{}
+	for _, sess := range everySession {
+		scopePeers[recaptureScope(sess)] = append(scopePeers[recaptureScope(sess)], sess.ID)
+	}
+	for _, i := range pending {
+		if p.isHeld(sessions[i].ID) {
+			heldDirs[recaptureScope(sessions[i])] = true
+		}
+	}
 	captured := 0
 cands:
 	for _, i := range pending {
 		sess := sessions[i]
+		// A held session still counts toward its scope above, so a peer
+		// relaunched beside it cannot take its new conversation.
+		if p.isHeld(sess.ID) {
+			heldDirs[recaptureScope(sess)] = true
+			continue
+		}
 		// A resumed session cannot use the earliest-write tie-break: in a
 		// shared cwd it would bind the wrong conversation, so only one
 		// exact candidate counts.
 		var agentID string
 		var ok bool
 		if sess.AgentLaunchedAt.IsZero() && sess.RelaunchSnapshot == nil {
+			if heldDirs[recaptureScope(sess)] {
+				continue
+			}
 			agentID, ok = agentsession.Capture(p.sessionStores[sess.Tool], sess.Cwd, sess.LaunchTime(), claimed, panes[sess.ID].TTY)
 		} else {
 			if recaptureCounts[recaptureScope(sess)] > 1 {
@@ -137,7 +189,11 @@ cands:
 		// The raw field, never LaunchTime(): the compare-and-set matches the
 		// stored column, which is zero for a session that never restarted,
 		// while LaunchTime() answers CreatedAt and would match nothing.
-		bound, err := p.store.BindAgentSessionID(sess.ID, agentID, sess.AgentLaunchedAt)
+		bound, held, err := p.bindUnlessHeld(sess, agentID, scopePeers[recaptureScope(sess)], since)
+		if held {
+			heldDirs[recaptureScope(sess)] = true
+			continue
+		}
 		if err != nil {
 			return captured, err
 		}
