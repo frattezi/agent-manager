@@ -6,6 +6,15 @@ for in [REVIEW.md](REVIEW.md). Fill the Scope section of the pull request
 template: a review reads it to tell the change you meant from the change you
 made.
 
+## This checkout is a fork
+
+`origin` is `frattezi/agent-manager`, a personal fork; `upstream` is
+`wainmann/agent-manager`. Work lands on the fork, and pull requests target the
+fork's own base branch (`baseBranch` in `.fractory.json`, currently
+`fractory/runs-view`), not `upstream/main`. Fork-only features live here and are
+not expected to be contributed upstream unless the owner says so; still keep
+them inside the Product boundary below, because the fork rebases on upstream.
+
 ## Product boundary
 
 Keep agent-manager a thin wrapper around the supported TUIs. Preserve upstream
