@@ -10,7 +10,7 @@ import (
 var listOrder = []string{
 	DefaultToolSetting, ThemeSetting, ThemeAutoSetting, GlyphModeSetting, BackgroundSetting,
 	ListDensitySetting, SessionLayoutSetting, HideHeaderSetting, HideStatsSetting, DiffLayoutSetting, ReviewScopeSetting,
-	QuickCloseSetting, FocusKeySetting, ArrowStepSetting, MouseSetting, WorktreeSetting, BaseFetchSetting,
+	FocusKeySetting, ArrowStepSetting, MouseSetting, WorktreeSetting, BaseFetchSetting,
 	CoordinationSetting, NotificationsSetting, NotifyFinishedSetting, NotifyCommandSetting,
 	EditorSetting, HiddenToolsSetting,
 }

@@ -78,10 +78,6 @@ func (r linkRoot) CloseRename(gen int, name string) {
 	}
 }
 
-func (r linkRoot) SettleAccepted(composerGen int, submitted uint64, closeAfterSend bool) {
-	r.settleAccepted(composerGen, submitted, closeAfterSend)
-}
-
 func (r linkRoot) RestoreRefused(composerGen int, submission spawn.Submission) {
 	r.restoreRefused(composerGen, submission)
 }

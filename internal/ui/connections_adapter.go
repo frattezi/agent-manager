@@ -383,7 +383,7 @@ func (m *Model) remoteQuickSpawn(spawned spawn.Request) (tea.Cmd, bool) {
 
 func (m *Model) quickRemoteRequest(host, text string) uilink.Call {
 	q := m.quick()
-	return uilink.Call{Host: host, Text: text, ComposerGen: q.Gen, Submission: q.Submission(), CloseAfterSend: q.CloseAfterSend}
+	return uilink.Call{Host: host, Text: text, ComposerGen: q.Gen, Submission: q.Submission()}
 }
 
 // withRemoteChoice passes the choice as the host's spawn takes it: the

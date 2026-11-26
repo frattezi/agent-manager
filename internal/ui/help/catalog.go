@@ -161,6 +161,7 @@ func helpSections(ctx Context) []helpSection {
 		{title: "SSH connection under the cursor", rows: connectionRowHelpRows(list, mode)},
 		{title: titledWith("quick prompt mode", list, mode, keybind.Prompt), rows: [][2]string{
 			{"↵", "send"},
+			{"alt+↵", "send and keep the text, to send it again"},
 			{presentation.NavigationLabel(mode, "↑↓"), "switch the target session, or step the caret in a taller prompt"},
 			{"tab", "step the tool a spawn uses forward (alt+m too)"},
 			{"shift+tab", "step the tool a spawn uses back one"},

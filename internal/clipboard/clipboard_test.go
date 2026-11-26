@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -913,5 +914,51 @@ func TestCopyCommandOverSSH(t *testing.T) {
 				t.Fatalf("copyCommand() = %q %v, want %q %v", name, ok, c.wantName, c.wantOK)
 			}
 		})
+	}
+}
+
+func TestLinkPasteSurvivesTheOriginalName(t *testing.T) {
+	original := filepath.Join(t.TempDir(), "paste-1.png")
+	if err := os.WriteFile(original, []byte("png"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	linked, err := LinkPaste(original)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if linked == original || filepath.Ext(linked) != ".png" {
+		t.Fatalf("linked name = %q", linked)
+	}
+	if err := os.Remove(original); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(linked); err != nil || string(data) != "png" {
+		t.Fatalf("linked image = %q, %v", data, err)
+	}
+	again, err := LinkPaste(linked)
+	if err != nil || !strings.HasPrefix(filepath.Base(again), fmt.Sprintf("paste-k%d-", os.Getpid())) || strings.Contains(filepath.Base(again), "paste-1") {
+		t.Fatalf("relinked name %q built on %q, err %v", again, linked, err)
+	}
+	if _, err := LinkPaste(original); err == nil {
+		t.Fatal("linking a missing image succeeded")
+	}
+}
+
+func TestLinkPasteStepsPastATakenName(t *testing.T) {
+	dir := t.TempDir()
+	original := filepath.Join(dir, "paste-1.png")
+	if err := os.WriteFile(original, []byte("png"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	taken := filepath.Join(dir, fmt.Sprintf("paste-k%d-%d.png", os.Getpid(), linkCount.Load()+1))
+	if err := os.WriteFile(taken, []byte("other"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	linked, err := LinkPaste(original)
+	if err != nil || linked == taken {
+		t.Fatalf("LinkPaste = %q, %v; the taken name was %q", linked, err, taken)
+	}
+	if data, _ := os.ReadFile(taken); string(data) != "other" {
+		t.Fatalf("the taken name was overwritten: %q", data)
 	}
 }

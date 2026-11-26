@@ -543,10 +543,6 @@ func (m *Model) commitSpawn(request uilaunch.Request, sess store.Session) {
 			m.closeForm()
 			reveal = true
 		}
-	case uilaunch.Quick:
-		if q, ok := m.quickFor(request.ComposerGen); ok {
-			m.settleAccepted(request.ComposerGen, request.Submission.ID, q.CloseAfterSend)
-		}
 	case uilaunch.Import:
 		reveal = m.base == baseList && !m.focused() && !m.cardOpen()
 	}

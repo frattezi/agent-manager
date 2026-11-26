@@ -91,8 +91,6 @@ var table = []Setting{
 	{Spec: Spec{Key: DiffLayoutSetting, Values: []string{"split", "unified"}, Default: "split", Row: "review layout"}, Field: FieldLayout,
 		Flag: func(s *State) *bool { return &s.LayoutSplit }, True: "split", False: "unified"},
 	{Spec: Spec{Key: ReviewScopeSetting, Values: ReviewScopes, Default: ReviewScopes[0], Row: "review scope"}, Field: FieldReviewScope},
-	{Spec: Spec{Key: QuickCloseSetting, Values: []string{"stay", "close"}, Default: "stay", Row: "after quick prompt"}, Field: FieldQuickClose,
-		Flag: func(s *State) *bool { return &s.QuickCloseSend }, True: "close", False: "stay", FalseLabel: "stay open"},
 	{Spec: Spec{Key: FocusKeySetting, Values: []string{"focus", "attach"}, Default: "focus", Row: "session keys"}, Field: FieldFocusKey,
 		Flag: func(s *State) *bool { return &s.EnterFocuses }, True: "focus", False: "attach", TrueLabel: "↵ focus · A attach", FalseLabel: "↵ attach · A focus"},
 	{Spec: Spec{Key: ArrowStepSetting, Values: arrowSteps, Default: arrowSteps[0], Row: "←→ step in/out"}, Field: FieldArrowStep},

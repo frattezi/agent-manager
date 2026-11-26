@@ -35,9 +35,8 @@ const (
 	// MouseSetting is app-wide mouse reporting: "off" gives the rail and
 	// content column back to the terminal's own click-drag text selection,
 	// anything else leaves it on (the default).
-	MouseSetting      = "mouse_mode"
-	QuickCloseSetting = "quick_prompt_close"
-	WorktreeSetting   = "worktree_default"
+	MouseSetting    = "mouse_mode"
+	WorktreeSetting = "worktree_default"
 	// BaseFetchSetting is the fetch ahead of a worktree spawn: "off" skips
 	// it, anything else fetches (the default).
 	BaseFetchSetting      = "worktree_fetch"
@@ -69,7 +68,6 @@ const (
 	FieldStats
 	FieldLayout
 	FieldReviewScope
-	FieldQuickClose
 	FieldFocusKey
 	FieldArrowStep
 	FieldMouse
@@ -101,7 +99,6 @@ type State struct {
 	Field           int
 	LayoutSplit     bool
 	ReviewScope     string
-	QuickCloseSend  bool
 	EnterFocuses    bool
 	ArrowStep       string
 	ComfortableRows bool

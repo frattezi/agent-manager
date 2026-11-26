@@ -49,11 +49,10 @@ type Call struct {
 	Group string
 	// ComposerGen and Submission let a send or spawn from the quick bar, or
 	// a spawn from the New Session form, settle what asked for it.
-	ComposerGen    int
-	Submission     spawn.Submission
-	CloseAfterSend bool
-	FromForm       bool
-	Dead           bool
+	ComposerGen int
+	Submission  spawn.Submission
+	FromForm    bool
+	Dead        bool
 }
 
 // FromQuick is whether the call is a send or spawn the quick bar accepted.
@@ -110,10 +109,7 @@ func (s *State) ApplyCall(root Root, call Call, result Result, err error) tea.Cm
 	if err != nil {
 		// As on this machine, a prompt that may sit in the pane stays off
 		// the bar, so the next enter cannot type it a second time.
-		switch {
-		case call.Op == Type && remote.MayHaveReached(err):
-			root.SettleAccepted(call.ComposerGen, call.Submission.ID, call.CloseAfterSend)
-		case call.FromQuick():
+		if call.FromQuick() && !remote.MayHaveReached(err) {
 			root.RestoreRefused(call.ComposerGen, call.Submission)
 		}
 		root.ReportErr(err.Error())
@@ -122,13 +118,10 @@ func (s *State) ApplyCall(root Root, call Call, result Result, err error) tea.Cm
 	on := " on " + call.Host
 	switch call.Op {
 	case Type:
-		root.SettleAccepted(call.ComposerGen, call.Submission.ID, call.CloseAfterSend)
 		root.ReportDone("sent to " + call.Name + on)
 	case Spawn:
 		if call.FromForm {
 			root.CloseAsker(call.ComposerGen, FormAsker)
-		} else {
-			root.SettleAccepted(call.ComposerGen, call.Submission.ID, call.CloseAfterSend)
 		}
 		root.ReportDone("started " + result.Session.Name + on)
 	case NewTerminal:

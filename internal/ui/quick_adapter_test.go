@@ -86,9 +86,8 @@ func TestOpenQuickModeDefersSettingsReadAndGuardsDefaults(t *testing.T) {
 			started: make(chan struct{}),
 			release: make(chan struct{}),
 			values: map[string]string{
-				"default_tool":               "ready-tool",
-				uisettings.QuickCloseSetting: "close",
-				uisettings.WorktreeSetting:   "on",
+				"default_tool":             "ready-tool",
+				uisettings.WorktreeSetting: "on",
 			},
 		}
 		cmd := m.openQuickModeWithReader(reader)
@@ -105,8 +104,8 @@ func TestOpenQuickModeDefersSettingsReadAndGuardsDefaults(t *testing.T) {
 		if got := m.quickTool(); got != "ready-tool" {
 			t.Fatalf("refreshed quick tool = %q, want ready-tool", got)
 		}
-		if !m.quick().CloseAfterSend || !m.quick().Worktree() {
-			t.Fatalf("quick defaults were not refreshed: close=%t worktree=%t", m.quick().CloseAfterSend, m.quick().Worktree())
+		if !m.quick().Worktree() {
+			t.Fatal("quick defaults were not refreshed: worktree off")
 		}
 	})
 
@@ -838,42 +837,6 @@ func TestQuickSeedsFromLastFormSpawn(t *testing.T) {
 	m.openQuickMode()
 	if got := m.quickTool(); got != "ready-tool" {
 		t.Fatalf("quick tool = %q, want last form spawn", got)
-	}
-}
-
-func TestQuickCloseAfterSendDefaultsToStayingOpen(t *testing.T) {
-	t.Parallel()
-	m := buildModel(t)
-	if m.settings.Cache.Value(uisettings.QuickCloseSetting) == "close" {
-		t.Fatal("quick bar should stay open by default")
-	}
-	if err := m.services.store.SetSetting(uisettings.QuickCloseSetting, "close"); err != nil {
-		t.Fatal(err)
-	}
-	m.applyTestMsg(t, m.openQuickMode()())
-	if !m.quick().CloseAfterSend {
-		t.Fatal("refreshed close choice should opt in")
-	}
-}
-
-func TestQuickPromptClosesAfterSendWhenEnabled(t *testing.T) {
-	t.Parallel()
-	m := buildModel(t)
-	createSession(t, m, "answer-me", t.TempDir(), "")
-	m.selectSessionRow(t, "answer-me")
-	if err := m.services.store.SetSetting(uisettings.QuickCloseSetting, "close"); err != nil {
-		t.Fatal(err)
-	}
-
-	m.applyTestMsg(t, m.openQuickMode()())
-	m.quick().Input.SetValue("carry on with the plan")
-	_, cmd := m.submitQuick()
-	m.applyTestMsg(t, cmd())
-	if m.errBar.text != "" {
-		t.Fatalf("send: %q", m.errBar.text)
-	}
-	if m.quick() != nil {
-		t.Fatal("quick mode should close after a send when the setting is on")
 	}
 }
 
