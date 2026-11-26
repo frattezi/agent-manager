@@ -15,6 +15,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/keybind"
 	"github.com/YoanWai/agent-manager/internal/launch"
+	"github.com/YoanWai/agent-manager/internal/rebuild"
 	"github.com/YoanWai/agent-manager/internal/store"
 	uieffects "github.com/YoanWai/agent-manager/internal/ui/effects"
 	uirelease "github.com/YoanWai/agent-manager/internal/ui/notices/release"
@@ -1866,6 +1867,18 @@ func specByKey(t *testing.T) map[string]store.SettingSpec {
 		byKey[spec.Key] = spec
 	}
 	return byKey
+}
+
+// rebuild reads its checkout from the store under its own name, and the
+// path stays off the modal.
+func TestSettingSpecsNameTheRebuildCheckoutWithNoRow(t *testing.T) {
+	spec, ok := specByKey(t)[rebuild.CheckoutSetting]
+	if !ok {
+		t.Fatalf("SettingSpecs does not name %s", rebuild.CheckoutSetting)
+	}
+	if spec.Row != "" || len(spec.Values) != 0 {
+		t.Fatalf("%s is %+v, want a shell-only key that takes any text", rebuild.CheckoutSetting, spec)
+	}
 }
 
 // The dialog spells the keys the store reads the same way.

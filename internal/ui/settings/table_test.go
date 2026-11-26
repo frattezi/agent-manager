@@ -12,7 +12,7 @@ var listOrder = []string{
 	ListDensitySetting, SessionLayoutSetting, HideHeaderSetting, HideStatsSetting, DiffLayoutSetting, ReviewScopeSetting,
 	QuickCloseSetting, FocusKeySetting, ArrowStepSetting, MouseSetting, WorktreeSetting, BaseFetchSetting,
 	CoordinationSetting, NotificationsSetting, NotifyFinishedSetting, NotifyCommandSetting,
-	EditorSetting, HiddenToolsSetting,
+	RebuildCheckoutSetting, EditorSetting, HiddenToolsSetting,
 }
 
 func TestSpecsKeepTheirOrder(t *testing.T) {
