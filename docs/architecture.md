@@ -40,9 +40,10 @@ Under `internal/`:
   - `ui/session/lifecycle`: archive, restore, delete, kill, restart, revive, after-turn and attach, with the ledger a stale poll is reconciled against.
   - `ui/spawn/launch`: the spawn and group creation, the catalog and worktree answers, and the base ref and its fetch.
 - `ui/runs`: Fractory's Run registry, a directory of `<id>.json` files read every 2s, and the review-comment file written beside it. Runs are listed read-only in the rail.
+- `ui/automations`: the Automation contracts, the clock that fires them, and the commands that add, change, enable, disable, remove and run one now. The Automations dialog and `agent-manager automations` both call those commands. `ui/automations/form` is the dialog. `ui/automations/persist` is the store as the commands read and write it.
 - `ui/theme`: the built-in palettes and color math, a leaf any UI package may import.
 - `ui/presentation`: pure text helpers shared by `ui` and its feature packages.
-- `ui/surface`: the surface stack's contract, a leaf a feature package implements to put its own screen on the root's stack. `ui/help`, `ui/review`, `ui/notices`, `ui/onboarding`, `ui/connections`, `ui/settings`, `ui/dialogs`, `ui/geometry`, `ui/focus`, `ui/spawn` and `ui/quick` do. See [Decisions](#decisions).
+- `ui/surface`: the surface stack's contract, a leaf a feature package implements to put its own screen on the root's stack. `ui/help`, `ui/review`, `ui/notices`, `ui/onboarding`, `ui/connections`, `ui/settings`, `ui/dialogs`, `ui/geometry`, `ui/focus`, `ui/spawn`, `ui/quick` and `ui/automations/form` do. See [Decisions](#decisions).
 - `store`: SQLite state: sessions, groups, settings, inbox, tasks, reservations.
 - `tmux`: the `Driver` on the dedicated socket, the control-mode client, bindings, attach.
 - `status`: classifies pane output into agent states.

@@ -310,7 +310,7 @@ func TestAttachOnAnAutomationOpensItsNewestLogOrSaysItNeverFired(t *testing.T) {
 		t.Fatalf("status = %q", m.errBar.text)
 	}
 	m.automationIntent(uirail.Intent{Kind: uirail.Kill, Target: m.railSelection()})
-	if !strings.Contains(m.errBar.text, "agent-manager automations") {
+	if !strings.Contains(m.errBar.text, "r edit") {
 		t.Fatalf("a kill on an Automation: status = %q", m.errBar.text)
 	}
 }

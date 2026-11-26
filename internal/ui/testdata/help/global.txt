@@ -18,11 +18,11 @@
               │   T                new terminal tab: a shell under the selected agent, or in the group   │
               │   g                new group (name, parent, default path, worktree)                      │
               │   C                new SSH connection: another machine's sessions in this list           │
+              │   S                new Automation: work Fractory runs on a schedule                      │
               │   /                search the list by name                                               │
               │   w                filter to what needs attention (waiting, finished, errored)           │
               │   t                archived view                                                         │
               │   e                hide / show empty groups                                              │
-              │   H                Runs: show / hide the finished Tickets (merged, or marked solved)     │
               │   ↓ more below…                                                                          │
               │                                                                                          │
               ├──────────────────────────────────────────────────────────────────────────────────────────┤

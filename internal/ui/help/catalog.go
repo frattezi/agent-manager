@@ -62,6 +62,7 @@ func listHelpRows(list keybind.Table, arrowStep, arrowAttach bool, glyphs Glyphs
 	h.action("new terminal tab: a shell under the selected agent, or in the group", keybind.Terminal)
 	h.action("new group (name, parent, default path, worktree)", keybind.NewGroup)
 	h.action("new SSH connection: another machine's sessions in this list", keybind.NewConnection)
+	h.action("new Automation: work Fractory runs on a schedule", keybind.NewAutomation)
 	h.action("search the list by name", keybind.Search)
 	h.action("filter to what needs attention (waiting, finished, errored)", keybind.Filter)
 	h.action("archived view", keybind.Archived)
@@ -157,6 +158,11 @@ func automationRowHelpRows(list keybind.Table, mode presentation.GlyphMode) [][2
 	h.fixed("", "a log tab follows a running firing and stays readable after")
 	h.fixed("click "+presentation.GlyphsFor(mode).GroupOpenGlyph, "on the header or an Automation, fold or unfold it")
 	h.fixed("double click", "on a firing, open its log")
+	h.action("edit it: the dialog opens on what is stored", keybind.Rename)
+	h.action("enable / disable it; a disabled Automation keeps its setup", keybind.EnableToggle)
+	h.action("run it now for the current instant; its schedule is untouched", keybind.RunNow)
+	h.action("delete it, after a confirmation", keybind.Delete)
+	h.fixed("", "each is in the row menu too")
 	return h.rows
 }
 

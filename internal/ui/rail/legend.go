@@ -190,6 +190,7 @@ func (m Model) ViewLegend(ctx LegendContext) Legend {
 		{k(keybind.NewSession), "new"}, {terminalKey, "terminal"}, {k(keybind.NewGroup), "group"}, {k(keybind.Search), "search"},
 		{k(keybind.Archived), archivedAction}, {k(keybind.Filter), statusFilterAction}, {emptyGroupsKey, emptyGroupsAction},
 		{k(keybind.Help), "keys"}, {k(keybind.Quit), "quit"}, {k(keybind.NewConnection), "connection"},
+		{k(keybind.NewAutomation), "automation"},
 	}...)
 	add(false, [2]string{k(keybind.ReorderUp, keybind.ReorderDown), "reorder"})
 	tail := [][2]string{{foldAllKey, foldAllAction}}

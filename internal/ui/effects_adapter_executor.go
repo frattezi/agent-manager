@@ -174,6 +174,14 @@ func (m *Model) applyEffect(job *uieffects.Job, result uieffects.Result, err err
 		return uiquicksend.Apply(quickSendRoot{m}, request, as[uiquicksend.SendResult](result), err)
 	case automations.CheckRequest:
 		return m.applyAutomationsCheck(as[automations.CheckResult](result), err)
+	case automations.SaveRequest:
+		return m.applyAutomationSave(request, as[automations.SaveResult](result), err)
+	case automations.EnableRequest:
+		return m.applyAutomationEnable(request, as[automations.Listing](result), err)
+	case automations.RemoveRequest:
+		return m.applyAutomationRemove(request, as[automations.Listing](result), err)
+	case automations.RunNowRequest:
+		return m.applyAutomationRunNow(request, as[automations.RunNowResult](result), err)
 	}
 	if err != nil {
 		m.reportErr(err.Error())

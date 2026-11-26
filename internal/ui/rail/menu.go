@@ -83,7 +83,7 @@ func (m Model) rowMenuItems(row treeRow) []menuItem {
 				end = append(end, kill)
 			}
 		}
-		return menuSections(append(rootCreate, editor, menuItem{label: "Settings", action: OpenSettings}), end, []menuItem{connection})
+		return menuSections(append(rootCreate, editor, menuItem{label: "Settings", action: OpenSettings}), end, []menuItem{connection, newAutomation})
 	}
 	if row.host != "" {
 		if m.showArchived {
@@ -277,6 +277,12 @@ func actionKind(action string) ActionKind {
 		return NewGroup
 	case keybind.NewConnection:
 		return NewConnection
+	case keybind.NewAutomation:
+		return NewAutomation
+	case keybind.EnableToggle:
+		return ToggleEnabled
+	case keybind.RunNow:
+		return RunNow
 	case keybind.Fork:
 		return Fork
 	case keybind.Revive:

@@ -18,6 +18,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/systheme"
 	"github.com/YoanWai/agent-manager/internal/tmux"
+	"github.com/YoanWai/agent-manager/internal/ui/automations"
 	uicomposer "github.com/YoanWai/agent-manager/internal/ui/composer"
 	uilink "github.com/YoanWai/agent-manager/internal/ui/connections/link"
 	uieffects "github.com/YoanWai/agent-manager/internal/ui/effects"
@@ -224,7 +225,7 @@ func newView(deps Dependencies, version string) (*Model, error) {
 		ssh:       uilink.New(remote.New(deps.ProfileDir), connections),
 		settings:  uipersist.New(uipersist.StoreWriter{Store: st}, choiceSettingKeys(slices.Sorted(maps.Keys(cfg.Tools)))),
 		focus:     focusState{runtime: focusruntime.State{}, imeCursor: &uiframe.CursorAnchor{}},
-		workspace: workspace{capture: uicapture.New(st, driver)},
+		workspace: workspace{capture: uicapture.New(st, driver), automations: automationsState{zone: automations.LocalZone()}},
 		startup: startupState{
 			Booting: true,
 		},

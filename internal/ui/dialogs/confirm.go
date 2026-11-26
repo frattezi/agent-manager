@@ -27,6 +27,9 @@ const (
 	// ConfirmRemoveConnection takes an SSH connection off the list; the
 	// root's pending request names it and holds no sessions.
 	ConfirmRemoveConnection ConfirmAction = "remove connection"
+	// ConfirmDeleteAutomation deletes a stored Automation; the root's
+	// pending request names it.
+	ConfirmDeleteAutomation ConfirmAction = "delete automation"
 )
 
 // Confirm is the question a captured lifecycle request asks before it runs:
@@ -76,6 +79,8 @@ func (c Confirm) Title(mode presentation.GlyphMode) string {
 		return g.RestoreGlyph + " Revive " + subject
 	case ConfirmRemoveConnection:
 		return g.DeleteGlyph + " Remove connection"
+	case ConfirmDeleteAutomation:
+		return g.DeleteGlyph + " Delete Automation"
 	default:
 		return g.DeleteGlyph + " Delete " + subject
 	}
@@ -85,7 +90,8 @@ func (c Confirm) Title(mode presentation.GlyphMode) string {
 // away, which decides whether the dialog reads as an alarm or as a move.
 func (c Confirm) Destructive() bool {
 	return c.Action == ConfirmKill || c.Action == ConfirmDelete ||
-		c.Action == ConfirmRestart || c.Action == ConfirmArchive || c.Action == ConfirmRemoveConnection
+		c.Action == ConfirmRestart || c.Action == ConfirmArchive || c.Action == ConfirmRemoveConnection ||
+		c.Action == ConfirmDeleteAutomation
 }
 
 func (c Confirm) Answer() string {
