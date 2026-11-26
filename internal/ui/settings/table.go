@@ -109,11 +109,12 @@ var table = []Setting{
 	{Spec: Spec{Key: NotifyFinishedSetting, Values: onOff, Default: "off", Row: "notify on finish"}, Field: FieldNotifyFinish,
 		Flag: func(s *State) *bool { return &s.NotifyFinished }, True: "on", False: "off"},
 	{Spec: Spec{Key: NotifyCommandSetting}},
+	{Spec: Spec{Key: RebuildCheckoutSetting}},
 	{Spec: Spec{Key: EditorSetting, Row: "editor"}, Field: FieldEditor},
 	{Spec: Spec{Key: HiddenToolsSetting, List: true, Row: "CLIs"}, Field: FieldCLIs},
 }
 
-// byField indexes the dialog rows; action rows and the shell-only key
+// byField indexes the dialog rows; action rows and the shell-only keys
 // leave their slot nil.
 var byField = func() [FieldCount]*Setting {
 	var fields [FieldCount]*Setting
@@ -143,7 +144,7 @@ func paletteNames() []string {
 }
 
 // saved reports a key the dialog writes with the other preferences: the
-// shell-only key and the hidden CLIs, which have their own save, are not.
+// shell-only keys and the hidden CLIs, which have their own save, are not.
 func (s Setting) saved() bool {
 	return s.Row != "" && !s.List
 }

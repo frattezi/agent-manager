@@ -546,6 +546,18 @@ A running manager shows the change the next time Settings (`s`) is opened and us
 
 `agent-manager update` brings the installed binary to the newest release from a shell, without opening the manager. An install owned by a package manager (Homebrew, mise, Arch) hands the terminal to that manager's upgrade command; a direct install downloads the newest release, verifies its checksum, and swaps the binary in place. `--json` prints the outcome as a record instead of a sentence.
 
+## Rebuilding from a checkout
+
+`agent-manager rebuild` builds agent-manager from a checkout on this machine and installs the result over the binary you invoked, under whatever name you invoked it. Name the checkout once, from a shell; it is a path, so it has no Settings row:
+
+```sh
+agent-manager settings set rebuild_checkout ~/src/agent-manager
+```
+
+With none set, `rebuild` refuses and prints that command. Before it builds, it prints the repo, the branch, the commit and whether the tree is dirty, then streams the `go build` output and ends with the version it produced and a reminder to restart the manager. The version is the `git describe` stamp `make build` writes, so it carries the commit. `rebuild` runs no git command that changes the checkout: no fetch, pull, checkout or branch change, and a dirty tree is built as it stands.
+
+Before the new binary lands, the outgoing one is copied into `versions/` in the manager's config directory, under its version stamp with the time it was installed. The three most recent builds are kept and older ones are removed. A failed build leaves the installed binary and that archive as they were. A manager that is running keeps the build it started from until you restart it. The release path under [Updates](#updates) is unchanged.
+
 ## Reporting a bug or an idea
 
 Settings (`s`) has a row that opens the bug report form and one that opens the feature request form in your browser. Over SSH they print the link on the plain terminal instead, the same way a clicked link does. From a shell, `agent-manager issue "<title>" --body "<text>"` drafts a bug report and `agent-manager feature "<title>" --body "<text>"` a feature request; both print a preview with the context the forms ask for (version, OS, tmux version, and the CLI of the session the command runs in) and post nothing. Rerun with `--confirm <preview-id>`, passing the id the preview printed, to file it: through `gh` as your own account when it is installed and logged in, otherwise the command prints the prefilled issue form URL to open. The id is refused once anything it covers has changed, so what gets filed is what you read. `--json` prints the preview or the filed result as a record. Agents reach the same flow through the `report_issue` MCP tool.

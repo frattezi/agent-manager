@@ -49,6 +49,9 @@ const (
 	// imports. The command now lives in hooks.toml, and a non-empty
 	// settings set is refused.
 	NotifyCommandSetting = "notify_command"
+	// RebuildCheckoutSetting is the checkout agent-manager rebuild builds
+	// from. It is a path, so the shell alone sets it.
+	RebuildCheckoutSetting = "rebuild_checkout"
 	// HiddenToolsSetting lists CLI tools omitted from new-session pickers
 	// (comma-separated names). Empty means every configured tool is shown.
 	HiddenToolsSetting = "hidden_tools"
