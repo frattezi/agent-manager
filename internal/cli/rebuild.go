@@ -31,6 +31,7 @@ func rebuildSection(version string) section {
 					return runRebuild(os.Stdout, os.Stderr, version, programName(), args, configDir)
 				},
 			},
+			rollbackCommand(version),
 		},
 	}
 }
