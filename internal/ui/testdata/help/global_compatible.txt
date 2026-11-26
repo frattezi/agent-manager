@@ -5,7 +5,8 @@
               │   up / k            move the cursor up                                                   │
               │   down / j          move the cursor down                                                 │
               │   click             focus from a row or the preview in the split, select otherwise       │
-              │   double click      fold or unfold a group, focus a session full screen                  │
+              │   double click      fold or unfold a group or Runs, focus a session full screen          │
+              │   click v           on the Runs header, fold or unfold Runs                              │
               │   […]               the row's actions, or right click                                    │
               │   drag =            move the row, into another group too, or click it for up/down        │
               │   click a key       in a footer or a card's foot, run it as if typed                     │
@@ -22,7 +23,6 @@
               │   t                 archived view                                                        │
               │   e                 hide / show empty groups                                             │
               │   H                 Runs: show / hide the finished Tickets (merged and cleaned up)       │
-              │   F                 fold / unfold every group (active view)                              │
               │   v more below…                                                                          │
               │                                                                                          │
               ├──────────────────────────────────────────────────────────────────────────────────────────┤

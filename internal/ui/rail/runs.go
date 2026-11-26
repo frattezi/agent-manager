@@ -31,13 +31,29 @@ type Run struct {
 
 func (r treeRow) isRun() bool { return r.kind == RunRow || r.kind == RunsRow }
 
-// runRows is the Runs section: a header, then one row per listed Run. It is
-// empty when there is nothing to list, so a manager with no registry shows
-// no section.
+// runRows is the Runs section: a header, then one row per listed Run, or the
+// header alone while the section is folded. It is empty when there is
+// nothing to list, so a manager with no registry shows no section.
 func (m Model) runRows() []treeRow {
 	if m.showArchived {
 		return nil
 	}
+	rows := m.listedRunRows()
+	// The header stays while finished Tickets are hidden, so H can bring
+	// them back.
+	if len(rows) == 0 && m.snapshot.RunsFinished == 0 {
+		return nil
+	}
+	header := []treeRow{{kind: RunsRow}}
+	if m.honorFolds() && m.hostFolds[RunsFold] {
+		return header
+	}
+	return append(header, rows...)
+}
+
+// listedRunRows is one row per Run the search and the filter let through,
+// whether or not the section is folded.
+func (m Model) listedRunRows() []treeRow {
 	query := strings.ToLower(strings.TrimSpace(m.search))
 	var rows []treeRow
 	for _, run := range m.snapshot.Runs {
@@ -49,12 +65,11 @@ func (m Model) runRows() []treeRow {
 		}
 		rows = append(rows, treeRow{kind: RunRow, depth: 1, run: run})
 	}
-	// The header stays while finished Tickets are hidden, so H can bring
-	// them back.
-	if len(rows) == 0 && m.snapshot.RunsFinished == 0 {
-		return nil
-	}
-	return append([]treeRow{{kind: RunsRow}}, rows...)
+	return rows
+}
+
+func (m Model) hasRunsSection() bool {
+	return m.rowIndex(Selection{Kind: RunsRow}.key()) >= 0
 }
 
 // FinishedRunsAction is what H does to the Runs section, show finished or
@@ -67,6 +82,16 @@ func (m Model) FinishedRunsAction() string {
 		return "hide finished"
 	}
 	return "show finished"
+}
+
+// runsHeaderMenuItems is the header's row menu: fold or unfold, and the
+// finished toggle beside it.
+func (m Model) runsHeaderMenuItems() []menuItem {
+	fold := menuItem{label: "Fold", action: ToggleFold}
+	if m.hostFolds[RunsFold] {
+		fold.label = "Unfold"
+	}
+	return append([]menuItem{fold}, m.finishedRunsMenuItems()...)
 }
 
 func (m Model) finishedRunsMenuItems() []menuItem {
@@ -82,13 +107,7 @@ func (m Model) finishedRunsMenuItems() []menuItem {
 // runsCount is the header's count: the Runs listed, and the finished
 // Tickets when there are any.
 func (m Model) runsCount() string {
-	listed := 0
-	for _, row := range m.rows {
-		if row.kind == RunRow {
-			listed++
-		}
-	}
-	count := strconv.Itoa(listed)
+	count := strconv.Itoa(len(m.listedRunRows()))
 	if m.snapshot.RunsFinished > 0 {
 		count += ", " + strconv.Itoa(m.snapshot.RunsFinished) + " finished"
 	}
@@ -116,8 +135,12 @@ func (r renderer) renderRunsHeader(selected bool, width int, pad, background str
 	if selected {
 		style = lipgloss.NewStyle().Foreground(lipgloss.Color(r.ctx.Theme.Bright)).Bold(true)
 	}
-	head := pad + style.Render("Runs") + " " + r.palette.subtle.Render(r.model.runsCount()+" fractory")
-	return renderedTreeRow{text: paint(head, width, background), handleX: -1}
+	marker := r.glyphs().GroupOpenGlyph
+	if r.model.rowFolded(treeRow{kind: RunsRow}) {
+		marker = r.glyphs().GroupClosedGlyph
+	}
+	head := pad + r.palette.subtle.Render(marker) + " " + style.Render("Runs") + " " + r.palette.subtle.Render(r.model.runsCount()+" fractory")
+	return renderedTreeRow{text: paint(head, width, background), handleX: -1, foldX: ansi.StringWidth(pad)}
 }
 
 func (r renderer) renderRun(row treeRow, selected bool, width int, pad, guides, background string) renderedTreeRow {

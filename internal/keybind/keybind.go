@@ -327,7 +327,7 @@ var listActions = []Action{
 	{Archived, "archived view", keys("t")},
 	{EmptyGroups, "hide / show empty groups", keys("e")},
 	{FinishedRuns, "Runs: show / hide finished Tickets", keys("H")},
-	{FoldAll, "fold / unfold every group", keys("F")},
+	{FoldAll, "fold / unfold every group and Runs", keys("F")},
 	{Resize, "resize the split", keys("ctrl+]")},
 	{Settings, "settings", keys("s")},
 	{Messages, "messages", keys("M")},

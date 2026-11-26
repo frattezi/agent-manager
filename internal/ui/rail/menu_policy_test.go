@@ -327,12 +327,12 @@ func TestRunsMenusOfferTheFinishedToggleWhenThereAreFinished(t *testing.T) {
 	header := func() []menuItem {
 		return model.rowMenuItems(model.rows[model.rowIndex(Selection{Kind: RunsRow}.key())])
 	}
-	if got := header(); len(got) != 0 {
+	if got := header(); len(got) != 1 || got[0].label != "Fold" {
 		t.Fatalf("header menu with nothing finished = %+v", got)
 	}
 	snapshot.RunsFinished = 4
 	model.Reconcile(snapshot)
-	if got := header(); len(got) != 1 || got[0].label != "Show finished" || got[0].action != ToggleFinishedRuns {
+	if got := header(); len(got) != 2 || got[1].label != "Show finished" || got[1].action != ToggleFinishedRuns {
 		t.Fatalf("header menu = %+v", got)
 	}
 	run := model.rowMenuItems(model.rows[model.rowIndex(Selection{Kind: RunRow, Run: "d"}.key())])
@@ -341,7 +341,25 @@ func TestRunsMenusOfferTheFinishedToggleWhenThereAreFinished(t *testing.T) {
 	}
 	snapshot.RunsShowFinished = true
 	model.Reconcile(snapshot)
-	if got := header(); len(got) != 1 || got[0].label != "Hide finished" {
+	if got := header(); len(got) != 2 || got[1].label != "Hide finished" {
 		t.Fatalf("header menu while shown = %+v", got)
+	}
+}
+
+func TestRunsHeaderMenuFoldsAndUnfolds(t *testing.T) {
+	model := New(nil)
+	model.Reconcile(Snapshot{Runs: []Run{{ID: "d", Ticket: "jira:D-1", Status: "done"}}})
+	for _, want := range []struct {
+		label  string
+		folded bool
+	}{{"Fold", true}, {"Unfold", false}} {
+		decision := model.openMenu(Selection{Kind: RunsRow}, 0, 0, false)
+		if !model.menu.active || model.menu.items[0].label != want.label || model.menu.items[0].action != ToggleFold {
+			t.Fatalf("menu = %+v, decision %+v; want %s first", model.menu.items, decision, want.label)
+		}
+		decision = model.runMenuItem(0)
+		if model.hostFolds[RunsFold] != want.folded || decision.Intent.Kind != NoAction || len(decision.Mutations) != 1 {
+			t.Fatalf("%s: folded %v, decision %+v", want.label, model.hostFolds[RunsFold], decision)
+		}
 	}
 }

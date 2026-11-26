@@ -95,6 +95,8 @@ const (
 	NewConnection
 	// ToggleFinishedRuns shows or hides the Runs whose Tickets are finished.
 	ToggleFinishedRuns
+	// ToggleFold folds or unfolds the row; the rail carries it out itself.
+	ToggleFold
 )
 
 type Intent struct {
