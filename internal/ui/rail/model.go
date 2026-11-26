@@ -57,6 +57,9 @@ type Snapshot struct {
 	// Runs lists them too.
 	RunsFinished     int
 	RunsShowFinished bool
+	// Automations are the stored Automations with their firings, listed
+	// read-only after Runs.
+	Automations []Automation
 }
 
 type RowKind uint8
@@ -68,6 +71,11 @@ const (
 	// RunsRow is the Runs section's header; RunRow is one Run under it.
 	RunsRow
 	RunRow
+	// AutomationsRow is the Automations section's header; AutomationRow is
+	// one Automation under it and FiringRow one of its firings.
+	AutomationsRow
+	AutomationRow
+	FiringRow
 )
 
 // Selection names a row without exposing Rail's cursor or row storage.
@@ -80,6 +88,10 @@ type Selection struct {
 	Host      string
 	// Run is the Run's id on a RunRow.
 	Run string
+	// Automation is the Automation's id on an AutomationRow and on its
+	// FiringRows; Firing is the Automation Run's id on a FiringRow.
+	Automation string
+	Firing     string
 }
 
 func (s Selection) Remote() bool { return s.Host != "" }
@@ -90,6 +102,12 @@ func (s Selection) key() string {
 		return "runs"
 	case RunRow:
 		return "r:" + s.Run
+	case AutomationsRow:
+		return "automations"
+	case AutomationRow:
+		return "a:" + s.Automation
+	case FiringRow:
+		return "af:" + s.Firing
 	case ConnectionRow:
 		return "c:" + s.Host
 	case GroupRow:
@@ -151,6 +169,9 @@ type treeRow struct {
 	sess  Session
 	host  string
 	run   Run
+	// automation is the row's Automation, its parent's on a FiringRow.
+	automation Automation
+	firing     Firing
 }
 
 func (r treeRow) selection() Selection {
@@ -159,6 +180,12 @@ func (r treeRow) selection() Selection {
 		return Selection{Kind: RunsRow}
 	case RunRow:
 		return Selection{Kind: RunRow, Run: r.run.ID}
+	case AutomationsRow:
+		return Selection{Kind: AutomationsRow}
+	case AutomationRow:
+		return Selection{Kind: AutomationRow, Automation: r.automation.ID}
+	case FiringRow:
+		return Selection{Kind: FiringRow, Automation: r.automation.ID, Firing: r.firing.ID}
 	case ConnectionRow:
 		return Selection{Kind: ConnectionRow, Host: r.host}
 	case GroupRow:
@@ -172,9 +199,9 @@ func (r treeRow) key() string { return r.selection().key() }
 func (r treeRow) isRoot() bool { return r.kind == GroupRow && r.group == "" && r.host == "" }
 
 // folds reports whether the row opens and closes: a group, a connection or
-// the Runs header.
+// a section header.
 func (r treeRow) folds() bool {
-	return r.kind == GroupRow || r.kind == ConnectionRow || r.kind == RunsRow
+	return r.kind == GroupRow || r.kind == ConnectionRow || r.kind == RunsRow || r.kind == AutomationsRow
 }
 
 type statusFilter uint8
@@ -221,6 +248,11 @@ func cloneSnapshot(snapshot Snapshot) Snapshot {
 
 		RunsFinished:     snapshot.RunsFinished,
 		RunsShowFinished: snapshot.RunsShowFinished,
+		Automations:      make([]Automation, len(snapshot.Automations)),
+	}
+	for i, automation := range snapshot.Automations {
+		automation.Firings = append([]Firing(nil), automation.Firings...)
+		copyOf.Automations[i] = automation
 	}
 	for path, archived := range snapshot.ArchivedGroups {
 		copyOf.ArchivedGroups[path] = archived
@@ -280,6 +312,12 @@ func (m Model) Rows() []Row {
 			rows[i].Name = "runs"
 		case row.kind == RunRow:
 			rows[i].Name = row.run.Ticket
+		case row.kind == AutomationsRow:
+			rows[i].Name = "automations"
+		case row.kind == AutomationRow:
+			rows[i].Name = row.automation.Name
+		case row.kind == FiringRow:
+			rows[i].Name = row.firing.When
 		case row.kind == ConnectionRow:
 			rows[i].Name = row.host
 		case row.isRoot():
@@ -401,6 +439,7 @@ func (m *Model) rebuildRows() {
 	rows := []treeRow{{kind: GroupRow}}
 	rows = append(rows, m.treeRows("", m.snapshot.Sessions, m.snapshot.Groups, m.snapshot.ArchivedGroups, 0)...)
 	rows = append(rows, m.runRows()...)
+	rows = append(rows, m.automationRows()...)
 	for _, host := range m.snapshot.Hosts {
 		rows = append(rows, treeRow{kind: ConnectionRow, host: host.Name})
 		if m.honorFolds() && m.folded(host.Name, "") {

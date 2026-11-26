@@ -252,7 +252,12 @@ func runLogName(run runs.Record) string {
 // queued Run has not created its log yet. A live tab already named for the Run
 // is focused instead of spawning another.
 func (m *Model) openRunLog(run runs.Record) tea.Cmd {
-	name := runLogName(run)
+	return m.openLogTab(runLogName(run), run.LogPath)
+}
+
+// openLogTab follows path in a shell tab called name, or focuses the live
+// tab already called that.
+func (m *Model) openLogTab(name, path string) tea.Cmd {
 	for _, sess := range m.workspace.sessions {
 		if sess.Name != name || sess.Archived || sess.Status == status.Dead {
 			continue
@@ -271,9 +276,9 @@ func (m *Model) openRunLog(run runs.Record) tea.Cmd {
 		Kind:     uilaunch.Shell,
 		ToolName: toolName,
 		Name:     name,
-		Dir:      filepath.Dir(run.LogPath),
+		Dir:      filepath.Dir(path),
 		Pane:     sessioncmd.PaneSize{Width: width, Height: height},
-		Plan:     &launch.Plan{Command: "tail -n 200 -F " + tmux.ShellQuote(run.LogPath)},
+		Plan:     &launch.Plan{Command: "tail -n 200 -F " + tmux.ShellQuote(path)},
 	})
 	return m.nextEffectCmd()
 }

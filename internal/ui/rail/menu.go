@@ -24,6 +24,12 @@ func (m *Model) openMenu(selection Selection, x, y int, held bool) Decision {
 		title = row.run.Ticket
 	case RunsRow:
 		title = "Runs"
+	case AutomationsRow:
+		title = "Automations"
+	case AutomationRow:
+		title = row.automation.Name
+	case FiringRow:
+		title = row.automation.Name + " " + row.firing.When
 	}
 	items := m.rowMenuItems(row)
 	if len(items) == 0 {
@@ -48,6 +54,12 @@ func (m Model) rowMenuItems(row treeRow) []menuItem {
 	}
 	if row.kind == RunsRow {
 		return m.runsHeaderMenuItems()
+	}
+	if row.kind == AutomationsRow {
+		return m.automationsHeaderMenuItems()
+	}
+	if row.kind == AutomationRow || row.kind == FiringRow {
+		return automationMenuItems(row)
 	}
 	editor := menuItem{label: "Open in editor", action: OpenEditor}
 	manage := []menuItem{editor, {label: "Rename", action: RenameAction}, {label: "Move to group", action: MoveToGroup}}

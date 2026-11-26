@@ -5,8 +5,8 @@
               │   ↑ / k            move the cursor up                                                    │
               │   ↓ / j            move the cursor down                                                  │
               │   click            focus from a row or the preview in the split, select otherwise        │
-              │   double click     fold or unfold a group or Runs, focus a session full screen           │
-              │   click ▾          on the Runs header, fold or unfold Runs                               │
+              │   double click     fold a group or section, focus a session full screen, open a log      │
+              │   click ▾          on the Runs or Automations header, fold or unfold it                  │
               │   […]              the row's actions, or right click                                     │
               │   drag ⠿           move the row, into another group too, or click it for ↑↓              │
               │   click a key      in a footer or a card's foot, run it as if typed                      │
