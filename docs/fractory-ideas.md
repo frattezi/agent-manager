@@ -17,11 +17,24 @@ which Ticket and Spec, which agent and account each uses, and which Triggers sta
 visual piece that needs its own design pass. The header already reads Fractory Manager; the binary
 is built as `fractory-manager`.
 
-## 3. Terminal and chat side by side
+## 3. Tile the screen: regions, jumps and a launcher
 
-Show an agent's chat and one of its nested terminals in two panes at once, instead of switching
-between rows. Today the split view is the session list plus a single preview; the workaround is an
-outer terminal split running `tmux attach -t am_<name>`. Could share the multi-pane work with idea 2.
+Manage the manager's screen the way i3 manages a desktop. The screen stops being a fixed layout the
+manager draws and becomes a tree of regions the owner arranges, each holding a session pane, a
+terminal, or one of the manager's own views.
+
+- **Regions side by side.** An agent's pane and a terminal visible at once, instead of switching
+  rows. Today the layout is the session list plus a single preview; the workaround is an outer
+  terminal split running `tmux attach -t am_<name>`.
+- **Jump by number.** One chord per region, so moving between what is on screen takes one key and
+  no selection walk.
+- **A launcher.** A palette, in the spirit of Spotlight, that opens a new terminal or agent session
+  on the current project *beside* the conversation the owner is in, rather than as a row to find
+  later.
+
+The manager composes its own frame in Go and never asks tmux to split, so the region tree is the
+manager's to build. Idea 2 needs the same tree to place its map. Specced as
+`docs/specs/0001-screen-regions.md` on the `feat/screen-regions` branch.
 
 ## 4. Planning views
 
