@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/YoanWai/agent-manager/internal/fractoryhome"
 )
 
 // RecordVersion is the only RunRecord version this reader understands.
@@ -81,17 +83,7 @@ func (r Record) Question() string {
 }
 
 // Dir is the registry directory: $FRACTORY_HOME/runs, else ~/.fractory/runs.
-func Dir() string {
-	home := os.Getenv("FRACTORY_HOME")
-	if home == "" {
-		user, err := os.UserHomeDir()
-		if err != nil {
-			return ""
-		}
-		home = filepath.Join(user, ".fractory")
-	}
-	return filepath.Join(home, "runs")
-}
+func Dir() string { return fractoryhome.Sub("runs") }
 
 // Parse decodes one record. It refuses another version, and a record missing
 // what a row needs, so a half-understood file never reaches the list.
