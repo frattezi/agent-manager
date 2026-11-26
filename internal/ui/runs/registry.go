@@ -48,6 +48,9 @@ type Record struct {
 	Mode   string   `json:"mode"`
 	Flow   string   `json:"flow"`
 	Agents []string `json:"agents"`
+	// CleanedAt is when Fractory's cleanup removed the Run's worktree after
+	// its PR merged; zero while it has not.
+	CleanedAt time.Time `json:"cleanedAt"`
 	// Config is the repo's `.fractory.json`; Load reads it, nil when unreadable.
 	Config *RepoConfig `json:"-"`
 	// Base is the branch the Run is reviewed against; Load reads it from the

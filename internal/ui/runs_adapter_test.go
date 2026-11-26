@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -347,5 +348,103 @@ func TestOpeningARunLogTwiceReusesTheTab(t *testing.T) {
 	}
 	if sel, _ := m.rail.SelectedSession(); sel != "tab" {
 		t.Fatalf("selected session = %q, want the existing tab", sel)
+	}
+}
+
+func finishedRuns() []runs.Record {
+	t0 := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	mk := func(id, ticket, status string, cleaned bool, at time.Time) runs.Record {
+		record := runs.Record{Version: 1, ID: id, Key: ticket, TicketRef: ticket, Status: status, LogPath: "/tmp/" + id + ".log", CreatedAt: at, UpdatedAt: at}
+		if cleaned {
+			record.CleanedAt = at.Add(time.Hour)
+		}
+		return record
+	}
+	return []runs.Record{
+		mk("open", "jira:OPEN-1", runs.StatusDone, false, t0.Add(3*time.Hour)),
+		mk("merged", "jira:MERGED-1", runs.StatusDone, true, t0.Add(2*time.Hour)),
+		mk("merged-old", "jira:MERGED-1", runs.StatusFailed, false, t0.Add(time.Hour)),
+		mk("gone", "jira:GONE-1", runs.StatusDone, true, t0),
+	}
+}
+
+func listedRuns(m *Model) []string {
+	var ids []string
+	for _, row := range m.rail.Rows() {
+		if row.Kind == uirail.RunRow {
+			ids = append(ids, row.Selection.Run)
+		}
+	}
+	return ids
+}
+
+func TestFinishedTicketsAreHiddenUntilH(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	loadRuns(t, m, finishedRuns())
+	if got := listedRuns(m); strings.Join(got, ",") != "open" {
+		t.Fatalf("listed %v; want only the Ticket whose PR is open", got)
+	}
+	selectRun(t, m, "open")
+	toggle := uirail.Intent{Kind: uirail.ToggleFinishedRuns, Target: m.railSelection()}
+	if _, taken := m.runIntent(toggle); !taken {
+		t.Fatal("H was not taken by the Runs view")
+	}
+	if got := listedRuns(m); strings.Join(got, ",") != "open,merged,gone" {
+		t.Fatalf("listed %v after H; want every Ticket", got)
+	}
+	loadRuns(t, m, finishedRuns())
+	if got := listedRuns(m); len(got) != 3 {
+		t.Fatalf("a poll reset the toggle: %v", got)
+	}
+	selectRun(t, m, "merged")
+	lines, _ := m.runContentLines(100)
+	var text []string
+	for _, line := range lines {
+		text = append(text, ansi.Strip(line.Text))
+	}
+	if joined := strings.Join(text, "\n"); !strings.Contains(joined, "/tmp/merged-old.log") {
+		t.Fatalf("a finished Ticket's history lost a Run:\n%s", joined)
+	}
+	m.runIntent(toggle)
+	if got := listedRuns(m); strings.Join(got, ",") != "open" {
+		t.Fatalf("listed %v after a second H", got)
+	}
+}
+
+func TestRunsHeaderAndLegendNameTheFinishedTickets(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	loadRuns(t, m, finishedRuns())
+	if view := ansi.Strip(preparedView(m)); !strings.Contains(view, "Runs (1, 2 finished)") {
+		t.Fatalf("view lacks the header count:\n%s", view)
+	}
+	m.rail.Focus(uirail.Selection{Kind: uirail.RunsRow})
+	legend, _ := m.runLegend()
+	if !slices.Contains(legend.Pairs, [2]string{"H", "show finished"}) {
+		t.Fatalf("header legend = %+v", legend)
+	}
+	preparedView(m)
+	if footer := ansi.Strip(m.viewFooter()); !strings.Contains(footer, "show finished") {
+		t.Fatalf("footer lacks the hint:\n%s", footer)
+	}
+	m.runIntent(uirail.Intent{Kind: uirail.ToggleFinishedRuns, Target: m.railSelection()})
+	selectRun(t, m, "gone")
+	legend, _ = m.runLegend()
+	if !slices.Contains(legend.Pairs, [2]string{"H", "hide finished"}) {
+		t.Fatalf("run legend = %+v", legend)
+	}
+	if view := ansi.Strip(preparedView(m)); !strings.Contains(view, "Runs (3, 2 finished)") {
+		t.Fatalf("view lacks the header count while shown:\n%s", view)
+	}
+
+	plain := buildModel(t)
+	loadRuns(t, plain, testRuns())
+	selectRun(t, plain, "r2")
+	if legend, _ := plain.runLegend(); slices.ContainsFunc(legend.Pairs, func(pair [2]string) bool { return strings.Contains(pair[1], "finished") }) {
+		t.Fatalf("legend offers H with nothing finished: %+v", legend)
+	}
+	if view := ansi.Strip(preparedView(plain)); !strings.Contains(view, "Runs (2)") || strings.Contains(view, "finished)") {
+		t.Fatalf("header without finished Tickets:\n%s", view)
 	}
 }

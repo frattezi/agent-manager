@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func writeRun(t *testing.T, dir, name, body string) {
@@ -126,5 +127,21 @@ func TestLoadFillsTheBaseFromTheRunsRepo(t *testing.T) {
 	got, err := Load(dir)
 	if err != nil || len(got) != 1 || got[0].Base != "develop" {
 		t.Fatalf("Load = %+v, %v", got, err)
+	}
+}
+
+func TestParseReadsCleanedAtAndLeavesItZeroWhenAbsentOrNull(t *testing.T) {
+	cleaned, err := Parse([]byte(record("c", "done", "2026-01-02T00:00:00Z", `,"cleanedAt":"2026-01-03T04:05:06Z"`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := time.Date(2026, 1, 3, 4, 5, 6, 0, time.UTC); !cleaned.CleanedAt.Equal(want) {
+		t.Fatalf("cleanedAt = %v, want %v", cleaned.CleanedAt, want)
+	}
+	for _, extra := range []string{"", `,"cleanedAt":null`} {
+		open, err := Parse([]byte(record("o", "done", "2026-01-02T00:00:00Z", extra)))
+		if err != nil || !open.CleanedAt.IsZero() {
+			t.Fatalf("extra %q: cleanedAt = %v, err %v; want zero", extra, open.CleanedAt, err)
+		}
 	}
 }

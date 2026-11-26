@@ -65,6 +65,7 @@ func listHelpRows(list keybind.Table, arrowStep, arrowAttach bool, glyphs Glyphs
 	h.action("filter to what needs attention (waiting, finished, errored)", keybind.Filter)
 	h.action("archived view", keybind.Archived)
 	h.action("hide / show empty groups", keybind.EmptyGroups)
+	h.action("Runs: show / hide the finished Tickets (merged and cleaned up)", keybind.FinishedRuns)
 	h.action("fold / unfold every group (active view)", keybind.FoldAll)
 	h.action(resizeHelp(mode), keybind.Resize)
 	h.action("settings (also in the root row menu)", keybind.Settings)

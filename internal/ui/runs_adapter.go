@@ -37,6 +37,8 @@ type runsState struct {
 	requested map[string]bool
 	// host is Fractory's host.json, nil when absent or invalid.
 	host *runs.HostState
+	// showFinished lists the finished Tickets too; H toggles it.
+	showFinished bool
 }
 
 type runsLoadedMsg struct {
@@ -64,7 +66,7 @@ func runsLoadCmd() tea.Cmd {
 func (m *Model) routeRunsMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	switch msg := msg.(type) {
 	case runsLoadedMsg:
-		next := runsState{dir: msg.dir, list: msg.list, requested: msg.requested, host: msg.host}
+		next := runsState{dir: msg.dir, list: msg.list, requested: msg.requested, host: msg.host, showFinished: m.workspace.runs.showFinished}
 		if !reflect.DeepEqual(m.workspace.runs, next) {
 			m.workspace.runs = next
 			m.rebuildRows()
@@ -76,8 +78,10 @@ func (m *Model) routeRunsMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	return nil, nil, false
 }
 
-func (m *Model) railRuns() []uirail.Run {
-	tickets := m.runTickets()
+// railRuns is one rail row per listed Ticket, and how many Tickets are
+// finished.
+func (m *Model) railRuns() ([]uirail.Run, int) {
+	tickets, finished := runs.Listed(m.runTickets(), m.workspace.runs.showFinished)
 	out := make([]uirail.Run, len(tickets))
 	for i, ticket := range tickets {
 		run := ticket.Latest()
@@ -86,7 +90,7 @@ func (m *Model) railRuns() []uirail.Run {
 			Reruns: ticket.Reruns, RerunPending: ticket.Pending, CanRerun: run.CanRerun(),
 		}
 	}
-	return out
+	return out, finished
 }
 
 // runTickets is the registry grouped by Ticket: one rail row each.
@@ -172,6 +176,10 @@ func (m *Model) runIntent(intent uirail.Intent) (tea.Cmd, bool) {
 	case uirail.Restart:
 		m.requestRerun()
 		return nil, true
+	case uirail.ToggleFinishedRuns:
+		m.workspace.runs.showFinished = !m.workspace.runs.showFinished
+		m.rebuildRows()
+		return nil, true
 	case uirail.OpenReview:
 		run, ok := m.selectedRun()
 		if !ok {
@@ -232,14 +240,18 @@ func (m *Model) runLegend() (legendSection, bool) {
 	if !ok || (selection.Kind != uirail.RunRow && selection.Kind != uirail.RunsRow) {
 		return legendSection{}, false
 	}
+	var finished [][2]string
+	if action := m.rail.FinishedRunsAction(); action != "" {
+		finished = [][2]string{{m.listGlyph(keybind.FinishedRuns), action}}
+	}
 	if selection.Kind == uirail.RunsRow {
-		return legendSection{Title: "Runs"}, true
+		return legendSection{Title: "Runs", Pairs: finished}, true
 	}
 	pairs := [][2]string{{m.listGlyph(keybind.Open, keybind.Attach), "open log"}}
 	if ticket, ok := m.selectedTicket(); ok && ticket.Latest().CanRerun() {
 		pairs = append(pairs, [2]string{m.listGlyph(keybind.Restart), "re-run"})
 	}
-	return legendSection{Title: "Run", Pairs: pairs}, true
+	return legendSection{Title: "Run", Pairs: append(pairs, finished...)}, true
 }
 
 // runContentLines fills the content column for a Run: its facts and, when it

@@ -49,10 +49,50 @@ func (m Model) runRows() []treeRow {
 		}
 		rows = append(rows, treeRow{kind: RunRow, depth: 1, run: run})
 	}
-	if len(rows) == 0 {
+	// The header stays while finished Tickets are hidden, so H can bring
+	// them back.
+	if len(rows) == 0 && m.snapshot.RunsFinished == 0 {
 		return nil
 	}
 	return append([]treeRow{{kind: RunsRow}}, rows...)
+}
+
+// FinishedRunsAction is what H does to the Runs section, show finished or
+// hide finished, empty when no Ticket is finished.
+func (m Model) FinishedRunsAction() string {
+	switch {
+	case m.snapshot.RunsFinished == 0:
+		return ""
+	case m.snapshot.RunsShowFinished:
+		return "hide finished"
+	}
+	return "show finished"
+}
+
+func (m Model) finishedRunsMenuItems() []menuItem {
+	switch m.FinishedRunsAction() {
+	case "":
+		return nil
+	case "hide finished":
+		return []menuItem{{label: "Hide finished", action: ToggleFinishedRuns}}
+	}
+	return []menuItem{{label: "Show finished", action: ToggleFinishedRuns}}
+}
+
+// runsCount is the header's count: the Runs listed, and the finished
+// Tickets when there are any.
+func (m Model) runsCount() string {
+	listed := 0
+	for _, row := range m.rows {
+		if row.kind == RunRow {
+			listed++
+		}
+	}
+	count := strconv.Itoa(listed)
+	if m.snapshot.RunsFinished > 0 {
+		count += ", " + strconv.Itoa(m.snapshot.RunsFinished) + " finished"
+	}
+	return "(" + count + ")"
 }
 
 // sessionStatusOf maps a Run's status onto the session status that paints the
@@ -76,7 +116,7 @@ func (r renderer) renderRunsHeader(selected bool, width int, pad, background str
 	if selected {
 		style = lipgloss.NewStyle().Foreground(lipgloss.Color(r.ctx.Theme.Bright)).Bold(true)
 	}
-	head := pad + style.Render("Runs") + " " + r.palette.subtle.Render("fractory")
+	head := pad + style.Render("Runs") + " " + r.palette.subtle.Render(r.model.runsCount()+" fractory")
 	return renderedTreeRow{text: paint(head, width, background), handleX: -1}
 }
 

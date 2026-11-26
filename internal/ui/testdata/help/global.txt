@@ -21,8 +21,8 @@
               │   w                filter to what needs attention (waiting, finished, errored)           │
               │   t                archived view                                                         │
               │   e                hide / show empty groups                                              │
+              │   H                Runs: show / hide the finished Tickets (merged and cleaned up)        │
               │   F                fold / unfold every group (active view)                               │
-              │   ctrl+]           resize the split (←→ or hl, drag; ↵ commits, esc cancels)             │
               │   ↓ more below…                                                                          │
               │                                                                                          │
               ├──────────────────────────────────────────────────────────────────────────────────────────┤

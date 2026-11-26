@@ -44,10 +44,10 @@ func (m Model) rowMenuItems(row treeRow) []menuItem {
 		{label: "New terminal", action: NewTerminal},
 	}
 	if row.kind == RunRow {
-		return runMenuItems(row.run)
+		return menuSections(runMenuItems(row.run), m.finishedRunsMenuItems())
 	}
 	if row.kind == RunsRow {
-		return nil
+		return m.finishedRunsMenuItems()
 	}
 	editor := menuItem{label: "Open in editor", action: OpenEditor}
 	manage := []menuItem{editor, {label: "Rename", action: RenameAction}, {label: "Move to group", action: MoveToGroup}}
@@ -290,6 +290,8 @@ func actionKind(action string) ActionKind {
 		return OpenReview
 	case keybind.CancelEnd:
 		return CancelEnd
+	case keybind.FinishedRuns:
+		return ToggleFinishedRuns
 	default:
 		return NoAction
 	}
