@@ -27,6 +27,9 @@ type Run struct {
 	// CanRerun is true when the Run failed or needs a human, so R asks for a
 	// Re-run.
 	CanRerun bool
+	// Solved is true while the owner has marked the Ticket solved, so . on
+	// the row unmarks it.
+	Solved bool
 }
 
 func (r treeRow) isRun() bool { return r.kind == RunRow || r.kind == RunsRow }
@@ -173,7 +176,11 @@ func runMenuItems(run Run) []menuItem {
 	if run.CanRerun {
 		items = append(items, menuItem{label: "Re-run", action: Restart})
 	}
-	return items
+	solved := menuItem{label: "Mark solved", action: MarkIdle}
+	if run.Solved {
+		solved.label = "Unmark solved"
+	}
+	return append(items, solved)
 }
 
 // rerunMarker is the Re-run count after the status dot: ↻N in Advanced glyph

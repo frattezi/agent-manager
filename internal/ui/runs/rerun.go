@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/atomicfile"
@@ -39,8 +38,8 @@ func (r Record) CanRerun() bool {
 // a request already on disk is left as it is, so a second press changes
 // nothing. It reports whether a new request was written.
 func RequestRerun(dir, runID string, now time.Time) (bool, error) {
-	if runID == "" || strings.ContainsRune(runID, filepath.Separator) {
-		return false, errors.New("invalid run id")
+	if err := validRunID(runID); err != nil {
+		return false, err
 	}
 	path := RerunPath(dir, runID)
 	if _, err := os.Stat(path); err == nil {
@@ -58,15 +57,5 @@ func RequestRerun(dir, runID string, now time.Time) (bool, error) {
 // Requested lists the ids of the Runs that have a Re-run request file. An
 // unreadable dir lists none; the next poll tries again.
 func Requested(dir string) map[string]bool {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil
-	}
-	requested := map[string]bool{}
-	for _, entry := range entries {
-		if id, ok := strings.CutSuffix(entry.Name(), rerunSuffix); ok && !entry.IsDir() {
-			requested[id] = true
-		}
-	}
-	return requested
+	return sidecarIDs(dir, rerunSuffix)
 }

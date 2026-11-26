@@ -2,6 +2,7 @@ package ui
 
 import (
 	"cmp"
+	"maps"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -35,6 +36,8 @@ type runsState struct {
 	list []runs.Record
 	// requested holds the ids of Runs with a Re-run request file.
 	requested map[string]bool
+	// solved holds the ids of Runs whose Ticket the owner marked solved.
+	solved map[string]bool
 	// host is Fractory's host.json, nil when absent or invalid.
 	host *runs.HostState
 	// showFinished lists the finished Tickets too; H toggles it.
@@ -45,6 +48,7 @@ type runsLoadedMsg struct {
 	dir       string
 	list      []runs.Record
 	requested map[string]bool
+	solved    map[string]bool
 	host      *runs.HostState
 }
 
@@ -59,14 +63,14 @@ func runsLoadCmd() tea.Cmd {
 		}
 		// An unreadable registry lists nothing; the next poll tries again.
 		list, _ := runs.Load(dir)
-		return runsLoadedMsg{dir: dir, list: list, requested: runs.Requested(dir), host: runs.LoadHost(dir)}
+		return runsLoadedMsg{dir: dir, list: list, requested: runs.Requested(dir), solved: runs.Solved(dir), host: runs.LoadHost(dir)}
 	}
 }
 
 func (m *Model) routeRunsMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	switch msg := msg.(type) {
 	case runsLoadedMsg:
-		next := runsState{dir: msg.dir, list: msg.list, requested: msg.requested, host: msg.host, showFinished: m.workspace.runs.showFinished}
+		next := runsState{dir: msg.dir, list: msg.list, requested: msg.requested, solved: msg.solved, host: msg.host, showFinished: m.workspace.runs.showFinished}
 		if !reflect.DeepEqual(m.workspace.runs, next) {
 			m.workspace.runs = next
 			m.rebuildRows()
@@ -87,7 +91,7 @@ func (m *Model) railRuns() ([]uirail.Run, int) {
 		run := ticket.Latest()
 		out[i] = uirail.Run{
 			ID: run.ID, Ticket: run.TicketRef, Status: run.Status, Branch: run.Branch, Mode: run.EffectiveMode(),
-			Reruns: ticket.Reruns, RerunPending: ticket.Pending, CanRerun: run.CanRerun(),
+			Reruns: ticket.Reruns, RerunPending: ticket.Pending, CanRerun: run.CanRerun(), Solved: ticket.Solved,
 		}
 	}
 	return out, finished
@@ -95,7 +99,7 @@ func (m *Model) railRuns() ([]uirail.Run, int) {
 
 // runTickets is the registry grouped by Ticket: one rail row each.
 func (m *Model) runTickets() []runs.Ticket {
-	return runs.Tickets(m.workspace.runs.list, m.workspace.runs.requested)
+	return runs.Tickets(m.workspace.runs.list, m.workspace.runs.requested, m.workspace.runs.solved)
 }
 
 // selectedTicket is the Ticket the rail's cursor is on.
@@ -143,6 +147,42 @@ func (m *Model) requestRerun() {
 	}
 }
 
+// toggleSolved marks the selected Ticket solved, or unmarks it when it is.
+// The mark is named for the latest Run, so a newer Run lists it again.
+func (m *Model) toggleSolved() {
+	ticket, ok := m.selectedTicket()
+	if !ok {
+		return
+	}
+	if m.workspace.runs.dir == "" {
+		m.reportErr("no Run registry to write a solved mark to")
+		return
+	}
+	id := ticket.Latest().ID
+	var err error
+	if ticket.Solved {
+		_, err = runs.UnmarkSolved(m.workspace.runs.dir, id)
+	} else {
+		_, err = runs.MarkSolved(m.workspace.runs.dir, id, time.Now())
+	}
+	if err != nil {
+		m.reportErr("could not change the solved mark: " + err.Error())
+		return
+	}
+	m.clearErr()
+	solved := maps.Clone(m.workspace.runs.solved)
+	if solved == nil {
+		solved = map[string]bool{}
+	}
+	if ticket.Solved {
+		delete(solved, id)
+	} else {
+		solved[id] = true
+	}
+	m.workspace.runs.solved = solved
+	m.rebuildRows()
+}
+
 // selectedRun is the Run the rail's cursor is on.
 func (m *Model) selectedRun() (runs.Record, bool) {
 	selection, ok := m.rail.Selected()
@@ -175,6 +215,9 @@ func (m *Model) runIntent(intent uirail.Intent) (tea.Cmd, bool) {
 		return m.openRunLog(run), true
 	case uirail.Restart:
 		m.requestRerun()
+		return nil, true
+	case uirail.MarkIdle:
+		m.toggleSolved()
 		return nil, true
 	case uirail.ToggleFinishedRuns:
 		m.workspace.runs.showFinished = !m.workspace.runs.showFinished
@@ -259,7 +302,18 @@ func (m *Model) runLegend() (legendSection, bool) {
 	if ticket, ok := m.selectedTicket(); ok && ticket.Latest().CanRerun() {
 		pairs = append(pairs, [2]string{m.listGlyph(keybind.Restart), "re-run"})
 	}
+	if ticket, ok := m.selectedTicket(); ok {
+		pairs = append(pairs, [2]string{m.listGlyph(keybind.MarkIdle), solvedAction(ticket)})
+	}
 	return legendSection{Title: "Run", Pairs: append(pairs, finished...)}, true
+}
+
+// solvedAction is what the mark-handled key does to the Ticket.
+func solvedAction(ticket runs.Ticket) string {
+	if ticket.Solved {
+		return "unmark solved"
+	}
+	return "mark solved"
 }
 
 // runContentLines fills the content column for a Run: its facts and, when it

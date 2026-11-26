@@ -207,6 +207,16 @@ func TestRunsHeaderStaysWhenEveryTicketIsFinished(t *testing.T) {
 	}
 }
 
+func TestMarkHandledKeyOnARunAsksToToggleSolved(t *testing.T) {
+	model := rail.New(nil)
+	model.Reconcile(runsSnapshot())
+	model.Focus(rail.Selection{Kind: rail.RunRow, Run: "r1"})
+	decision := model.Key(keyFor("."), rail.Frame{}, rail.KeyContext{ListKeys: keybind.DefaultList()})
+	if target := decision.Intent.Target; decision.Intent.Kind != rail.MarkIdle || target.Kind != rail.RunRow || target.Run != "r1" {
+		t.Fatalf("intent = %+v", decision.Intent)
+	}
+}
+
 func TestFinishedRunsKeyAsksForTheToggleOnlyInRuns(t *testing.T) {
 	ctx := rail.KeyContext{ListKeys: keybind.DefaultList()}
 	model := rail.New(nil)
