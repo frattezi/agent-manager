@@ -148,7 +148,7 @@ func TestRunLegendNamesTheLogKey(t *testing.T) {
 	loadRuns(t, m, testRuns())
 	selectRun(t, m, "r2")
 	legend, ok := m.runLegend()
-	if !ok || legend.Title != "Run" || len(legend.Pairs) != 1 || legend.Pairs[0][1] != "open log" {
+	if !ok || legend.Title != "Run" || len(legend.Pairs) != 2 || legend.Pairs[0][1] != "open log" || legend.Pairs[1] != [2]string{".", "mark solved"} {
 		t.Fatalf("legend = %+v, %v", legend, ok)
 	}
 }
@@ -268,7 +268,7 @@ func TestRerunKeyWritesOneRequestAndShowsPending(t *testing.T) {
 	m.applyTestMsg(t, runsLoadedMsg{dir: dir, list: ticketRuns()})
 	selectRun(t, m, "r3")
 	legend, _ := m.runLegend()
-	if len(legend.Pairs) != 2 || legend.Pairs[1][1] != "re-run" {
+	if len(legend.Pairs) != 3 || legend.Pairs[1][1] != "re-run" {
 		t.Fatalf("legend = %+v; want the re-run hint for a failed Run", legend)
 	}
 	intent := uirail.Intent{Kind: uirail.Restart, Target: m.railSelection()}
@@ -295,7 +295,7 @@ func TestRerunIsOfferedOnlyForFailedOrNeedsHuman(t *testing.T) {
 	dir := t.TempDir()
 	m.applyTestMsg(t, runsLoadedMsg{dir: dir, list: testRuns()})
 	selectRun(t, m, "r2") // done
-	if legend, _ := m.runLegend(); len(legend.Pairs) != 1 {
+	if legend, _ := m.runLegend(); slices.ContainsFunc(legend.Pairs, func(pair [2]string) bool { return pair[1] == "re-run" }) {
 		t.Fatalf("a done Run's legend = %+v", legend)
 	}
 	m.runIntent(uirail.Intent{Kind: uirail.Restart, Target: m.railSelection()})
@@ -303,7 +303,7 @@ func TestRerunIsOfferedOnlyForFailedOrNeedsHuman(t *testing.T) {
 		t.Fatalf("a done Run was re-run: %v, status %q", entries, m.errBar.text)
 	}
 	selectRun(t, m, "r1") // needs-human
-	if legend, _ := m.runLegend(); len(legend.Pairs) != 2 {
+	if legend, _ := m.runLegend(); !slices.Contains(legend.Pairs, [2]string{"R", "re-run"}) {
 		t.Fatalf("a needs-human Run's legend = %+v", legend)
 	}
 }
@@ -485,5 +485,63 @@ func TestEnterFoldsTheRunsSectionAndTheFoldSurvivesARestart(t *testing.T) {
 	}
 	if restarted.IsCollapsed("runs") {
 		t.Fatal("the Runs fold landed on a local group path")
+	}
+}
+
+func TestMarkHandledKeySolvesATicketAndUnmarksIt(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	dir := t.TempDir()
+	list := finishedRuns()
+	list[0].Status = runs.StatusFailed
+	m.applyTestMsg(t, runsLoadedMsg{dir: dir, list: list})
+	selectRun(t, m, "open")
+	mark := uirail.Intent{Kind: uirail.MarkIdle, Target: m.railSelection()}
+	if _, taken := m.runIntent(mark); !taken || m.errBar.text != "" {
+		t.Fatalf(". on a Ticket: taken %v, status %q", taken, m.errBar.text)
+	}
+	if _, err := os.Stat(runs.SolvedPath(dir, "open")); err != nil {
+		t.Fatalf("no solved mark: %v", err)
+	}
+	if got := listedRuns(m); len(got) != 0 {
+		t.Fatalf("listed %v; want the solved Ticket hidden with the finished ones", got)
+	}
+	if view := ansi.Strip(preparedView(m)); !strings.Contains(view, "Runs (0, 3 finished)") {
+		t.Fatalf("view lacks the header count:\n%s", view)
+	}
+	m.applyTestMsg(t, runsLoadedMsg{dir: dir, list: list, solved: runs.Solved(dir)})
+	m.rail.Focus(uirail.Selection{Kind: uirail.RunsRow})
+	m.runIntent(uirail.Intent{Kind: uirail.ToggleFinishedRuns, Target: m.railSelection()})
+	selectRun(t, m, "open")
+	legend, _ := m.runLegend()
+	if !slices.Contains(legend.Pairs, [2]string{".", "unmark solved"}) {
+		t.Fatalf("legend on a solved Ticket = %+v", legend)
+	}
+	if cmd, taken := m.runIntent(uirail.Intent{Kind: uirail.Attach, Target: m.railSelection()}); !taken || cmd == nil {
+		t.Fatal("a solved Ticket's log does not open")
+	}
+	m.runIntent(uirail.Intent{Kind: uirail.MarkIdle, Target: m.railSelection()})
+	if _, err := os.Stat(runs.SolvedPath(dir, "open")); !os.IsNotExist(err) {
+		t.Fatalf("the mark survived an unmark: %v", err)
+	}
+	if view := ansi.Strip(preparedView(m)); !strings.Contains(view, "Runs (3, 2 finished)") {
+		t.Fatalf("view after unmark:\n%s", view)
+	}
+}
+
+func TestANewerRunListsASolvedTicketAgain(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	list := finishedRuns()
+	list[0].Status = runs.StatusFailed
+	m.applyTestMsg(t, runsLoadedMsg{dir: "/registry", list: list, solved: map[string]bool{"open": true}})
+	if got := listedRuns(m); len(got) != 0 {
+		t.Fatalf("listed %v; want the solved Ticket hidden", got)
+	}
+	newer := list[0]
+	newer.ID, newer.Status, newer.CreatedAt = "open-ci", runs.StatusRunning, newer.CreatedAt.Add(time.Hour)
+	m.applyTestMsg(t, runsLoadedMsg{dir: "/registry", list: append([]runs.Record{newer}, list...), solved: map[string]bool{"open": true}})
+	if got := listedRuns(m); strings.Join(got, ",") != "open-ci" {
+		t.Fatalf("listed %v; want the newer Run back in the rail", got)
 	}
 }

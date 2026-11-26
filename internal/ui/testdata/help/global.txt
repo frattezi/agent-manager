@@ -22,7 +22,7 @@
               │   w                filter to what needs attention (waiting, finished, errored)           │
               │   t                archived view                                                         │
               │   e                hide / show empty groups                                              │
-              │   H                Runs: show / hide the finished Tickets (merged and cleaned up)        │
+              │   H                Runs: show / hide the finished Tickets (merged, or marked solved)     │
               │   ↓ more below…                                                                          │
               │                                                                                          │
               ├──────────────────────────────────────────────────────────────────────────────────────────┤

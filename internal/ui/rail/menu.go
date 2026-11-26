@@ -295,6 +295,8 @@ func actionKind(action string) ActionKind {
 		return CancelEnd
 	case keybind.FinishedRuns:
 		return ToggleFinishedRuns
+	case keybind.MarkIdle:
+		return MarkIdle
 	default:
 		return NoAction
 	}

@@ -312,11 +312,32 @@ func TestRunMenuOffersRerunOnlyWhenPossible(t *testing.T) {
 	items := func(id string) []menuItem {
 		return model.rowMenuItems(model.rows[model.rowIndex(Selection{Kind: RunRow, Run: id}.key())])
 	}
-	if got := items("f"); len(got) != 2 || got[1].label != "Re-run" || got[1].action != Restart {
+	if got := items("f"); len(got) != 3 || got[1].label != "Re-run" || got[1].action != Restart {
 		t.Fatalf("failed menu = %+v", got)
 	}
-	if got := items("d"); len(got) != 1 || got[0].label != "Open log" {
+	if got := items("d"); len(got) != 2 || got[0].label != "Open log" {
 		t.Fatalf("done menu = %+v", got)
+	}
+}
+
+func TestRunMenuMarksAndUnmarksTheTicketSolved(t *testing.T) {
+	model := New(nil)
+	model.Reconcile(Snapshot{Runs: []Run{
+		{ID: "f", Ticket: "jira:F-1", Status: "failed", CanRerun: true},
+		{ID: "s", Ticket: "jira:S-1", Status: "failed", CanRerun: true, Solved: true},
+	}})
+	last := func(id string) menuItem {
+		items := model.rowMenuItems(model.rows[model.rowIndex(Selection{Kind: RunRow, Run: id}.key())])
+		return items[len(items)-1]
+	}
+	if got := last("f"); got.label != "Mark solved" || got.action != MarkIdle {
+		t.Fatalf("open Ticket's menu ends with %+v", got)
+	}
+	if got := last("s"); got.label != "Unmark solved" || got.action != MarkIdle {
+		t.Fatalf("solved Ticket's menu ends with %+v", got)
+	}
+	if actionKind(keybind.MarkIdle) != MarkIdle {
+		t.Fatal("the mark-handled key does not pick the menu's solved entry")
 	}
 }
 
