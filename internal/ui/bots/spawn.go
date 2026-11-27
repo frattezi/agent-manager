@@ -1,17 +1,15 @@
 package bots
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-// Bot is the Session a spawn from a Profile opens: its name, and the first
-// prompt it starts on.
+// Bot is the Session a spawn from a Profile opens. It starts on an empty
+// composer: its Specialization and memory reach it as configuration.
 type Bot struct {
-	Name   string
-	Prompt string
+	Name string
 }
 
 var nameChars = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
@@ -20,10 +18,7 @@ var nameChars = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 // already running, so a second Bot from the same Profile is told apart by the
 // lowest number no session holds.
 func Spawn(p Profile, taken []string) Bot {
-	slug := strings.ToLower(strings.Trim(nameChars.ReplaceAllString(p.Name, "-"), "-"))
-	if slug == "" {
-		slug = strings.Trim(nameChars.ReplaceAllString(p.ID, "-"), "-")
-	}
+	slug := slug(p)
 	held := make(map[string]bool, len(taken))
 	for _, name := range taken {
 		held[name] = true
@@ -34,22 +29,15 @@ func Spawn(p Profile, taken []string) Bot {
 			break
 		}
 	}
-	return Bot{Name: name, Prompt: FirstPrompt(p)}
+	return Bot{Name: name}
 }
 
-// FirstPrompt is assembled at spawn time and never stored, so a better one
-// reaches every Profile with a release. It names the ai-memory project to
-// recall from; the Specialization travels on the command line instead, and a
-// Profile with no memory starts its Bot on the CLI's own empty prompt.
-func FirstPrompt(p Profile) string {
-	var lines []string
-	if p.MemoryProject != "" {
-		lines = append(lines, fmt.Sprintf("Your memory is the ai-memory project %q: recall from it before you answer anything, and store what you conclude there, so the next Bot from this Profile starts where you leave off.", p.MemoryProject))
+// slug is the Profile's name as its Bots and its own directory are named,
+// else its id when the name has nothing a file name may carry.
+func slug(p Profile) string {
+	s := strings.ToLower(strings.Trim(nameChars.ReplaceAllString(p.Name, "-"), "-"))
+	if s == "" {
+		s = strings.Trim(nameChars.ReplaceAllString(p.ID, "-"), "-")
 	}
-	if len(lines) == 0 {
-		return ""
-	}
-	head := fmt.Sprintf("You are a Bot started from the Profile %q.", p.Name)
-	tail := "Then say in one line that you are ready, and wait for the owner to ask."
-	return strings.Join(append(append([]string{head}, lines...), tail), "\n")
+	return s
 }

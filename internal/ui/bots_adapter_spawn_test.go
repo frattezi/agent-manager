@@ -68,12 +68,59 @@ func TestSpawnBotOpensOneSessionOnTheProfile(t *testing.T) {
 	if bot.Choice.Model != "opus" || bot.Choice.Flags != "-u" {
 		t.Fatalf("Bot choice = %+v; want the Profile's model and flags", bot.Choice)
 	}
-	prompt := bot.LaunchPrompt + strings.Join(bot.PendingInputs, "\n")
-	if !strings.Contains(prompt, `"fractory-ops"`) || strings.Contains(prompt, "skill") {
-		t.Fatalf("first prompt = %q %q; want the memory and no skill", bot.LaunchPrompt, bot.PendingInputs)
+	if bot.LaunchPrompt != "" || len(bot.PendingInputs) != 0 {
+		t.Fatalf("first prompt = %q %q; want an empty composer", bot.LaunchPrompt, bot.PendingInputs)
+	}
+	if marker, err := os.ReadFile(filepath.Join(dir, bots.MemoryMarker)); err != nil || !strings.Contains(string(marker), `"fractory-ops"`) {
+		t.Fatalf("memory marker = %q, %v; want the Profile's project", marker, err)
 	}
 	if !botPaneRuns(t, m, bot.ID) {
 		t.Fatalf("no pane runs the Bot %s", bot.ID)
+	}
+}
+
+func TestSpawnBotWithNoDirectoryStartsInItsOwnUnderTheBotsRoot(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	m.env.botsDir = filepath.Join(t.TempDir(), "Work", "Bots")
+	profile := testBotProfile("")
+	profile.Specialization = ""
+	m.applyCmd(t, m.spawnBot(profile))
+	m.drainEffects(t)
+	spawned := liveBots(t, m, "p1")
+	want := filepath.Join(m.env.botsDir, "operator")
+	if len(spawned) != 1 || spawned[0].Cwd != want {
+		t.Fatalf("Bots of p1 = %+v; want one in %s", spawned, want)
+	}
+	marker, err := os.ReadFile(filepath.Join(want, bots.MemoryMarker))
+	if err != nil || !strings.Contains(string(marker), `project = "fractory-ops"`) || !strings.Contains(string(marker), "workspace = ") {
+		t.Fatalf("memory marker = %q, %v; want the workspace and the Profile's project", marker, err)
+	}
+}
+
+func TestSpawnBotInARepositoryWritesNoMarker(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	m.env.botsDir = filepath.Join(t.TempDir(), "Work", "Bots")
+	repo := t.TempDir()
+	if err := os.Mkdir(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	m.applyCmd(t, m.spawnBot(testBotProfile(repo)))
+	m.drainEffects(t)
+	if spawned := liveBots(t, m, "p1"); len(spawned) != 1 || spawned[0].Cwd != repo {
+		t.Fatalf("Bots of p1 = %+v; want one in %s", spawned, repo)
+	}
+	for _, dir := range []string{repo, m.env.botsDir} {
+		err := filepath.WalkDir(dir, func(path string, _ os.DirEntry, err error) error {
+			if err == nil && filepath.Base(path) == bots.MemoryMarker {
+				t.Errorf("a marker was written at %s", path)
+			}
+			return err
+		})
+		if err != nil && !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
 	}
 }
 

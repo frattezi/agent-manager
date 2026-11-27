@@ -126,6 +126,9 @@ type environment struct {
 	// factoryDir is the Fractory home, where a Bot's Specialization is
 	// looked up before the owner's global skills.
 	factoryDir string
+	// botsDir holds the directory of each Bot Profile that names none of its
+	// own.
+	botsDir string
 	// scheme is the light or dark side the terminal last reported, unknown
 	// until a report arrives.
 	scheme systheme.Scheme
@@ -209,6 +212,7 @@ func newView(deps Dependencies, version string) (*Model, error) {
 			workDir:    uilaunch.InitialWorkingDir(),
 			homeDir:    uilaunch.InitialHomeDir(),
 			factoryDir: fractoryhome.Dir(),
+			botsDir:    botsRoot(uilaunch.InitialHomeDir()),
 		},
 		release: uirelease.New(st, version),
 		services: services{
