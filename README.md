@@ -60,7 +60,7 @@ Save named instructions in Settings and reuse them from the New Session form, th
 
 Not here yet: cost tracking.
 
-**Jump to:** [Install](#install) · [Usage](#usage) · [Keys](docs/usage.md#keys) · [Diff review](docs/usage.md#diff-review) · [Configuration](docs/configuration.md) · [Agents reaching each other](docs/agent-to-agent.md) · [Docs site](https://agent-manager.dev/docs/)
+**Jump to:** [Install](#install) · [Usage](#usage) · [Keys](docs/usage.md#keys) · [Diff review](docs/usage.md#diff-review) · [Configuration](docs/configuration.md) · [Agents reaching each other](docs/agent-to-agent.md) · [Automations](docs/automations.md) · [Docs site](https://agent-manager.dev/docs/)
 
 ## Supported tools
 
