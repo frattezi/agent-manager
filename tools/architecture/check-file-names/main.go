@@ -28,7 +28,7 @@ const uiRoot = "internal/ui"
 // <feature>_*effect.go, <feature>_*surface.go and <feature>_*host.go,
 // besides the older ones in rootExtras.
 var packaged = map[string]string{
-	"a2ui":         "the Agent Surfaces format adapter: later the card that draws a published surface",
+	"a2ui":         "the Agent Surfaces format, which the surfaces card draws through",
 	"automations":  "the Automations adapter: the poll, the rail rows, the detail column, the log tab and the Debug Session intent",
 	"bots":         "the Bots adapter: the Profiles' fields in SettingSpecs, the area, the spawn, and the dialog with the store effect it saves through",
 	"composer":     "the prompt box adapter: which box a paste lands in, its painters and the pastes sweep",
@@ -53,6 +53,7 @@ var packaged = map[string]string{
 	"spawn":        "the New Session form adapter, its group picker, request, defaults, group base and fetch, catalog reads, spawn effect, preflight and worktree probe",
 	"startup":      "the startup adapter: the greeting, the banner tick and the pane shell probe",
 	"statusbar":    "the status bar adapter: the error bar the root reports into and the toast it floats",
+	"surfaces":     "the Agent Surfaces inbox: the poll that marks an asking session, and the card that draws what it asks",
 	"terminal":     "the terminal adapter, the link seams it hands the package and the directory read effect",
 	"theme":        "live styles, surfaces and the stored theme",
 	"workspace":    "the workspace adapter: the loaded state, the poller, the refresh pass and the rail foot readings",

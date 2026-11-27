@@ -87,6 +87,7 @@ func sessionRowHelpRows(list keybind.Table, mode presentation.GlyphMode) [][2]st
 	h.fixed("", "settings swap what the two do")
 	h.action("mark it idle when it is finished or waiting, without entering it", keybind.MarkIdle)
 	h.action("quick prompt mode: answer the session without attaching", keybind.Prompt)
+	h.action("open what it asks: the round it published, drawn over the list", keybind.AgentSurface)
 	h.action("copy its newest reply to the clipboard", keybind.CopyReply)
 	h.action("review its diff", keybind.Review)
 	h.action("fork it into a new session in the same group", keybind.Fork)
@@ -117,6 +118,7 @@ func markHelpRows(list keybind.Table, glyphs Glyphs) [][2]string {
 		{g.BranchGlyph, "worktree branch or conversation fork"},
 		{g.GroupClosedGlyph + " / " + g.GroupOpenGlyph, "collapsed / expanded group"},
 		{glyphs.AfterTurnArchive + " / " + glyphs.AfterTurnKill, "the agent asked to be archived / killed once this turn ends"},
+		{g.AskingGlyph, "asking you something: a round it published waits for your answer"},
 	}
 	if filter := list.Binding(keybind.Filter).Text(" / ", mode.Effective() == presentation.GlyphModeAdvanced); filter != "" {
 		rows = append(rows, [2]string{"", filter + " filters the list down to the marks that need you"})
@@ -259,6 +261,16 @@ func helpSections(ctx Context) []helpSection {
 			{"click outside", "close the card as esc does, unless it holds a draft"},
 			{"↵", "confirm"},
 			{"esc", "cancel"},
+		}},
+		{title: titledWith("what a session asks", list, mode, keybind.AgentSurface), rows: [][2]string{
+			{"tab / " + presentation.NavigationLabel(mode, "↓"), "next question"},
+			{"shift+tab / " + presentation.NavigationLabel(mode, "↑"), "previous question"},
+			{presentation.NavigationLabel(mode, "←→"), "step a choice; on several choices, move the cursor"},
+			{"space", "toggle a check box, or the choice under the cursor"},
+			{"type / ⌫", "in a field, write the answer the choices do not cover"},
+			{"click", "focus a question, pick a choice, flip a check box"},
+			{"wheel", "scroll a round taller than the card"},
+			{"esc", "close; the round stays unanswered and the row keeps its mark"},
 		}},
 		{title: "setup step", rows: [][2]string{
 			{"i", "run the installer, or update a CLI that is too old"},
