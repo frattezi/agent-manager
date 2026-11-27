@@ -6,7 +6,7 @@
   },
   "hasCi": false,
   "ticketGate": false,
-  "baseBranch": "fractory/runs-view",
+  "baseBranch": "main",
   "sandboxImage": "sandcastle:agent-manager",
   "maxIterations": 10,
   "rebuild": [

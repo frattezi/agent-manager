@@ -8,12 +8,14 @@ made.
 
 ## This checkout is a fork
 
-`origin` is `frattezi/agent-manager`, a personal fork; `upstream` is
-`wainmann/agent-manager`. Work lands on the fork, and pull requests target the
-fork's own base branch (`baseBranch` in `.fractory.json`, currently
-`fractory/runs-view`), not `upstream/main`. Fork-only features live here and are
-not expected to be contributed upstream unless the owner says so; still keep
-them inside the Product boundary below, because the fork rebases on upstream.
+This fork is Fractory Manager. `origin` is `frattezi/agent-manager`, a personal
+fork; `upstream` is `wainmann/agent-manager`. Work lands on the fork's own
+`main` (`baseBranch` in `.fractory.json`), never on `upstream/main`: every
+fork-only feature is merged there, so a build from a plain checkout carries all
+of them. Upstream releases come in by merging `upstream/main` into that `main`.
+Fork-only features are not expected to be contributed upstream unless the owner
+says so; still keep them inside the Product boundary below, because the fork
+takes upstream's changes continuously.
 
 ## Product boundary
 
