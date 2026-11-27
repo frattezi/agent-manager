@@ -37,7 +37,7 @@ type Focus struct {
 }
 
 type line struct {
-	text string
+	segs Line
 	at   Target
 }
 
@@ -51,34 +51,36 @@ type pen struct {
 // Render draws a document as plain text no wider than width, one string
 // with a line per row. It reads nothing but its arguments.
 func Render(doc Document, width int) string {
-	return strings.Join(texts(pen{}.draw(doc.Root, max(width, 1))), "\n")
+	return strings.Join(Texts(segments(pen{}.draw(doc.Root, max(width, 1)))), "\n")
 }
 
 // RenderForm draws a document as a form the owner answers: each field
 // behind a gutter that marks the one focus is on, a caret in a focused text
-// field, and the cursor on a focused multiple choice. Beside each line is
-// the field and choice it shows, so a click can be turned into one.
-func RenderForm(doc Document, width int, focus Focus) ([]string, []Target) {
+// field, and the cursor on a focused multiple choice. Each line comes as
+// segments that say what their text is, and beside it the field and choice
+// it shows, so a click can be turned into one.
+func RenderForm(doc Document, width int, focus Focus) ([]Line, []Target) {
 	lines := pen{form: true, focus: focus}.draw(doc.Root, max(width, 1))
 	targets := make([]Target, len(lines))
 	for i, l := range lines {
 		targets[i] = l.at
 	}
-	return texts(lines), targets
+	return segments(lines), targets
 }
 
-func texts(lines []line) []string {
-	out := make([]string, len(lines))
+func segments(lines []line) []Line {
+	out := make([]Line, len(lines))
 	for i, l := range lines {
-		out[i] = l.text
+		out[i] = l.segs
 	}
 	return out
 }
 
-func plain(texts []string) []line {
+// under gives each wrapped text one role.
+func under(role Role, texts []string) []line {
 	lines := make([]line, len(texts))
 	for i, text := range texts {
-		lines[i] = line{text: text}
+		lines[i] = line{segs: seg(role, text)}
 	}
 	return lines
 }
@@ -95,7 +97,7 @@ func init() {
 
 func (p pen) draw(n Node, width int) []line {
 	if n.Gap {
-		return plain(drawGap(n, width))
+		return under(RoleGap, drawGap(n, width))
 	}
 	if !p.form || n.Field == 0 {
 		return drawers[n.Type](p, n, width)
@@ -103,11 +105,11 @@ func (p pen) draw(n Node, width int) []line {
 	inner := max(width-len(gutterRest), 1)
 	lines := drawers[n.Type](p, n, inner)
 	for i := range lines {
-		gutter := gutterRest
+		gutter := seg(RoleBody, gutterRest)
 		if i == 0 && p.focused(n) {
-			gutter = gutterFocus
+			gutter = seg(RoleFocused, gutterFocus)
 		}
-		lines[i].text = gutter + lines[i].text
+		lines[i].segs = gutter.join(lines[i].segs)
 		lines[i].at.Field = n.Field
 	}
 	return lines
@@ -129,16 +131,17 @@ func wrap(text string, width int) []string {
 	return lines
 }
 
-// hang wraps text after a prefix, indenting the lines after the first by
-// the prefix's width.
-func hang(prefix, text string, width int) []string {
-	indent := ansi.StringWidth(prefix)
-	lines := wrap(text, max(width-indent, 1))
-	for i := range lines {
+// hang wraps text under role after a prefix, indenting the lines after the
+// first by the prefix's width.
+func hang(prefix Line, text string, role Role, width int) []Line {
+	indent := prefix.Width()
+	wrapped := wrap(text, max(width-indent, 1))
+	lines := make([]Line, len(wrapped))
+	for i, w := range wrapped {
 		if i == 0 {
-			lines[i] = prefix + lines[i]
+			lines[i] = prefix.add(role, w)
 		} else {
-			lines[i] = strings.Repeat(" ", indent) + lines[i]
+			lines[i] = seg(RoleBody, strings.Repeat(" ", indent)).add(role, w)
 		}
 	}
 	return lines
@@ -161,7 +164,7 @@ func drawGap(n Node, width int) []string {
 }
 
 func drawText(_ pen, n Node, width int) []line {
-	return plain(wrap(n.Text, width))
+	return under(variantRole(n, RoleBody), wrap(n.Text, width))
 }
 
 func drawColumn(p pen, n Node, width int) []line {
@@ -195,19 +198,21 @@ func drawRow(p pen, n Node, width int) []line {
 	}
 	lines := make([]line, height)
 	for row := range lines {
-		parts := make([]string, count)
+		var segs Line
 		for i, cell := range cells {
+			var part Line
 			if row < len(cell) {
-				parts[i] = cell[row].text
+				part = cell[row].segs
 				if lines[row].at.Field == 0 {
 					lines[row].at = cell[row].at
 				}
 			}
 			if i < count-1 {
-				parts[i] = presentation.PadRight(parts[i], column)
+				part = part.padRight(column).add(RoleBody, columnGap)
 			}
+			segs = segs.join(part)
 		}
-		lines[row].text = strings.TrimRight(strings.Join(parts, columnGap), " ")
+		lines[row].segs = segs.trimRight()
 	}
 	return lines
 }
@@ -217,67 +222,88 @@ func drawCard(p pen, n Node, width int) []line {
 		return p.stack(n, width)
 	}
 	inner := width - 4
-	rule := strings.Repeat("─", width-2)
-	lines := []line{{text: "+" + rule + "+"}}
+	border := seg(RoleRule, "+"+strings.Repeat("─", width-2)+"+")
+	lines := []line{{segs: border}}
 	for _, l := range p.stack(n, inner) {
-		lines = append(lines, line{text: "│ " + presentation.PadRight(l.text, inner) + " │", at: l.at})
+		segs := seg(RoleRule, "│ ").join(l.segs.padRight(inner)).add(RoleRule, " │")
+		lines = append(lines, line{segs: segs, at: l.at})
 	}
-	return append(lines, line{text: "+" + rule + "+"})
+	return append(lines, line{segs: border})
 }
 
 func drawDivider(_ pen, _ Node, width int) []line {
-	return []line{{text: strings.Repeat("─", width)}}
+	return []line{{segs: seg(RoleRule, strings.Repeat("─", width))}}
 }
 
 func drawButton(p pen, n Node, width int) []line {
-	label := strings.Join(texts(p.stack(n, max(width-4, 1))), " ")
-	return []line{{text: ansi.Truncate("[ "+label+" ]", width, "…")}}
+	label := strings.Join(Texts(segments(p.stack(n, max(width-4, 1)))), " ")
+	return []line{{segs: seg(variantRole(n, RoleBody), ansi.Truncate("[ "+label+" ]", width, "…"))}}
 }
 
 func drawTextField(p pen, n Node, width int) []line {
-	lines := wrap(n.Label, width)
+	lines := under(RoleLabel, wrap(n.Label, width))
+	focused := p.focused(n)
 	value := n.Value
-	if p.focused(n) {
+	if focused {
 		value += caret
 	}
 	if value == "" {
-		return plain(append(lines, "> "+strings.Repeat("_", max(min(width-2, 24), 1))))
+		return append(lines, line{segs: seg(RoleMuted, "> "+strings.Repeat("_", max(min(width-2, 24), 1)))})
 	}
-	return plain(append(lines, hang("> ", value, width)...))
+	answer := hang(seg(RoleMuted, "> "), value, RoleValue, width)
+	if focused {
+		last := len(answer) - 1
+		answer[last] = withCaret(answer[last])
+	}
+	for _, segs := range answer {
+		lines = append(lines, line{segs: segs})
+	}
+	return lines
+}
+
+// withCaret gives the caret that ends a focused value the focused role.
+func withCaret(l Line) Line {
+	end := l[len(l)-1]
+	text := strings.TrimSuffix(end.Text, caret)
+	return append(l[:len(l)-1:len(l)-1], seg(end.Role, text)...).add(RoleFocused, caret)
 }
 
 func drawCheckBox(_ pen, n Node, width int) []line {
-	return plain(hang(mark(n.Checked, true), n.Label, width))
+	var lines []line
+	for _, segs := range hang(mark(n.Checked, true), n.Label, RoleLabel, width) {
+		lines = append(lines, line{segs: segs})
+	}
+	return lines
 }
 
 func drawChoicePicker(p pen, n Node, width int) []line {
 	var lines []line
 	if n.Label != "" {
-		lines = plain(wrap(n.Label, width))
+		lines = under(RoleLabel, wrap(n.Label, width))
 	}
 	for i, option := range n.Options {
-		indent := "  "
+		indent := seg(RoleBody, "  ")
 		if p.focused(n) && n.Multiple && p.focus.Option == i+1 {
-			indent = gutterFocus
+			indent = seg(RoleFocused, gutterFocus)
 		}
-		for _, text := range hang(indent+mark(option.Selected, n.Multiple), option.Label, width) {
-			lines = append(lines, line{text: text, at: Target{Option: i + 1}})
+		for _, segs := range hang(indent.join(mark(option.Selected, n.Multiple)), option.Label, RoleBody, width) {
+			lines = append(lines, line{segs: segs, at: Target{Option: i + 1}})
 		}
 	}
 	return lines
 }
 
 // mark is a choice's box: square for one of many that may all be chosen,
-// round for one of a set that allows only one.
-func mark(selected, square bool) string {
+// round for one of a set that allows only one. A chosen box is selected.
+func mark(selected, square bool) Line {
 	switch {
 	case square && selected:
-		return "[x] "
+		return seg(RoleSelected, "[x] ")
 	case square:
-		return "[ ] "
+		return seg(RoleBody, "[ ] ")
 	case selected:
-		return "(*) "
+		return seg(RoleSelected, "(*) ")
 	default:
-		return "( ) "
+		return seg(RoleBody, "( ) ")
 	}
 }

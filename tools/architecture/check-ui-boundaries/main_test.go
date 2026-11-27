@@ -152,3 +152,20 @@ func TestEveryUIPackageHasABoundary(t *testing.T) {
 		}
 	}
 }
+
+// The Agent Surface renderer says what text is and leaves how it looks to
+// its caller, so it imports neither the theme nor lipgloss, even though
+// presentation, which it does import, reaches lipgloss.
+func TestA2UIRefusesThemeAndLipgloss(t *testing.T) {
+	if err := checkBoundary(a2uiBoundary); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{module + "/internal/ui/theme", "github.com/charmbracelet/lipgloss"} {
+		if err := checkRefusedImports(a2uiBoundary, []string{"strings", path}); err == nil {
+			t.Fatalf("A2UI accepted a direct import of %s", path)
+		}
+	}
+	if err := checkRefusedImports(a2uiBoundary, []string{"strings", module + "/internal/ui/presentation", "github.com/charmbracelet/x/ansi"}); err != nil {
+		t.Fatal(err)
+	}
+}
