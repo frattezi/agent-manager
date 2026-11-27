@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const stored = `{"version":1,"id":"weekly-1","name":"weekly","kind":"agent","repoPath":"/src/repo","cron":"0 7 * * MON-FRI","timezone":"Europe/Lisbon","mode":"work","tool":"claude","flags":["--yes"],"entry":"prompts/weekly.md","retention":5}`
+const stored = `{"version":1,"id":"weekly-1","name":"weekly","kind":"agent","repoPath":"/src/repo","cron":"0 7 * * MON-FRI","timezone":"Europe/Lisbon","mode":"work","cli":"claude","flags":["--yes"],"entryPoint":"prompts/weekly.md","keepRuns":5}`
 
 var firedFor = time.Date(2026, 11, 26, 7, 0, 0, 0, time.FixedZone("Lisbon", 0))
 

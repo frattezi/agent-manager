@@ -11,7 +11,7 @@ import (
 )
 
 func automationDoc(id string) []byte {
-	return []byte(`{"version":1,"id":"` + id + `","name":"nightly","kind":"script","repoPath":"/src/repo","cron":"* * * * *","timezone":"UTC","mode":"work","tool":"","flags":[],"entry":"scripts/nightly.sh","retention":3}`)
+	return []byte(`{"version":1,"id":"` + id + `","name":"nightly","kind":"script","repoPath":"/src/repo","cron":"* * * * *","timezone":"UTC","mode":"work","cli":"","flags":[],"entryPoint":"scripts/nightly.sh","keepRuns":3}`)
 }
 
 func addTestAutomation(t *testing.T, m *Model, id string, enabled bool) {

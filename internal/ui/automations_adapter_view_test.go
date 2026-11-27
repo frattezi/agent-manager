@@ -19,7 +19,7 @@ import (
 
 // A yearly schedule keeps a check from firing the fixtures while a test runs.
 func viewAutomationDoc(id, name, mode string) []byte {
-	return []byte(`{"version":1,"id":"` + id + `","name":"` + name + `","kind":"script","repoPath":"/src/repo","cron":"0 7 1 1 *","timezone":"UTC","mode":"` + mode + `","tool":"","flags":[],"entry":"scripts/` + id + `.sh","retention":3}`)
+	return []byte(`{"version":1,"id":"` + id + `","name":"` + name + `","kind":"script","repoPath":"/src/repo","cron":"0 7 1 1 *","timezone":"UTC","mode":"` + mode + `","cli":"","flags":[],"entryPoint":"scripts/` + id + `.sh","keepRuns":3}`)
 }
 
 func addViewAutomation(t *testing.T, m *Model, id, name, mode string, enabled bool, created time.Time) {

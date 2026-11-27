@@ -45,7 +45,7 @@ func showFirings(t *testing.T, m *Model, id string) {
 }
 
 func agentAutomationDoc(id, name, repo, tool string) []byte {
-	return []byte(`{"version":1,"id":"` + id + `","name":"` + name + `","kind":"agent","repoPath":"` + repo + `","cron":"0 7 1 1 *","timezone":"UTC","mode":"work","tool":"` + tool + `","flags":["--yolo"],"entry":"prompts/` + id + `.md","retention":3}`)
+	return []byte(`{"version":1,"id":"` + id + `","name":"` + name + `","kind":"agent","repoPath":"` + repo + `","cron":"0 7 1 1 *","timezone":"UTC","mode":"work","cli":"` + tool + `","flags":["--yolo"],"entryPoint":"prompts/` + id + `.md","keepRuns":3}`)
 }
 
 func TestDebugSessionOnAFinishedFiringSpawnsUnderANewProjectGroup(t *testing.T) {

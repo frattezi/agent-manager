@@ -93,7 +93,7 @@ func TestAddRefusesWhatCouldNeverRunAndStoresNothing(t *testing.T) {
 		field string
 	}{
 		"malformed cron":            {func(c *Config) { c.Cron = "every monday" }, "cron"},
-		"missing entry":             {func(c *Config) { c.Entry = " " }, "entry"},
+		"missing entry":             {func(c *Config) { c.Entry = " " }, "entryPoint"},
 		"not a Fractory repository": {func(c *Config) { c.RepoPath = t.TempDir() }, "repoPath"},
 		"missing directory":         {func(c *Config) { c.RepoPath = filepath.Join(t.TempDir(), "gone") }, "repoPath"},
 	} {
