@@ -2136,6 +2136,11 @@ var mouseOpeners = map[string]func(t *testing.T, m *Model){
 		m.push(newFocusSurface(m))
 		m.push(uifocus.OpenSaved(focusSavedRoot{m}, 0, m.spawnStyles()))
 	},
+	"answer.Surface": func(t *testing.T, m *Model) {
+		m.applyTestMsg(t, runsLoadedMsg{dir: t.TempDir(), list: testRuns()})
+		selectRun(t, m, "r1")
+		m.runIntent(uirail.Intent{Kind: uirail.Prompt, Target: m.railSelection()})
+	},
 	"review.Surface": func(t *testing.T, m *Model) {
 		m.base = baseReview
 		m.push(uireview.NewSurface(reviewRoot{m}, []uireview.PickerRow{{Label: "main"}}, "branch", uireview.PickRepo, "", uireview.PickerSource{}, "", uireview.RenderContext{}, ""))

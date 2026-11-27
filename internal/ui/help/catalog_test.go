@@ -345,3 +345,18 @@ func TestCatalogNamesTheMoveKeyOnAConnection(t *testing.T) {
 		}
 	}
 }
+
+func TestCatalogNamesTheRunAnswerKey(t *testing.T) {
+	ctx := testContext(84)
+	for _, section := range helpSections(ctx) {
+		for _, row := range section.rows {
+			if strings.Contains(row[1], "answer a needs-human Run") {
+				if row[0] != ctx.ListKeys.Binding(keybind.Prompt).Keys()[0].Glyph() {
+					t.Fatalf("the answer row names %q", row[0])
+				}
+				return
+			}
+		}
+	}
+	t.Fatal("the key map does not name the key that answers a needs-human Run")
+}

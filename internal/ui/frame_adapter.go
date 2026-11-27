@@ -17,6 +17,7 @@ import (
 	uigeometry "github.com/YoanWai/agent-manager/internal/ui/geometry"
 	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
+	uianswer "github.com/YoanWai/agent-manager/internal/ui/runs/answer"
 	uistartup "github.com/YoanWai/agent-manager/internal/ui/startup"
 	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
 	"github.com/charmbracelet/lipgloss"
@@ -313,6 +314,9 @@ func (m *Model) footer() legend {
 	}
 	if s, ok := surfaceOf[*uidialogs.RenameSurface](m); ok {
 		return m.transientFooter(legendSection{Title: "Rename", Pairs: s.Footer()})
+	}
+	if s, ok := surfaceOf[*uianswer.Surface](m); ok {
+		return m.transientFooter(legendSection{Title: "Answer", Pairs: s.Footer()})
 	}
 	if m.focused() {
 		return footer.Transient(footer.Focused(m.focusFooter()))

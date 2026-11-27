@@ -384,3 +384,35 @@ func TestRunsHeaderMenuFoldsAndUnfolds(t *testing.T) {
 		}
 	}
 }
+
+func TestANeedsHumanRunMenuOffersTheAnswer(t *testing.T) {
+	model := New(nil)
+	model.Reconcile(Snapshot{Runs: []Run{
+		{ID: "asks", Ticket: "jira:A-1", Status: "needs-human", CanAnswer: true, CanRerun: true},
+		{ID: "answered", Ticket: "jira:A-2", Status: "needs-human", CanAnswer: true, Answered: true},
+		{ID: "failed", Ticket: "jira:A-3", Status: "failed", CanRerun: true},
+	}})
+	for _, tc := range []struct {
+		id, want string
+	}{{"asks", "Answer"}, {"answered", "Edit answer"}, {"failed", ""}} {
+		model.Focus(Selection{Kind: RunRow, Run: tc.id})
+		model.openMenu(Selection{Kind: RunRow, Run: tc.id}, 4, 5, false)
+		found := -1
+		for index, item := range model.menu.items {
+			if item.action == Prompt {
+				found = index
+				if item.label != tc.want {
+					t.Fatalf("%s menu offers %q, want %q", tc.id, item.label, tc.want)
+				}
+			}
+		}
+		if (found >= 0) != (tc.want != "") {
+			t.Fatalf("%s menu answer item at %d, want %q", tc.id, found, tc.want)
+		}
+		if found >= 0 {
+			if decision := model.runMenuItem(found); decision.Intent.Kind != Prompt || decision.Intent.Target.Run != tc.id {
+				t.Fatalf("%s answer decision = %+v", tc.id, decision)
+			}
+		}
+	}
+}
