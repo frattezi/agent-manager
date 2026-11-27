@@ -152,10 +152,10 @@ func TestCursorSkipsRootOnFirstBuild(t *testing.T) {
 	if railRows(m)[m.rail.Cursor()].isRoot() {
 		t.Fatal("cursor parked on root with rows available below it")
 	}
-	// With nothing but root to land on, it is the selection.
+	// With nothing but root and the empty Bots area, root is the selection.
 	bare := shotModel()
 	clearRailInventory(bare)
-	if len(railRows(bare)) != 1 || !railRows(bare)[0].isRoot() || bare.rail.Cursor() != 0 {
+	if rows := bare.rail.Rows(); len(rows) != 2 || rows[1].Kind != uirail.BotsRow || !railRows(bare)[0].isRoot() || bare.rail.Cursor() != 0 {
 		t.Fatalf("empty list should rest on root, got %d rows cursor %d", len(railRows(bare)), bare.rail.Cursor())
 	}
 }

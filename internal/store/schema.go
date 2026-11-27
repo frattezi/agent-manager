@@ -190,6 +190,22 @@ CREATE TABLE IF NOT EXISTS settings (
 			created_at     INTEGER NOT NULL,
 			updated_at     INTEGER NOT NULL
 		)`,
+		// An Agent Surface a session published, kept as the bytes it wrote:
+		// the format is the contract, so a later renderer reads the same row.
+		`CREATE TABLE IF NOT EXISTS agent_surfaces (
+			id           TEXT PRIMARY KEY,
+			session_id   TEXT NOT NULL,
+			published_at INTEGER NOT NULL,
+			document     TEXT NOT NULL,
+			answered_at  INTEGER NOT NULL DEFAULT 0,
+			answer       TEXT NOT NULL DEFAULT ''
+		)`,
+		`CREATE INDEX IF NOT EXISTS agent_surfaces_by_session ON agent_surfaces (session_id, published_at)`,
+		// A Bot is an ordinary session that remembers the Profile it was
+		// started from, which is how the rail lists it under that Profile.
+		`ALTER TABLE sessions ADD COLUMN bot_profile TEXT NOT NULL DEFAULT ''`,
+		// A Bot keeps its Profile's launch flags on every later launch.
+		`ALTER TABLE sessions ADD COLUMN launch_flags TEXT NOT NULL DEFAULT ''`,
 	}
 	for _, migration := range migrations {
 		if _, err := s.db.Exec(migration); err != nil {

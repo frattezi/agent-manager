@@ -1,0 +1,19 @@
+[
+  {"version": "v0.9", "createSurface": {"surfaceId": "round-1", "catalogId": "https://a2ui.org/specification/v0_9/basic_catalog.json"}},
+  {"version": "v0.9", "updateComponents": {"surfaceId": "round-1", "components": [
+    {"id": "root", "component": "Card", "child": "body"},
+    {"id": "body", "component": "Column", "children": ["title", "q1", "q2", "rule", "other", "send"]},
+    {"id": "title", "component": "Text", "text": "Grilling round 1 of 3: where retained rounds live", "variant": "h2"},
+    {"id": "q1", "component": "ChoicePicker", "label": "1. Which package owns the A2UI format?", "variant": "mutuallyExclusive",
+      "options": [{"label": "internal/ui/a2ui, boundary-restricted like internal/ui/runs", "value": "a2ui"}, {"label": "internal/ui/surface", "value": "surface"}],
+      "value": {"path": "/answers/q1"}},
+    {"id": "q2", "component": "ChoicePicker", "label": "2. How many surfaces does a session keep?", "variant": "mutuallyExclusive",
+      "options": [{"label": "A named cap", "value": "cap"}, {"label": "All of them", "value": "all"}, {"label": "A Settings row", "value": "setting"}],
+      "value": ["cap"]},
+    {"id": "rule", "component": "Divider"},
+    {"id": "other", "component": "TextField", "label": "Anything the choices do not cover", "value": {"path": "/answers/other"}},
+    {"id": "send", "component": "Button", "child": "send-label", "variant": "primary", "action": {"event": {"name": "submit"}}},
+    {"id": "send-label", "component": "Text", "text": "Send answers"}
+  ]}},
+  {"version": "v0.9", "updateDataModel": {"surfaceId": "round-1", "path": "/answers", "value": {"q1": ["a2ui"]}}}
+]

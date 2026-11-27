@@ -144,6 +144,9 @@ func (m *Model) contentLines(width, height int) []contentLine {
 	if lines, ok := m.automationContentLines(width); ok {
 		return lines
 	}
+	if lines, ok := m.botsContentLines(width); ok {
+		return lines
+	}
 	if lines, ok := m.remoteContentLines(width, height); ok {
 		return lines
 	}

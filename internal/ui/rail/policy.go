@@ -230,6 +230,8 @@ func (m *Model) action(action string, ctx KeyContext) Decision {
 		return m.automationIntent(RunNow)
 	case keybind.DebugSession:
 		return m.firingIntent(DebugSession)
+	case keybind.SpawnBot:
+		return m.botProfileIntent(SpawnBot)
 	case keybind.Fork:
 		return m.intent(Fork)
 	case keybind.Revive:
@@ -396,7 +398,7 @@ func (m *Model) toggleCollapse() Decision {
 	if !ok {
 		return Decision{Consumed: true}
 	}
-	if row.kind != RunsRow && row.kind != AutomationsRow && row.kind != AutomationRow && row.host == "" && row.foldPath() == "" {
+	if row.kind != RunsRow && row.kind != AutomationsRow && row.kind != AutomationRow && row.kind != BotsRow && row.kind != BotProfileRow && row.host == "" && row.foldPath() == "" {
 		return Decision{Consumed: true}
 	}
 	m.setRowFolded(row, !m.rowFolded(row))

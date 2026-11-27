@@ -42,6 +42,12 @@ Typing into a Session from inside the workspace, with the manager still on scree
 relaying what the person types.
 _Avoid_: Inline mode, interactive preview, focused preview, editing the preview
 
+**Agent Surface**:
+A screen an agent asked for rather than one the manager composed: the agent describes what the
+owner should see or decide, and the manager draws it. It is never painted inside a Session's
+Pane, which belongs to that Session's CLI.
+_Avoid_: Surface, widget, card, A2UI surface, agent UI
+
 ## Automations
 
 **Automation**:
@@ -129,9 +135,60 @@ _Avoid_: Report, output, return value
 **Task**:
 One item on the shared list, which any Session may create and any may claim, and which
 may depend on others. A Task is the work; a Thread is a conversation about work.
-_Avoid_: Ticket, job, issue
+_Avoid_: Job, issue
 
 **Reservation**:
 An advisory, expiring lease a Session holds on a path, so Sessions sharing a checkout
 can see who is editing what. Never enforced against a writer.
 _Avoid_: Lock, mutex
+
+## Fractory Runs
+
+**Ticket**:
+One unit of work recorded in a ticket source, which the factory raises Runs for. A Ticket is
+work the factory owns; a Task is work the Sessions share.
+_Avoid_: Issue, card, story
+
+**Run**:
+One attempt by the factory at a Ticket: it is raised, it works on a branch of its own, and it
+ends done, failed, or waiting on a human.
+_Avoid_: Build, job, execution, attempt
+
+**Project**:
+The repository a Run's work belongs to. One owner has many Projects; neither the owner nor the
+forge is part of a Project's name.
+_Avoid_: Repo, repository, workspace, codebase
+
+**Run Title**:
+The one-line, human-readable description of what a Run is doing, written for someone scanning a
+list of them. It belongs to the Ticket the Run was raised for.
+_Avoid_: Task description, summary, slug, branch name
+
+**Ticket Snapshot**:
+What the ticket source said about a Project's Tickets at one moment, recorded by the factory so
+the manager can show Tickets without asking the tracker itself. It is a reading, never the truth:
+it carries the instant it was taken, and it is always behind the tracker.
+_Avoid_: Ticket cache, index, mirror, sync
+
+**Ticket Ref**:
+The identifier a ticket source gives a Ticket, carrying the forge, the owner, the Project and
+the number. It identifies a Ticket; it is not what a reader is shown.
+_Avoid_: Ticket id, ticket key, ticket name
+
+## Bots
+
+**Bot Profile**:
+A reusable configuration the owner can start an agent from: who it is, what it specializes in,
+which CLI and model it runs on, how it is shown, and where it remembers. It is configuration the
+manager stores, not a process; starting one costs nothing until a Bot is spawned from it.
+_Avoid_: Bot config, template, persona, role, preset
+
+**Bot**:
+One live Session spawned from a Bot Profile, which the owner talks to. Several Bots may run from
+one Profile at once, each attending to something different, and they share the Profile's memory.
+_Avoid_: Agent, instance, assistant, worker
+
+**Specialization**:
+What a Bot Profile knows that a plain Session does not, held as a committed skill rather than as
+text in a configuration field, so it is reviewed and versioned like any other code.
+_Avoid_: Personality, prompt, instructions, character

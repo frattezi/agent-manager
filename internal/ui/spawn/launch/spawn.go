@@ -19,7 +19,7 @@ import (
 
 // Kind says which surface asked for the spawn: the form, the quick bar, the
 // terminal key, which opens a shell with no prompt of its own, the setup
-// import, or a Debug Session on an Automation firing.
+// import, a Debug Session on an Automation firing, or a Bot from a Profile.
 type Kind uint8
 
 const (
@@ -28,6 +28,7 @@ const (
 	Shell
 	Import
 	Debug
+	Bot
 )
 
 // Request captures everything a spawn needs at dispatch time, so the worker
@@ -63,6 +64,8 @@ type Request struct {
 	Choice       config.Choice
 	Base         string
 	Environment  string
+	// BotProfile is the id of the Profile a Bot is spawned from.
+	BotProfile string
 }
 
 // Result is the durable outcome of a spawn: the persisted session row, which
@@ -156,6 +159,7 @@ func Run(services Services, request Request) (Result, error) {
 			ParentID:    request.ParentID,
 			Choice:      request.Choice,
 			Environment: request.Environment,
+			BotProfile:  request.BotProfile,
 		},
 		Tool:     tool,
 		Plan:     plan,

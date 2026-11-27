@@ -1467,8 +1467,8 @@ func TestWheelClampsAtBothEnds(t *testing.T) {
 		m = updated.(*Model)
 		m.drainEffects(t)
 	}
-	if m.rail.Cursor() != 2 {
-		t.Fatalf("wheel down off the bottom: cursor = %d want it held at 2", m.rail.Cursor())
+	if last := len(m.rail.Rows()) - 1; m.rail.Cursor() != last {
+		t.Fatalf("wheel down off the bottom: cursor = %d want it held at %d", m.rail.Cursor(), last)
 	}
 	setRailCursor(m, 0)
 	for i := 0; i < 3; i++ {
@@ -1483,8 +1483,8 @@ func TestWheelClampsAtBothEnds(t *testing.T) {
 	}
 	// The keyboard still wraps: clamping is the wheel's alone.
 	m.moveCursor(-1)
-	if m.rail.Cursor() != 2 {
-		t.Fatalf("arrow up should still wrap to 2, cursor = %d", m.rail.Cursor())
+	if last := len(m.rail.Rows()) - 1; m.rail.Cursor() != last {
+		t.Fatalf("arrow up should still wrap to %d, cursor = %d", last, m.rail.Cursor())
 	}
 }
 

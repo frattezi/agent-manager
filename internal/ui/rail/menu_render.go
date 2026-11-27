@@ -103,6 +103,8 @@ func (r renderer) menuGlyph(action ActionKind) string {
 		binding = keybind.RunNow
 	case DebugSession:
 		binding = keybind.DebugSession
+	case SpawnBot:
+		binding = keybind.SpawnBot
 	case Fork:
 		binding = keybind.Fork
 	case Revive:

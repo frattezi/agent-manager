@@ -188,6 +188,9 @@ type Choice struct {
 	Model    string
 	Effort   string
 	Profile  string
+	// Flags are launch flags the owner wrote, a Bot Profile's, passed to
+	// the shell as written after the ones the tool's own args build.
+	Flags string
 }
 
 type Config struct {
@@ -359,6 +362,9 @@ func (c Choice) flags(t Tool) string {
 		if arg.template != "" && arg.value != "" {
 			flags.WriteString(" " + values.Replace(arg.template))
 		}
+	}
+	if extra := strings.TrimSpace(c.Flags); extra != "" {
+		flags.WriteString(" " + extra)
 	}
 	return flags.String()
 }

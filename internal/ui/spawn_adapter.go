@@ -356,7 +356,7 @@ func (m *Model) capturedAbsolutePath(raw, fallback string) string {
 // dispatchSpawn takes the prompt's images out of the composer and queues the
 // spawn on the shared effect lane; completion routes the images.
 func (m *Model) dispatchSpawn(request uilaunch.Request) {
-	if request.Kind != uilaunch.Quick && m.spawnRepeated(request) {
+	if request.Kind != uilaunch.Quick && request.Kind != uilaunch.Bot && m.spawnRepeated(request) {
 		m.reportErr("this spawn is already in progress")
 		return
 	}
@@ -523,9 +523,9 @@ func (m *Model) commitSpawn(request uilaunch.Request, sess store.Session) {
 	if request.AutoNamed {
 		m.ledger.lifecycle.AwaitRename(sess.ID, sess.Name, request.Prompt)
 	}
-	if request.Kind != uilaunch.Shell && request.Kind != uilaunch.Import && request.Kind != uilaunch.Debug {
+	if request.Kind != uilaunch.Shell && request.Kind != uilaunch.Import && request.Kind != uilaunch.Debug && request.Kind != uilaunch.Bot {
 		m.ledger.spawner.RememberSpawn(request.ToolName, request.PickWorktree)
-		spawn.RememberModel(m.spawnHost(), request.ToolName, spawn.Pick(request.Choice))
+		spawn.RememberModel(m.spawnHost(), request.ToolName, spawn.Pick{Provider: request.Choice.Provider, Model: request.Choice.Model, Effort: request.Choice.Effort, Profile: request.Choice.Profile})
 		// The pick is the Settings default from now on, so the next form,
 		// the quick bar and an agent-manager spawn open on it. A remote
 		// spawn never reaches here, so it leaves the local default alone.
@@ -547,7 +547,7 @@ func (m *Model) commitSpawn(request uilaunch.Request, sess store.Session) {
 		if q, ok := m.quickFor(request.ComposerGen); ok {
 			m.settleAccepted(request.ComposerGen, request.Submission.ID, q.CloseAfterSend)
 		}
-	case uilaunch.Import, uilaunch.Debug:
+	case uilaunch.Import, uilaunch.Debug, uilaunch.Bot:
 		reveal = m.base == baseList && !m.focused() && !m.cardOpen()
 	}
 	m.rebuildRows()

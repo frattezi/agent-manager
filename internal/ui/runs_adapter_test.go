@@ -56,7 +56,9 @@ func TestRunsLoadListsRunsAfterTheSessionTree(t *testing.T) {
 	loadRuns(t, m, testRuns())
 	var kinds []uirail.RowKind
 	for _, row := range m.rail.Rows() {
-		kinds = append(kinds, row.Kind)
+		if row.Kind != uirail.BotsRow {
+			kinds = append(kinds, row.Kind)
+		}
 	}
 	if n := len(kinds); n < 3 || kinds[n-3] != uirail.RunsRow || kinds[n-2] != uirail.RunRow || kinds[n-1] != uirail.RunRow {
 		t.Fatalf("rows = %v; want the Runs header and both Runs last", kinds)
