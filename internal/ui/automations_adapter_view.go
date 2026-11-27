@@ -101,7 +101,8 @@ func isAutomationRow(kind uirail.RowKind) bool {
 // automationIntent runs a rail intent aimed at the Automations section and
 // reports whether it took it. New Automation opens the dialog from any row.
 // Open and attach on a firing open its log, and on an Automation its newest
-// firing's; an Automation row takes its own actions, and the rest refuse.
+// firing's; a firing opens a Debug Session, an Automation row takes its own
+// actions, and the rest refuse.
 func (m *Model) automationIntent(intent uirail.Intent) (tea.Cmd, bool) {
 	if intent.Kind == uirail.NewAutomation {
 		m.openAutomationDialog(nil)
@@ -130,6 +131,12 @@ func (m *Model) automationIntent(intent uirail.Intent) (tea.Cmd, bool) {
 			return nil, true
 		}
 		return m.openFiringLog(last), true
+	case uirail.DebugSession:
+		entry, entryOK := m.selectedAutomation()
+		if record, ok := m.selectedFiring(); ok && entryOK {
+			return m.openDebugSession(entry, record), true
+		}
+		return nil, true
 	default:
 		if intent.Target.Kind == uirail.AutomationRow && m.automationRowIntent(intent.Kind) {
 			return m.nextEffectCmd(), true
@@ -193,6 +200,9 @@ func (m *Model) automationLegend() (legendSection, bool) {
 	pairs := [][2]string{{m.listGlyph(keybind.Open, keybind.Attach), "open log"}}
 	if !m.prefs.mouseDisabled {
 		pairs = append(pairs, [2]string{"double click", "open log"})
+	}
+	if record, ok := m.selectedFiring(); ok && record.Finished() {
+		pairs = append(pairs, [2]string{m.listGlyph(keybind.DebugSession), "debug session"})
 	}
 	return legendSection{Title: "Firing", Pairs: pairs}, true
 }

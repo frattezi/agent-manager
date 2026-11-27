@@ -162,6 +162,7 @@ func automationRowHelpRows(list keybind.Table, mode presentation.GlyphMode) [][2
 	h.action("enable / disable it; a disabled Automation keeps its setup", keybind.EnableToggle)
 	h.action("run it now for the current instant; its schedule is untouched", keybind.RunNow)
 	h.action("delete it, after a confirmation", keybind.Delete)
+	h.action("on a finished firing, open a Debug Session on it", keybind.DebugSession)
 	h.fixed("", "each is in the row menu too")
 	return h.rows
 }

@@ -282,6 +282,7 @@ const (
 	NewAutomation = "new_automation"
 	EnableToggle  = "enable_toggle"
 	RunNow        = "run_now"
+	DebugSession  = "debug_session"
 )
 
 const (
@@ -314,6 +315,7 @@ var listActions = []Action{
 	{NewAutomation, "new Automation", keys("S")},
 	{EnableToggle, "Automation: enable / disable it", keys("E")},
 	{RunNow, "Automation: run it now, outside its schedule", keys("!")},
+	{DebugSession, "Automation firing: open a Debug Session on it", keys("D")},
 	{Fork, "fork the session", keys("f")},
 	{Prompt, "quick prompt mode", keys("space")},
 	{CopyReply, "copy the session's newest reply to the clipboard", keys("y")},

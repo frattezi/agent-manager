@@ -228,6 +228,8 @@ func (m *Model) action(action string, ctx KeyContext) Decision {
 		return m.automationIntent(ToggleEnabled)
 	case keybind.RunNow:
 		return m.automationIntent(RunNow)
+	case keybind.DebugSession:
+		return m.firingIntent(DebugSession)
 	case keybind.Fork:
 		return m.intent(Fork)
 	case keybind.Revive:

@@ -125,6 +125,15 @@ func (m *Model) automationIntent(kind ActionKind) Decision {
 	return m.intent(kind)
 }
 
+// firingIntent is a firing action, which only a firing row takes; anywhere
+// else the key does nothing.
+func (m *Model) firingIntent(kind ActionKind) Decision {
+	if row, ok := m.row(); !ok || row.kind != FiringRow {
+		return Decision{Consumed: true}
+	}
+	return m.intent(kind)
+}
+
 func (r renderer) renderAutomationsHeader(selected bool, width int, pad, background string) renderedTreeRow {
 	style := r.palette.subtle.Bold(true)
 	if selected {
