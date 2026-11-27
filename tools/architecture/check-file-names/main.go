@@ -28,6 +28,7 @@ const uiRoot = "internal/ui"
 // <feature>_*effect.go, <feature>_*surface.go and <feature>_*host.go,
 // besides the older ones in rootExtras.
 var packaged = map[string]string{
+	"a2ui":         "the Agent Surfaces format adapter: later the card that draws a published surface",
 	"automations":  "the Automations adapter: the poll, the rail rows, the detail column, the log tab and the Debug Session intent",
 	"bots":         "the Bots adapter: the Profiles' fields in SettingSpecs, and later the area, the dialog and the spawn",
 	"composer":     "the prompt box adapter: which box a paste lands in, its painters and the pastes sweep",

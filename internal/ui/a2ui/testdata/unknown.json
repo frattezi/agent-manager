@@ -1,0 +1,10 @@
+[
+  {"version": "v0.9", "createSurface": {"surfaceId": "newer", "catalogId": "basic", "theme": {"primaryColor": "#00f"}}, "sentAt": "later"},
+  {"version": "v0.9", "updateComponents": {"surfaceId": "newer", "components": [
+    {"id": "root", "component": "Column", "children": ["before", "volume", "after"], "justify": "start", "weight": 2},
+    {"id": "before", "component": "Text", "text": "Before the slider", "accessibility": {"label": "intro"}},
+    {"id": "volume", "component": "Slider", "label": "Volume", "min": 0, "max": 10, "value": 5},
+    {"id": "after", "component": "Text", "text": "After the slider"}
+  ]}},
+  {"version": "v0.9", "streamCheckpoint": {"surfaceId": "newer"}}
+]
