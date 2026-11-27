@@ -8,6 +8,7 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/ui/a2ui"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	"github.com/google/uuid"
 )
 
@@ -138,7 +139,7 @@ func (s *Sessions) ShowSurface(sessionID, id string, width int) (RenderedSurface
 	return RenderedSurface{
 		Surface: surfaceRecord(stored, names[stored.SessionID], doc.SurfaceID),
 		Width:   width,
-		Text:    a2ui.Render(doc, width),
+		Text:    a2ui.Render(doc, width, presentation.ChromeFor(presentation.DefaultGlyphMode)),
 	}, nil
 }
 

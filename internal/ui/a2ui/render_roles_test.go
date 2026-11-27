@@ -50,7 +50,7 @@ func TestVariantsTakeTheirRoles(t *testing.T) {
 		{"id":"send","component":"Text","text":"Send"},
 		{"id":"plain","component":"Button","child":"skip"},
 		{"id":"skip","component":"Text","text":"Skip"}`)
-	lines, _ := RenderForm(doc, 40, Focus{})
+	lines, _ := RenderForm(doc, 40, Focus{}, advanced)
 	assertLines(t, lines, []string{
 		`title"One"`,
 		`heading"Two"`,
@@ -75,10 +75,10 @@ func TestVariantRolesNameComponentsOfTheSubset(t *testing.T) {
 // A round's lines say which text is the title, which the questions, which
 // choice is selected and which control the focus is on.
 func TestRenderFormGivesARoundItsRoles(t *testing.T) {
-	lines, _ := RenderForm(fixture(t, "round"), 60, Focus{Field: 3})
+	lines, _ := RenderForm(fixture(t, "round"), 60, Focus{Field: 3}, advanced)
 	rule := strings.Repeat("─", 58)
 	assertLines(t, lines, []string{
-		`rule"+` + rule + `+"`,
+		`rule"╭` + rule + `╮"`,
 		`rule"│ " heading"Grilling round 1 of 3: where retained rounds live" body"` + pad(7) + `" rule" │"`,
 		`rule"│ " body"  " label"1. Which package owns the A2UI format?" body"` + pad(16) + `" rule" │"`,
 		`rule"│ " body"    " selected"(*) " body"internal/ui/a2ui, boundary-restricted like` + pad(6) + `" rule" │"`,
@@ -92,18 +92,18 @@ func TestRenderFormGivesARoundItsRoles(t *testing.T) {
 		`rule"│ " *body"  " *label"Anything the choices do not cover" *body"` + pad(21) + `" rule" │"`,
 		`rule"│ " *body"  " *muted"> " *focused"_" *body"` + pad(51) + `" rule" │"`,
 		`rule"│ " accent"[ Send answers ]" body"` + pad(40) + `" rule" │"`,
-		`rule"+` + rule + `+"`,
+		`rule"╰` + rule + `╯"`,
 	})
 }
 
 func TestAFocusedValueCarriesItsCaret(t *testing.T) {
 	doc := parse(t, `{"id":"root","component":"TextField","label":"Name","value":"Ada"}`)
-	lines, _ := RenderForm(doc, 30, Focus{Field: 1})
+	lines, _ := RenderForm(doc, 30, Focus{Field: 1}, advanced)
 	assertLines(t, lines, []string{
 		`*body"  " *label"Name" *body"` + pad(24) + `"`,
 		`*body"  " *muted"> " *value"Ada" *focused"_" *body"` + pad(22) + `"`,
 	})
-	lines, _ = RenderForm(doc, 30, Focus{})
+	lines, _ = RenderForm(doc, 30, Focus{}, advanced)
 	assertLines(t, lines, []string{
 		`body"  " label"Name"`,
 		`body"  " muted"> " value"Ada"`,
@@ -116,7 +116,7 @@ func TestTheCursorOptionIsFocusedAndTheChosenOnesSelected(t *testing.T) {
 	doc := parse(t, `{"id":"root","component":"Column","children":["tools"]},
 		{"id":"tools","component":"ChoicePicker","label":"Tools","variant":"multipleSelection",
 		"options":[{"label":"claude","value":"claude"},{"label":"codex","value":"codex"},{"label":"gemini","value":"gemini"}],"value":["claude"]}`)
-	lines, _ := RenderForm(doc, 30, Focus{Field: 1, Option: 2})
+	lines, _ := RenderForm(doc, 30, Focus{Field: 1, Option: 2}, advanced)
 	assertLines(t, lines, []string{
 		`*body"  " *label"Tools" *body"` + pad(23) + `"`,
 		`*body"    " *selected"[x] " *body"claude` + pad(16) + `"`,
@@ -130,7 +130,7 @@ func TestTheCursorOptionIsFocusedAndTheChosenOnesSelected(t *testing.T) {
 func TestASingleChoiceCursorSitsOnTheChosenOption(t *testing.T) {
 	doc := parse(t, `{"id":"root","component":"ChoicePicker","label":"Pick","variant":"mutuallyExclusive",
 		"options":[{"label":"one","value":"one"},{"label":"two","value":"two"}],"value":["two"]}`)
-	lines, _ := RenderForm(doc, 20, Focus{Field: 1, Option: 2})
+	lines, _ := RenderForm(doc, 20, Focus{Field: 1, Option: 2}, advanced)
 	assertLines(t, lines, []string{
 		`*body"  " *label"Pick" *body"` + pad(14) + `"`,
 		`*body"    ( ) one` + pad(9) + `"`,
@@ -140,7 +140,7 @@ func TestASingleChoiceCursorSitsOnTheChosenOption(t *testing.T) {
 
 // Only the focused field is filled, and no line carries a gutter mark.
 func TestOnlyTheFocusedFieldIsFilled(t *testing.T) {
-	lines, targets := RenderForm(fixture(t, "round"), 60, Focus{Field: 2, Option: 1})
+	lines, targets := RenderForm(fixture(t, "round"), 60, Focus{Field: 2, Option: 1}, advanced)
 	for i, l := range lines {
 		for _, s := range l {
 			if s.Role != RoleRule && s.Filled != (targets[i].Field == 2) {
@@ -155,7 +155,7 @@ func TestOnlyTheFocusedFieldIsFilled(t *testing.T) {
 
 func TestACheckBoxSetsItsMarkBesideItsLabel(t *testing.T) {
 	doc := parse(t, `{"id":"root","component":"CheckBox","label":"Agree","value":true}`)
-	assertLines(t, segments(pen{}.draw(doc.Root, 30)), []string{`selected"[x] " label"Agree"`})
+	assertLines(t, segments(pen{chrome: advanced}.draw(doc.Root, 30)), []string{`selected"[x] " label"Agree"`})
 }
 
 // Side by side, each column keeps its own roles, and the line ends where
@@ -164,12 +164,12 @@ func TestARowKeepsEachColumnsRoles(t *testing.T) {
 	doc := parse(t, `{"id":"root","component":"Row","children":["a","b"]},
 		{"id":"a","component":"Text","text":"Left","variant":"h1"},
 		{"id":"b","component":"Text","text":"Right","variant":"caption"}`)
-	lines, _ := RenderForm(doc, 50, Focus{})
+	lines, _ := RenderForm(doc, 50, Focus{}, advanced)
 	assertLines(t, lines, []string{`title"Left" body"` + pad(22) + `" muted"Right"`})
 }
 
 func TestAComponentOutsideTheSubsetCarriesTheGapRole(t *testing.T) {
-	lines, _ := RenderForm(fixture(t, "unknown"), 80, Focus{})
+	lines, _ := RenderForm(fixture(t, "unknown"), 80, Focus{}, advanced)
 	found := false
 	for _, l := range lines {
 		for _, s := range l {
@@ -191,11 +191,11 @@ func TestAComponentOutsideTheSubsetCarriesTheGapRole(t *testing.T) {
 func TestSegmentsFlattenToThePlainRendering(t *testing.T) {
 	for _, name := range []string{"round", "every", "unknown"} {
 		doc := fixture(t, name)
-		lines := segments(pen{}.draw(doc.Root, 60))
-		if got := strings.Join(Texts(lines), "\n"); got != Render(doc, 60) {
-			t.Errorf("%s flattens to\n%s\nwant\n%s", name, got, Render(doc, 60))
+		lines := segments(pen{chrome: advanced}.draw(doc.Root, 60))
+		if got := strings.Join(Texts(lines), "\n"); got != Render(doc, 60, advanced) {
+			t.Errorf("%s flattens to\n%s\nwant\n%s", name, got, Render(doc, 60, advanced))
 		}
-		form, _ := RenderForm(doc, 60, Focus{Field: 1, Option: 1})
+		form, _ := RenderForm(doc, 60, Focus{Field: 1, Option: 1}, advanced)
 		for _, l := range append(lines, form...) {
 			for _, s := range l {
 				if s.Text == "" || strings.ContainsRune(s.Text, '\x1b') {

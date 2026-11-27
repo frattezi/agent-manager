@@ -11,10 +11,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type fakeRoot struct{ sent *[]AnswerRequest }
+type fakeRoot struct {
+	sent *[]AnswerRequest
+	mode presentation.GlyphMode
+}
 
-func (fakeRoot) ChromeRows([][2]string) int        { return 6 }
-func (fakeRoot) GlyphMode() presentation.GlyphMode { return presentation.GlyphModeBasic }
+func (fakeRoot) ChromeRows([][2]string) int          { return 6 }
+func (r fakeRoot) GlyphMode() presentation.GlyphMode { return r.mode }
 func (r fakeRoot) Send(request AnswerRequest) tea.Cmd {
 	if r.sent != nil {
 		*r.sent = append(*r.sent, request)
@@ -258,4 +261,34 @@ func lineOf(t *testing.T, body, text string) int {
 	}
 	t.Fatalf("%q is not on the card:\n%s", text, body)
 	return -1
+}
+
+// The card hands the renderer the set the owner's glyph mode resolves to:
+// rounded corners like every other card, or ASCII throughout in Compatible.
+func TestTheCardDrawsInTheOwnersGlyphMode(t *testing.T) {
+	for _, tc := range []struct {
+		mode        presentation.GlyphMode
+		top, bottom string
+	}{
+		{presentation.GlyphModeAdvanced, "╭─", "╰─"},
+		{presentation.GlyphModeBasic, "+-", "+-"},
+	} {
+		card, err := Open(fakeRoot{mode: tc.mode}, Stored{ID: "round-1", SessionID: "alpha", Document: roundDocument(t)}, "alpha")
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines, _ := card.render(60)
+		text := strings.Join(a2ui.Texts(lines), "\n")
+		if first, last := a2ui.Texts(lines)[0], a2ui.Texts(lines)[len(lines)-1]; !strings.HasPrefix(first, tc.top) || !strings.HasPrefix(last, tc.bottom) {
+			t.Errorf("%s frame is %q … %q", tc.mode, first, last)
+		}
+		if tc.mode == presentation.GlyphModeBasic {
+			for _, r := range text {
+				if r >= 0x2500 && r <= 0x259f {
+					t.Errorf("Compatible card draws %q:\n%s", r, text)
+					break
+				}
+			}
+		}
+	}
 }

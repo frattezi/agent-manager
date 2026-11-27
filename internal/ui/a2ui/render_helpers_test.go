@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 )
 
 func fixture(t *testing.T, name string) Document {
@@ -33,3 +35,8 @@ func parse(t *testing.T, components string) Document {
 	}
 	return doc
 }
+
+var (
+	advanced   = presentation.ChromeFor(presentation.GlyphModeAdvanced)
+	compatible = presentation.ChromeFor(presentation.GlyphModeBasic)
+)
