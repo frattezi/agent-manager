@@ -6,7 +6,7 @@ import (
 )
 
 func listingDoc(id, cron string) []byte {
-	return []byte(`{"version":1,"id":"` + id + `","name":"` + id + ` chore","kind":"script","repoPath":"/src","cron":"` + cron + `","timezone":"UTC","mode":"work","tool":"","flags":[],"entry":"run.sh","retention":3}`)
+	return []byte(`{"version":1,"id":"` + id + `","name":"` + id + ` chore","kind":"script","repoPath":"/src","cron":"` + cron + `","timezone":"UTC","mode":"work","cli":"","flags":[],"entryPoint":"run.sh","keepRuns":3}`)
 }
 
 func TestEntriesPairEachAutomationWithItsRecentFiringsNewestFirst(t *testing.T) {

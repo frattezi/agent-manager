@@ -45,8 +45,8 @@ var (
 
 // fieldOf is the dialog field a configuration field's refusal is shown on.
 var fieldOf = map[string]int{
-	"name": NameField, "repoPath": DirField, "kind": KindField, "tool": ToolField, "mode": ModeField,
-	"cron": CronField, "timezone": TimezoneField, "entry": EntryField, "flags": FlagsField, "retention": RetentionField,
+	"name": NameField, "repoPath": DirField, "kind": KindField, "cli": ToolField, "mode": ModeField,
+	"cron": CronField, "timezone": TimezoneField, "entryPoint": EntryField, "flags": FlagsField, "keepRuns": RetentionField,
 }
 
 // Seed is what a new dialog starts from: the directory and timezone the

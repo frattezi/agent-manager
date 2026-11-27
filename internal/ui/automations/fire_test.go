@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const dailyDoc = `{"version":1,"id":"daily","name":"daily","kind":"script","repoPath":"/src/repo","cron":"0 7 * * *","timezone":"UTC","mode":"work","tool":"","flags":[],"entry":"scripts/daily.sh","retention":5}`
+const dailyDoc = `{"version":1,"id":"daily","name":"daily","kind":"script","repoPath":"/src/repo","cron":"0 7 * * *","timezone":"UTC","mode":"work","cli":"","flags":[],"entryPoint":"scripts/daily.sh","keepRuns":5}`
 
 // fakeStore is the store a check runs against. listed, when set, is what
 // the listing returns instead of the rows, so a test can change a row

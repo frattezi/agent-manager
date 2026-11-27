@@ -1,8 +1,11 @@
 package automations
 
 import (
+	"encoding/json"
 	"errors"
+	"maps"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -10,7 +13,7 @@ import (
 var tools = []string{"claude", "codex"}
 
 const valid = `{"name":"weekly","kind":"agent","repoPath":"/src/repo","cron":"0 7 * * MON-FRI",
-"timezone":"Europe/Lisbon","mode":"work","tool":"claude","flags":["--yes"],"entry":"prompts/weekly.md","retention":5}`
+"timezone":"Europe/Lisbon","mode":"work","cli":"claude","flags":["--yes"],"entryPoint":"prompts/weekly.md","keepRuns":5}`
 
 func TestParseFillsTheVersionAndKeepsEveryField(t *testing.T) {
 	got, err := Parse([]byte(valid), tools)
@@ -33,7 +36,7 @@ func TestParseFillsTheVersionAndKeepsEveryField(t *testing.T) {
 }
 
 func TestScriptAutomationNeedsNoTool(t *testing.T) {
-	doc := strings.Replace(strings.Replace(valid, `"kind":"agent"`, `"kind":"script"`, 1), `"tool":"claude",`, ``, 1)
+	doc := strings.Replace(strings.Replace(valid, `"kind":"agent"`, `"kind":"script"`, 1), `"cli":"claude",`, ``, 1)
 	got, err := Parse([]byte(doc), tools)
 	if err != nil {
 		t.Fatal(err)
@@ -58,11 +61,11 @@ func TestParseRefusesNamingTheField(t *testing.T) {
 		{`"timezone":"Europe/Lisbon"`, `"timezone":"Local"`, "timezone"},
 		{`"timezone":"Europe/Lisbon"`, `"timezone":""`, "timezone"},
 		{`"mode":"work"`, `"mode":"play"`, "mode"},
-		{`"tool":"claude"`, `"tool":"vim"`, "tool"},
-		{`"tool":"claude"`, `"tool":""`, "tool"},
-		{`"entry":"prompts/weekly.md"`, `"entry":""`, "entry"},
-		{`"retention":5`, `"retention":0`, "retention"},
-		{`"retention":5`, `"retention":"5"`, "retention"},
+		{`"cli":"claude"`, `"cli":"vim"`, "cli"},
+		{`"cli":"claude"`, `"cli":""`, "cli"},
+		{`"entryPoint":"prompts/weekly.md"`, `"entryPoint":""`, "entryPoint"},
+		{`"keepRuns":5`, `"keepRuns":0`, "keepRuns"},
+		{`"keepRuns":5`, `"keepRuns":"5"`, "keepRuns"},
 		{`"flags":["--yes"]`, `"flags":"--yes"`, "flags"},
 		{`"name":"weekly"`, `"name":"weekly","version":2`, "version"},
 		{`"name":"weekly"`, `"name":"weekly","shedule":"x"`, "shedule"},
@@ -93,6 +96,39 @@ func TestValidateCronAcceptsTheUsualShapes(t *testing.T) {
 	for _, expr := range []string{"* * * * *", "*/15 * * * *", "0 7 * * 1-5", "0 0 1,15 * *", "30 6 * jan-mar sun", "0 0 * * 7", "0-30/5 8-18 * * *"} {
 		if err := ValidateCron(expr); err != nil {
 			t.Errorf("ValidateCron(%q) = %v", expr, err)
+		}
+	}
+}
+
+// contractFields are the field names of version 1 of Fractory's published
+// configuration contract, which its reader requires in every request.
+var contractFields = []string{"version", "id", "name", "kind", "repoPath", "cron", "timezone", "mode", "cli", "flags", "entryPoint", "keepRuns"}
+
+func TestEncodeWritesExactlyTheContractFieldNames(t *testing.T) {
+	encoded, err := Config{Version: Version, ID: "weekly-1", Name: "weekly", Kind: KindScript, RepoPath: "/src/repo",
+		Cron: "0 7 * * *", Timezone: "UTC", Mode: ModeWork, Entry: "scripts/weekly.sh", Retention: 3}.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &fields); err != nil {
+		t.Fatal(err)
+	}
+	got := slices.Sorted(maps.Keys(fields))
+	want := slices.Sorted(slices.Values(contractFields))
+	if !slices.Equal(got, want) {
+		t.Fatalf("encoded fields = %v, want %v", got, want)
+	}
+}
+
+func TestParseRefusesTheOldFieldNames(t *testing.T) {
+	for _, old := range []struct{ from, to string }{
+		{`"cli":`, `"tool":`}, {`"entryPoint":`, `"entry":`}, {`"keepRuns":`, `"retention":`},
+	} {
+		doc := strings.Replace(valid, old.from, old.to, 1)
+		var field *FieldError
+		if _, err := Parse([]byte(doc), tools); !errors.As(err, &field) || field.Field != strings.Trim(old.to, `":`) {
+			t.Errorf("Parse with %s = %v, want a refusal of that field", old.to, err)
 		}
 	}
 }

@@ -38,10 +38,10 @@ type Config struct {
 	Cron      string   `json:"cron"`
 	Timezone  string   `json:"timezone"`
 	Mode      string   `json:"mode"`
-	Tool      string   `json:"tool"`
+	Tool      string   `json:"cli"`
 	Flags     []string `json:"flags"`
-	Entry     string   `json:"entry"`
-	Retention int      `json:"retention"`
+	Entry     string   `json:"entryPoint"`
+	Retention int      `json:"keepRuns"`
 }
 
 // FieldError names the configuration field a refusal is about.
@@ -131,16 +131,16 @@ func (c Config) Validate(tools []string) error {
 		return refuse("mode", "is %q, want %q or %q", c.Mode, ModeWork, ModePersonal)
 	}
 	if c.Kind == KindAgent && c.Tool == "" {
-		return refuse("tool", "is empty; an agent Automation names the CLI that runs it: %s", strings.Join(tools, ", "))
+		return refuse("cli", "is empty; an agent Automation names the CLI that runs it: %s", strings.Join(tools, ", "))
 	}
 	if c.Tool != "" && !slices.Contains(tools, c.Tool) {
-		return refuse("tool", "is %q, want one of %s", c.Tool, strings.Join(tools, ", "))
+		return refuse("cli", "is %q, want one of %s", c.Tool, strings.Join(tools, ", "))
 	}
 	if strings.TrimSpace(c.Entry) == "" {
-		return refuse("entry", "is empty")
+		return refuse("entryPoint", "is empty")
 	}
 	if c.Retention < 1 {
-		return refuse("retention", "is %d, want at least 1 run kept", c.Retention)
+		return refuse("keepRuns", "is %d, want at least 1 run kept", c.Retention)
 	}
 	return nil
 }

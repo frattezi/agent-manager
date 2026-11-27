@@ -145,9 +145,11 @@ not configuration. Typed accessors live in `internal/store/automations.go` and e
 through the existing `encodeTime`/`decodeTime`.
 
 **Configuration contract, version 1.** `version`, a stable `id` that never changes, `name`, `kind` (`agent` | `script`),
-`repoPath`, `cron`, `timezone` (an IANA name), `mode` (`work` | `personal`), `tool` (a name
-from `builtinTools`), `flags`, `entry` (the committed script path, or the prompt reference for
-an Agent Automation), `retention`.
+`repoPath`, `cron`, `timezone` (an IANA name), `mode` (`work` | `personal`), `cli` (a name
+from `builtinTools`, empty for a Script Automation), `flags`, `entryPoint` (the committed script
+path, or the prompt reference for an Agent Automation), `keepRuns` (how many runs to keep). These
+are the names Fractory's version 1 contract defines and its reader requires; every field is
+written, and a document carrying any other name is refused.
 
 **Request contract, version 1.** `version`, `requestedAt`, `firedFor`, and the configuration
 verbatim under `automation`. Written atomically through `internal/atomicfile` into
@@ -218,8 +220,8 @@ it works.
 - Whether a skipped instant deserves its own record, or a note on the Automation's row. The
   first is more honest and more files; the second is cheaper and loses history.
 - Whether retention is enforced by the manager or by Fractory. Fractory writes the records, so
-  it is the natural pruner; the manager holds the retention number.
+  it is the natural pruner; the manager holds the `keepRuns` number.
 - Whether `run now` writes a request with the current instant as its `firedFor`, or a distinct
   manual marker so a forced run is never mistaken for a scheduled one in the history.
-- What an Agent Automation's `entry` refers to exactly — a prompt file in the repository, or a
+- What an Agent Automation's `entryPoint` refers to exactly — a prompt file in the repository, or a
   skill name the agent invokes. Both satisfy "committed, with a diff".

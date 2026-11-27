@@ -26,7 +26,7 @@ func automationDoc(t *testing.T) string {
 func automationDocAt(repo string) string {
 	path, _ := json.Marshal(repo)
 	return `{"name":"weekly","kind":"agent","repoPath":` + string(path) + `,"cron":"0 7 * * 1",
-"timezone":"Europe/Lisbon","mode":"work","tool":"claude","flags":[],"entry":"prompts/weekly.md","retention":5}`
+"timezone":"Europe/Lisbon","mode":"work","cli":"claude","flags":[],"entryPoint":"prompts/weekly.md","keepRuns":5}`
 }
 
 var automationNow = time.Date(2026, 11, 26, 9, 0, 0, 0, time.UTC)
@@ -204,8 +204,8 @@ func TestAutomationsRefusesAMalformedConfigurationNamingTheField(t *testing.T) {
 	if err == nil || !strings.HasPrefix(err.Error(), "cron: ") {
 		t.Fatalf("add = %v, want a refusal naming cron", err)
 	}
-	unknownTool := strings.Replace(automationDoc(t), `"tool":"claude"`, `"tool":"not-a-cli"`, 1)
-	if err := runAutomationsAdd(&out, strings.NewReader(unknownTool), nil, configDir, automationNow); err == nil || !strings.HasPrefix(err.Error(), "tool: ") {
+	unknownTool := strings.Replace(automationDoc(t), `"cli":"claude"`, `"cli":"not-a-cli"`, 1)
+	if err := runAutomationsAdd(&out, strings.NewReader(unknownTool), nil, configDir, automationNow); err == nil || !strings.HasPrefix(err.Error(), "cli: ") {
 		t.Fatalf("add = %v, want a refusal naming tool", err)
 	}
 	if err := runAutomationsAdd(&out, strings.NewReader(automationDocAt(t.TempDir())), nil, configDir, automationNow); err == nil ||
@@ -217,8 +217,8 @@ func TestAutomationsRefusesAMalformedConfigurationNamingTheField(t *testing.T) {
 	}
 
 	added := addAutomation(t, configDir, automationDoc(t))
-	noEntry := strings.Replace(automationDoc(t), `"entry":"prompts/weekly.md"`, `"entry":""`, 1)
-	if err := runAutomationsChange(&out, strings.NewReader(noEntry), []string{added.ID}, configDir, automationNow); err == nil || !strings.HasPrefix(err.Error(), "entry: ") {
+	noEntry := strings.Replace(automationDoc(t), `"entryPoint":"prompts/weekly.md"`, `"entryPoint":""`, 1)
+	if err := runAutomationsChange(&out, strings.NewReader(noEntry), []string{added.ID}, configDir, automationNow); err == nil || !strings.HasPrefix(err.Error(), "entryPoint: ") {
 		t.Fatalf("change = %v, want a refusal naming entry", err)
 	}
 	if a, _, _ := settingsStore(t, configDir).Automation(added.ID); !bytes.Equal(a.Config, compactJSON(t, added.Config)) {
