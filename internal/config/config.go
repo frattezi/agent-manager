@@ -40,6 +40,10 @@ type Tool struct {
 	// claude/grok/pi "--session-id <uuid>"), so revive can later resume that
 	// exact conversation deterministically.
 	SessionIDFlag string `toml:"session_id_flag"`
+	// AppendSystemPromptFlag is the flag that appends a file's text to the
+	// tool's own system prompt at launch, written before the file's path.
+	// Empty means the CLI has no such flag.
+	AppendSystemPromptFlag string `toml:"append_system_prompt_flag"`
 	// ResumeByIDCommand resumes a specific conversation; "{id}" is replaced
 	// with the session's agent id. Preferred over ReviveCommand, which only
 	// resumes the working directory's most recent conversation.
