@@ -373,7 +373,7 @@ func (m *Model) remoteQuickSpawn(spawned spawn.Request) (tea.Cmd, bool) {
 	request := m.quickRemoteRequest(row.Host, spawned.Prompt)
 	request.Op = uilink.Spawn
 	request.Spawn = sessioncmd.CreateSessionOptions{Tool: spawned.Tool, Group: &group, Prompt: spawned.Prompt}
-	withRemoteChoice(&request.Spawn, config.Choice(spawned.Pick))
+	withRemoteChoice(&request.Spawn, uilaunch.ChoiceOf(spawned.Pick))
 	if spawned.WorktreeSet {
 		worktree := spawned.Worktree
 		request.Spawn.Worktree = &worktree

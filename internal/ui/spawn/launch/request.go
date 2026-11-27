@@ -27,6 +27,12 @@ type Defaults struct {
 	Env string
 }
 
+// ChoiceOf is the launch choice a picker's pick makes; a pick carries no
+// launch flags, which only a Bot Profile writes.
+func ChoiceOf(pick spawn.Pick) config.Choice {
+	return config.Choice{Provider: pick.Provider, Model: pick.Model, Effort: pick.Effort, Profile: pick.Profile}
+}
+
 // FormRequest is the spawn a New Session form dispatches. name is the
 // session's name, empty for one the manager generates; prompt is the form's
 // prompt box, which the request takes the images out of.
@@ -43,7 +49,7 @@ func FormRequest(request spawn.Request, name, group string, prompt *composer.Com
 		Prompt:       launch.WithInstructions(request.Saved, request.Prompt),
 		AutoNamed:    autoNamed,
 		PickWorktree: request.Worktree,
-		Choice:       config.Choice(request.Pick),
+		Choice:       ChoiceOf(request.Pick),
 		Base:         defaults.Base,
 		Environment:  request.Env,
 		Pane:         defaults.Pane,
@@ -71,7 +77,7 @@ func QuickRequest(request spawn.Request, prompt *composer.Composer, defaults Def
 		Prompt:       request.Prompt,
 		AutoNamed:    true,
 		PickWorktree: request.Worktree,
-		Choice:       config.Choice(request.Pick),
+		Choice:       ChoiceOf(request.Pick),
 		Base:         defaults.Base,
 		Environment:  env,
 		Pane:         defaults.Pane,

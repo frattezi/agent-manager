@@ -444,7 +444,7 @@ func TestLaunchPromptRoundTrip(t *testing.T) {
 
 func TestChoiceRoundTrip(t *testing.T) {
 	s := newTestStore(t)
-	choice := config.Choice{Provider: "xai-oauth", Model: "grok-4.6", Effort: "high", Profile: "work"}
+	choice := config.Choice{Provider: "xai-oauth", Model: "grok-4.6", Effort: "high", Profile: "work", Flags: "--yolo"}
 	if err := s.CreateSession(Session{ID: "c1", Name: "hermes-1ff0", Tool: "hermes", Cwd: "/tmp", Choice: choice}); err != nil {
 		t.Fatalf("create: %v", err)
 	}

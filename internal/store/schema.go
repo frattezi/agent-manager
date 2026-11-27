@@ -190,6 +190,10 @@ CREATE TABLE IF NOT EXISTS settings (
 			created_at     INTEGER NOT NULL,
 			updated_at     INTEGER NOT NULL
 		)`,
+		// A Bot keeps its Profile's launch flags on every later launch, and
+		// the Profile it came from so the Bots area can group it.
+		`ALTER TABLE sessions ADD COLUMN launch_flags TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN bot_profile TEXT NOT NULL DEFAULT ''`,
 	}
 	for _, migration := range migrations {
 		if _, err := s.db.Exec(migration); err != nil {

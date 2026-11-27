@@ -166,3 +166,44 @@ func TestBotProfilesTableIsTheSameOnFreshAndUpgradedStores(t *testing.T) {
 		t.Fatalf("the upgrade lost an Automation: %v %v", found, err)
 	}
 }
+
+// A Bot is an ordinary session row that also names its Profile; the id
+// outlives the Profile, so deleting one leaves its Bots where they are.
+func TestBotSessionRecordsItsProfileAcrossAReopen(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.db")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sess := range []Session{
+		{ID: "b1", Name: "operator-1", Tool: "claude", Cwd: "/tmp", BotProfile: "p1"},
+		{ID: "o1", Name: "plain", Tool: "claude", Cwd: "/tmp"},
+	} {
+		if err := s.CreateSession(sess); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err = Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	bot, err := s.Get("b1")
+	if err != nil || bot.BotProfile != "p1" {
+		t.Fatalf("Get = %+v, %v; want the Bot of p1", bot, err)
+	}
+	list, err := s.ListSessions(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profiles := map[string]string{}
+	for _, sess := range list {
+		profiles[sess.ID] = sess.BotProfile
+	}
+	if want := map[string]string{"b1": "p1", "o1": ""}; !reflect.DeepEqual(profiles, want) {
+		t.Fatalf("listed profiles %v, want %v", profiles, want)
+	}
+}

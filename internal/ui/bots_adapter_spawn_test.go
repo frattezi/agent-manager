@@ -1,0 +1,147 @@
+package ui
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/ui/bots"
+	uilaunch "github.com/YoanWai/agent-manager/internal/ui/spawn/launch"
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+func testBotProfile(dir string) bots.Profile {
+	return bots.Profile{
+		ID: "p1", Name: "Operator", Tool: "claude", Model: "opus", Dir: dir,
+		Flags: "-u", Specialization: "fractory-operator", MemoryProject: "fractory-ops",
+	}
+}
+
+func botPaneRuns(t *testing.T, m *Model, id string) bool {
+	t.Helper()
+	exists, err := m.services.tmux.SessionExists(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return exists
+}
+
+func liveBots(t *testing.T, m *Model, profile string) []store.Session {
+	t.Helper()
+	list, err := m.services.store.ListSessions(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []store.Session
+	for _, sess := range list {
+		if sess.BotProfile == profile {
+			out = append(out, sess)
+		}
+	}
+	return out
+}
+
+func TestSpawnBotOpensOneSessionOnTheProfile(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	dir := t.TempDir()
+	if err := m.services.store.CreateGroup("ops", dir); err != nil {
+		t.Fatal(err)
+	}
+	m.applyCmd(t, m.refreshCmd())
+	m.applyCmd(t, m.spawnBot(testBotProfile(dir)))
+	m.drainEffects(t)
+	spawned := liveBots(t, m, "p1")
+	if len(spawned) != 1 {
+		t.Fatalf("Bots of p1 = %+v; want one", spawned)
+	}
+	bot := spawned[0]
+	if bot.Tool != "claude" || bot.Cwd != dir || bot.Group != "ops" || bot.Name != "operator-1" {
+		t.Fatalf("Bot = %+v; want claude in %s under ops named operator-1", bot, dir)
+	}
+	if bot.Choice.Model != "opus" || bot.Choice.Flags != "-u" {
+		t.Fatalf("Bot choice = %+v; want the Profile's model and flags", bot.Choice)
+	}
+	for _, want := range []string{"fractory-operator skill", `"fractory-ops"`} {
+		if !strings.Contains(bot.LaunchPrompt+strings.Join(bot.PendingInputs, "\n"), want) {
+			t.Fatalf("first prompt lacks %q: %q %q", want, bot.LaunchPrompt, bot.PendingInputs)
+		}
+	}
+	if !botPaneRuns(t, m, bot.ID) {
+		t.Fatalf("no pane runs the Bot %s", bot.ID)
+	}
+}
+
+func TestTwoBotsFromOneProfileRunSideBySide(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	dir := t.TempDir()
+	profile := testBotProfile(dir)
+	m.applyCmd(t, m.spawnBot(profile))
+	m.applyCmd(t, m.spawnBot(profile))
+	m.drainEffects(t)
+	spawned := liveBots(t, m, "p1")
+	if len(spawned) != 2 {
+		t.Fatalf("Bots of p1 = %+v; want two", spawned)
+	}
+	if spawned[0].Name == spawned[1].Name || spawned[0].Group != spawned[1].Group {
+		t.Fatalf("Bots %q in %q and %q in %q; want two names in one group", spawned[0].Name, spawned[0].Group, spawned[1].Name, spawned[1].Group)
+	}
+	for _, bot := range spawned {
+		if !botPaneRuns(t, m, bot.ID) {
+			t.Fatalf("no pane runs the Bot %s", bot.Name)
+		}
+	}
+}
+
+func TestSpawnBotRefusesAProfileOnAnUnknownCLI(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	profile := testBotProfile(t.TempDir())
+	profile.Tool = "gone"
+	m.applyCmd(t, m.spawnBot(profile))
+	for _, request := range queuedMainEffects(m) {
+		if spawn, ok := request.(uilaunch.Request); ok {
+			t.Fatalf("an unknown CLI queued %+v", spawn)
+		}
+	}
+	if !strings.Contains(m.errBar.text, "gone") {
+		t.Fatalf("status = %q; want the CLI named", m.errBar.text)
+	}
+}
+
+// A Bot is a session: rename, focus and archive take it like any other and
+// keep the Profile it records.
+func TestABotIsAnOrdinarySession(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	m.applyCmd(t, m.spawnBot(testBotProfile(t.TempDir())))
+	m.drainEffects(t)
+	m.selectSessionRow(t, "operator-1")
+	m.openRename()
+	openRename(m).SetName("watching-runs")
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m.applyCmd(t, cmd)
+	renamed := liveBots(t, m, "p1")
+	if len(renamed) != 1 || renamed[0].Name != "watching-runs" {
+		t.Fatalf("after rename Bots = %+v", renamed)
+	}
+	m.selectSessionRow(t, "watching-runs")
+	m.applyCmd(t, m.enterFocus(renamed[0]))
+	if !m.focused() {
+		t.Fatal("focus mode did not open on the Bot")
+	}
+	m.applyCmd(t, m.leaveFocus())
+	m.selectSessionRow(t, "watching-runs")
+	m.archiveSelected()
+	_, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	m.applyCmd(t, cmd)
+	m.drainEffects(t)
+	if live := liveBots(t, m, "p1"); len(live) != 0 {
+		t.Fatalf("archived Bot still live: %+v", live)
+	}
+	archived, err := m.services.store.Get(renamed[0].ID)
+	if err != nil || !archived.Archived || archived.BotProfile != "p1" {
+		t.Fatalf("archived Bot = %+v, %v; want archived, still of p1", archived, err)
+	}
+}
