@@ -298,6 +298,57 @@ func TestTheCLIVocabularyNamesRealSubcommands(t *testing.T) {
 	}
 }
 
+// A surface published from one front is listed, drawn and refused in the
+// same words by the other.
+func TestTheTwoFrontsShareOneSurfaceStore(t *testing.T) {
+	w := newParityWorkspace(t)
+	surfaces := sessioncmd.NewSessions(w.configDir, sessioncmd.CLIVocabulary())
+	doc := surfaceRound(t)
+
+	published, isError := w.mcpText(t, w.lead.ID, "surface", map[string]any{"action": "publish", "document": string(doc)})
+	if isError || !strings.HasPrefix(published, "published round-1 (") {
+		t.Fatalf("MCP publish = %q, isError=%v", published, isError)
+	}
+	id := taskID(t, published)
+
+	fromCLI := cliText(t, func(out *bytes.Buffer) error { return runSurfaceList(out, surfaces, nil, w.lead.ID) })
+	fromMCP, isError := w.mcpText(t, w.lead.ID, "surface", map[string]any{"action": "list"})
+	if isError || strings.TrimSpace(fromCLI) != strings.TrimSpace(fromMCP) || !strings.Contains(fromCLI, id) {
+		t.Fatalf("the fronts list one store differently:\ncli: %q\nmcp: %q", fromCLI, fromMCP)
+	}
+
+	cliRecord := cliText(t, func(out *bytes.Buffer) error { return runSurfaceList(out, surfaces, []string{"--json"}, w.lead.ID) })
+	var cliSurfaces []sessioncmd.AgentSurface
+	if err := json.Unmarshal([]byte(cliRecord), &cliSurfaces); err != nil {
+		t.Fatalf("surface list --json: %v (%q)", err, cliRecord)
+	}
+	encoded, err := json.Marshal(w.mcpCall(t, w.lead.ID, "surface", map[string]any{"action": "list"}).StructuredContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mcpSurfaces struct {
+		Surfaces []sessioncmd.AgentSurface `json:"surfaces"`
+	}
+	if err := json.Unmarshal(encoded, &mcpSurfaces); err != nil || !reflect.DeepEqual(cliSurfaces, mcpSurfaces.Surfaces) {
+		t.Fatalf("the fronts return different records:\ncli: %+v\nmcp: %s (%v)", cliSurfaces, encoded, err)
+	}
+
+	drawnCLI := cliText(t, func(out *bytes.Buffer) error {
+		return runSurfaceShow(out, surfaces, []string{id, "--width", "50"}, w.lead.ID)
+	})
+	drawnMCP, isError := w.mcpText(t, w.lead.ID, "surface", map[string]any{"action": "show", "surface_id": id, "width": 50})
+	if isError || strings.TrimSpace(drawnCLI) != strings.TrimSpace(drawnMCP) {
+		t.Fatalf("the fronts draw one surface differently:\ncli: %q\nmcp: %q", drawnCLI, drawnMCP)
+	}
+
+	bad := `[{"version":"v0.8","createSurface":{"surfaceId":"r"}}]`
+	cliRefusal := runSurfacePublish(&bytes.Buffer{}, strings.NewReader(bad), surfaces, nil, w.lead.ID)
+	mcpRefusal, isError := w.mcpText(t, w.lead.ID, "surface", map[string]any{"action": "publish", "document": bad})
+	if cliRefusal == nil || !isError || cliRefusal.Error() != mcpRefusal {
+		t.Fatalf("the fronts refuse differently:\ncli: %v\nmcp: %q", cliRefusal, mcpRefusal)
+	}
+}
+
 // taskID reads the id back out of the sentence a create printed, which is
 // the only place either front hands one to its caller.
 func taskID(t *testing.T, created string) string {

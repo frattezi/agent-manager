@@ -78,40 +78,45 @@ func (f *fakeTerminalCommands) Close(_ string, id string) error {
 }
 
 type fakeSessionCommands struct {
-	listed        []sessioncmd.Session
-	created       sessioncmd.Session
-	screen        sessioncmd.SessionScreen
-	groups        []sessioncmd.Group
-	createdOpts   sessioncmd.CreateSessionOptions
-	sentID        string
-	sentMessage   string
-	readID        string
-	statusID      int64
-	waitedID      string
-	waitedUntil   []string
-	waitedTimeout time.Duration
-	tasks         []sessioncmd.Task
-	taskTitle     string
-	taskBody      string
-	taskDeps      []string
-	claimedTaskID string
-	settledTaskID string
-	reservedPaths []string
-	reservedMode  string
-	reservedTTL   time.Duration
-	releasedPaths []string
-	reservations  []sessioncmd.Reservation
-	revivedID     string
-	killedID      string
-	deletedID     string
-	archivedID    string
-	archived      bool
-	movedID       string
-	endedAction   string
-	endCanceled   bool
-	groupPath     string
-	groupDir      string
-	err           error
+	listed            []sessioncmd.Session
+	created           sessioncmd.Session
+	screen            sessioncmd.SessionScreen
+	groups            []sessioncmd.Group
+	createdOpts       sessioncmd.CreateSessionOptions
+	sentID            string
+	sentMessage       string
+	readID            string
+	statusID          int64
+	waitedID          string
+	waitedUntil       []string
+	waitedTimeout     time.Duration
+	tasks             []sessioncmd.Task
+	taskTitle         string
+	taskBody          string
+	taskDeps          []string
+	claimedTaskID     string
+	settledTaskID     string
+	reservedPaths     []string
+	reservedMode      string
+	reservedTTL       time.Duration
+	releasedPaths     []string
+	reservations      []sessioncmd.Reservation
+	surfaces          []sessioncmd.AgentSurface
+	surfacesOf        string
+	shownSurface      string
+	shownWidth        int
+	publishedDocument string
+	revivedID         string
+	killedID          string
+	deletedID         string
+	archivedID        string
+	archived          bool
+	movedID           string
+	endedAction       string
+	endCanceled       bool
+	groupPath         string
+	groupDir          string
+	err               error
 }
 
 func (f *fakeSessionCommands) List(string) ([]sessioncmd.Session, error) {
@@ -251,6 +256,21 @@ func (f *fakeSessionCommands) ReleaseFiles(_ string, patterns []string) (int, er
 
 func (f *fakeSessionCommands) Reservations(string) ([]sessioncmd.Reservation, error) {
 	return f.reservations, f.err
+}
+
+func (f *fakeSessionCommands) PublishSurface(_ string, document []byte) (sessioncmd.AgentSurface, error) {
+	f.publishedDocument = string(document)
+	return sessioncmd.AgentSurface{ID: "s1", SurfaceID: "round-1"}, f.err
+}
+
+func (f *fakeSessionCommands) Surfaces(_, targetID string) ([]sessioncmd.AgentSurface, error) {
+	f.surfacesOf = targetID
+	return f.surfaces, f.err
+}
+
+func (f *fakeSessionCommands) ShowSurface(_, id string, width int) (sessioncmd.RenderedSurface, error) {
+	f.shownSurface, f.shownWidth = id, width
+	return sessioncmd.RenderedSurface{Width: width, Text: "drawn\n"}, f.err
 }
 
 func (f *fakeSessionCommands) Groups(string) ([]sessioncmd.Group, error) {
@@ -782,6 +802,7 @@ func TestListsFleetTools(t *testing.T) {
 		"list_groups", "create_group", "delete_group", "message_status", "wait_for_session",
 		"task",
 		"reserve_files", "release_files", "list_reservations",
+		"surface",
 	} {
 		if !names[want] {
 			t.Fatalf("missing tool %q in %v", want, names)
@@ -1107,6 +1128,9 @@ func TestSessionToolErrorsAreToolErrors(t *testing.T) {
 		{"reserve_files", map[string]any{"paths": []string{"a.go"}}},
 		{"release_files", map[string]any{}},
 		{"list_reservations", map[string]any{}},
+		{"surface", map[string]any{"action": "publish", "document": "[]"}},
+		{"surface", map[string]any{"action": "list"}},
+		{"surface", map[string]any{"action": "show", "surface_id": "s1"}},
 		{"revive_session", map[string]any{"session_id": "a1"}},
 		{"kill_session", map[string]any{"session_id": "a1"}},
 		{"delete_session", map[string]any{"session_id": "a1"}},

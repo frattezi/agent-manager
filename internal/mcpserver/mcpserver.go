@@ -219,6 +219,7 @@ type sessionCommands interface {
 	Groups(sessionID string) ([]sessioncmd.Group, error)
 	CreateGroup(sessionID, path, directory string) (sessioncmd.Group, error)
 	DeleteGroup(sessionID, path string) (sessioncmd.GroupRemoval, error)
+	surfaceCommands
 }
 
 const instructionsIntro = `Agent Manager runs this conversation in one of the user's managed tmux sessions. The others are separate CLI processes with contexts of their own, running any CLI the user chose (Claude Code, Codex, Gemini), never subagents of this conversation. These tools operate that workspace.`
@@ -552,6 +553,7 @@ func newServerWithMailbox(sessionID, version string, proactive bool, terminals t
 		return textContent("killed " + sessioncmd.FormatSession(killed)), killed, nil
 	})
 	addDeleteSession(server, noCaller, sessionID, sessions, remotes)
+	addSurface(server, noCaller, sessionID, sessions)
 
 	addTool(server, noCaller, &mcp.Tool{
 		Name: "archive_session",
@@ -907,28 +909,6 @@ func newServerWithMailbox(sessionID, version string, proactive bool, terminals t
 	})
 
 	return server
-}
-
-// addTool registers a tool that refuses outright when the server has no
-// calling session, so no tool, present or future, opens the workspace to a
-// CLI running outside Agent Manager.
-func addTool[In, Out any](server *mcp.Server, noCaller error, tool *mcp.Tool, handler mcp.ToolHandlerFor[In, Out]) {
-	mcp.AddTool(server, tool, func(ctx context.Context, req *mcp.CallToolRequest, args In) (*mcp.CallToolResult, Out, error) {
-		if noCaller != nil {
-			var none Out
-			return nil, none, noCaller
-		}
-		return handler(ctx, req, args)
-	})
-}
-
-func toolAnnotations(readOnly, destructive, openWorld bool) *mcp.ToolAnnotations {
-	return &mcp.ToolAnnotations{
-		ReadOnlyHint:    readOnly,
-		DestructiveHint: &destructive,
-		IdempotentHint:  readOnly,
-		OpenWorldHint:   &openWorld,
-	}
 }
 
 func textContent(message string) *mcp.CallToolResult {

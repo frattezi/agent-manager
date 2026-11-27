@@ -731,6 +731,9 @@ func (s *Store) Delete(id string) error {
 	if _, err := tx.Exec(`DELETE FROM conversation_owners WHERE session_id = ?`, id); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(`DELETE FROM agent_surfaces WHERE session_id = ?`, id); err != nil {
+		return err
+	}
 	res, err := tx.Exec(`DELETE FROM sessions WHERE id = ?`, id)
 	if err != nil {
 		return err
@@ -781,6 +784,9 @@ func (s *Store) DeleteChild(id, parentID string, kill func() error) error {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM conversation_owners WHERE session_id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM agent_surfaces WHERE session_id = ?`, id); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM sessions WHERE id = ?`, id); err != nil {

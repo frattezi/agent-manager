@@ -291,6 +291,7 @@ Every session of an MCP-capable tool carries the agent-manager MCP server on spa
 | `reserve_files` | Declare the files this session is editing, and see who else claims them |
 | `release_files` | Give those claims back |
 | `list_reservations` | See what every session is editing right now |
+| `surface` | Agent Surfaces in one tool: `action` is `publish`, `list` or `show` |
 | `list_groups` | List groups with their default directories, worktree defaults and session counts |
 | `create_group` | Add a group, nested with a slash path, to file a fleet under |
 | `delete_group` | Remove a group whose work is done; sessions still filed there move to the root rather than stopping |
@@ -343,6 +344,12 @@ The task list is the manager's shared to-do list, visible to every session, all 
 A worktree per session stops two agents overwriting one checkout, and that is the right answer whenever the work divides cleanly. It does not help when sessions deliberately share a checkout, and it defers the other kind of collision to merge time: two agents making incompatible decisions about the same interface find out only when the branches meet.
 
 `reserve_files` declares the paths a session is about to edit. Overlap with a lease another session holds comes back as conflicts, naming the holder and what they said they were doing, so the two can settle it through `send_session` before either commits. The lease is advisory throughout: nothing is blocked, and an agent may edit anyway. It expires on its own, so a session that dies holding one never keeps the repo to itself, and `release_files` hands it back as soon as the edits land. An exclusive lease conflicts with any other lease on the same paths; two shared leases sit side by side. Matching compares a pattern against a literal path in both directions, so two patterns that each contain wildcards are only compared exactly, which is another reason these are a conversation starter rather than a lock.
+
+### Agent Surfaces
+
+An agent that needs you to decide something richer than prose, such as a grilling round, describes it as an [A2UI](https://a2ui.org) document and publishes it with `surface` (`agent-manager surface publish round.json`, or the document on stdin). The manager validates it and stores it against the calling session. Only an agent session publishes: the answer goes back into its conversation, so a shell outside Agent Manager is refused, and so is a terminal, which can be sent to but never asked. A document of another A2UI version, or one whose fields cannot describe a surface, is refused with the version or the field named, and nothing is stored, so the agent fixes it and publishes again.
+
+`agent-manager surface list` reads back the surfaces the calling session published, oldest first, and `surface list <session-id>` reads another session's from any shell. `surface show <surface-id> [--width <cells>]` draws one as text. A session keeps its last 50 surfaces, the oldest going as a new one arrives, and they are deleted with the session.
 
 ### Terminals
 
