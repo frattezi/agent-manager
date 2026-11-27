@@ -363,7 +363,7 @@ func clearRequestOnCleanup(t *testing.T, m *Model, id string) {
 func (m *Model) sessionRows() []store.Session {
 	var sessions []store.Session
 	for _, r := range railRows(m) {
-		if !r.isGroup {
+		if !r.isGroup && r.sess.ID != "" {
 			sessions = append(sessions, r.sess)
 		}
 	}

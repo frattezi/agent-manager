@@ -86,7 +86,7 @@ func TestFormLaunchesOnDefaultsWhenTheCLIFailsToAnswer(t *testing.T) {
 		t.Fatal("a failed answer leaves nothing to pick")
 	}
 	picked, err := m.form().Choice().Launch(m.spawnHost(), "claude", "")
-	if err != nil || config.Choice(picked) != (config.Choice{}) {
+	if err != nil || uilaunch.ChoiceOf(picked) != (config.Choice{}) {
 		t.Fatalf("launch choice = %+v, %v", picked, err)
 	}
 }

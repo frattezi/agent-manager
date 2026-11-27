@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
 	"github.com/YoanWai/agent-manager/internal/ui/composer"
 	"github.com/YoanWai/agent-manager/internal/ui/spawn"
@@ -42,7 +41,7 @@ func TestFormRequestCapturesTheDraft(t *testing.T) {
 	if len(request.Images) != 1 || request.RawDir != "/repo/wt" || request.Base != "main" {
 		t.Fatalf("request = %+v, want the images and the captured inputs", request)
 	}
-	if request.Choice != config.Choice(spawn.Pick{}) {
+	if request.Choice != ChoiceOf(spawn.Pick{}) {
 		t.Fatalf("choice = %+v, want the CLI's defaults", request.Choice)
 	}
 	if !request.WantWorktree && !request.PickWorktree {

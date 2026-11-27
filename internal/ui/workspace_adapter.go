@@ -44,10 +44,13 @@ type workspace struct {
 	envProfiles    []string
 	envKeys        map[string][]string
 	archivedGroups map[string]bool
-	snap           sysstat.Snapshot
-	proc           sysstat.ProcStat
-	procFor        string
-	preview        string
+	// botProfiles are the stored Bot Profiles, which the rail lists with the
+	// live Bots each started.
+	botProfiles []store.BotProfile
+	snap        sysstat.Snapshot
+	proc        sysstat.ProcStat
+	procFor     string
+	preview     string
 	// capture is what takes the selected pane's preview.
 	capture uicapture.State
 	agents  agentStats
@@ -109,7 +112,7 @@ func pollMessage(result execution.Result) tea.Msg {
 	}
 	s := result.Snapshot
 	return refreshMsg{sessions: s.Sessions, listedAt: s.ListedAt, groups: s.Groups, groupPaths: s.GroupPaths,
-		groupWorktrees: s.GroupWorktrees, groupBases: s.GroupBases, groupEnvs: s.GroupEnvs, envProfiles: s.EnvProfiles, envKeys: s.EnvKeys, archivedGroups: s.ArchivedGroups, snap: s.Snap, snapOK: s.SnapOK,
+		groupWorktrees: s.GroupWorktrees, groupBases: s.GroupBases, groupEnvs: s.GroupEnvs, envProfiles: s.EnvProfiles, envKeys: s.EnvKeys, botProfiles: s.BotProfiles, archivedGroups: s.ArchivedGroups, snap: s.Snap, snapOK: s.SnapOK,
 		proc: s.Proc, procFor: s.ProcFor, preview: s.Preview, agents: agentStats{count: s.Agents.Count, cpu: s.Agents.CPU, ram: s.Agents.RAM, rss: s.Agents.RSS},
 		queuedMessages: s.QueuedMessages, paneLines: s.PaneLines, panePrompts: s.PanePrompts, panes: s.Panes,
 		tmuxSocket: s.TmuxSocket, leadingManager: s.LeadingManager, focusID: s.FocusID, turnsEnded: s.TurnsEnded, followWarning: s.FollowWarning,
@@ -161,6 +164,7 @@ type refreshMsg struct {
 	envProfiles    []string
 	envKeys        map[string][]string
 	archivedGroups map[string]bool
+	botProfiles    []store.BotProfile
 	snap           sysstat.Snapshot
 	snapOK         bool
 	proc           sysstat.ProcStat
@@ -341,6 +345,7 @@ func (m *Model) routeRefreshMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 				q.Env().SetProfiles(msg.envProfiles)
 			}
 			m.workspace.archivedGroups = msg.archivedGroups
+			m.workspace.botProfiles = msg.botProfiles
 		}
 		m.endAfterTurns(msg.turnsEnded)
 		m.workspace.tmuxSocket = msg.tmuxSocket

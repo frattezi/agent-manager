@@ -30,6 +30,10 @@ func (m *Model) openMenu(selection Selection, x, y int, held bool) Decision {
 		title = row.auto.Name
 	case FiringRow:
 		title = row.auto.Name + " " + row.fire.When
+	case BotsRow:
+		title = "Bots"
+	case BotProfileRow:
+		title = row.bot.Name
 	}
 	items := m.rowMenuItems(row)
 	if len(items) == 0 {
@@ -62,6 +66,10 @@ func (m Model) rowMenuItems(row treeRow) []menuItem {
 		return automationMenuItems(row.auto, m.rowFolded(row))
 	case FiringRow:
 		return []menuItem{{label: "Open log", action: Attach}, {label: "Debug session", action: DebugSession}}
+	case BotsRow:
+		return botsHeaderMenuItems(m.rowFolded(row))
+	case BotProfileRow:
+		return botProfileMenuItems(m.rowFolded(row))
 	}
 	editor := menuItem{label: "Open in editor", action: OpenEditor}
 	manage := []menuItem{editor, {label: "Rename", action: RenameAction}, {label: "Move to group", action: MoveToGroup}}
@@ -285,6 +293,8 @@ func actionKind(action string) ActionKind {
 		return RunNow
 	case keybind.DebugSession:
 		return DebugSession
+	case keybind.SpawnBot:
+		return SpawnBot
 	case keybind.Fork:
 		return Fork
 	case keybind.Revive:

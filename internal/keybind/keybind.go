@@ -283,6 +283,7 @@ const (
 	EnableToggle  = "enable_toggle"
 	RunNow        = "run_now"
 	DebugSession  = "debug_session"
+	SpawnBot      = "spawn_bot"
 )
 
 const (
@@ -316,6 +317,7 @@ var listActions = []Action{
 	{EnableToggle, "Automation: enable / disable it", keys("E")},
 	{RunNow, "Automation: run it now, outside its schedule", keys("!")},
 	{DebugSession, "Automation firing: open a Debug Session on it", keys("D")},
+	{SpawnBot, "Bot Profile: spawn a Bot from it", keys("B")},
 	{Fork, "fork the session", keys("f")},
 	{Prompt, "quick prompt mode; needs-human Run: answer its question", keys("space")},
 	{CopyReply, "copy the session's newest reply to the clipboard", keys("y")},

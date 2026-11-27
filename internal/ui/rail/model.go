@@ -40,6 +40,9 @@ type Session struct {
 	// ends; AfterTurnGlyph is root's mark for it.
 	AfterTurn      string
 	AfterTurnGlyph string
+	// BotProfile is the Profile a Bot was started from, empty for any
+	// other session.
+	BotProfile string
 }
 
 // Snapshot is an immutable-by-convention inventory copied at the root
@@ -59,6 +62,9 @@ type Snapshot struct {
 	RunsShowFinished bool
 	// Automations are the stored Automations, listed after the Runs.
 	Automations []Automation
+	// Bots are the stored Bot Profiles, listed after the Automations with
+	// the live Bots each started.
+	Bots []BotProfile
 }
 
 type RowKind uint8
@@ -75,6 +81,10 @@ const (
 	AutomationsRow
 	AutomationRow
 	FiringRow
+	// BotsRow is the Bots section's header and BotProfileRow one Profile
+	// under it; a live Bot under a Profile is a SessionRow.
+	BotsRow
+	BotProfileRow
 )
 
 // Selection names a row without exposing Rail's cursor or row storage.
@@ -91,6 +101,8 @@ type Selection struct {
 	// Firing is the firing's record id on a FiringRow.
 	Automation string
 	Firing     string
+	// Profile is the Bot Profile's id on a BotProfileRow.
+	Profile string
 }
 
 func (s Selection) Remote() bool { return s.Host != "" }
@@ -107,6 +119,10 @@ func (s Selection) key() string {
 		return "a:" + s.Automation
 	case FiringRow:
 		return "f:" + s.Automation + "/" + s.Firing
+	case BotsRow:
+		return "bots"
+	case BotProfileRow:
+		return "p:" + s.Profile
 	case ConnectionRow:
 		return "c:" + s.Host
 	case GroupRow:
@@ -170,6 +186,8 @@ type treeRow struct {
 	run   Run
 	auto  Automation
 	fire  Firing
+	// bot is the Profile on its row and on each live Bot under it.
+	bot BotProfile
 }
 
 func (r treeRow) selection() Selection {
@@ -184,6 +202,10 @@ func (r treeRow) selection() Selection {
 		return Selection{Kind: AutomationRow, Automation: r.auto.ID}
 	case FiringRow:
 		return Selection{Kind: FiringRow, Automation: r.auto.ID, Firing: r.fire.ID}
+	case BotsRow:
+		return Selection{Kind: BotsRow}
+	case BotProfileRow:
+		return Selection{Kind: BotProfileRow, Profile: r.bot.ID}
 	case ConnectionRow:
 		return Selection{Kind: ConnectionRow, Host: r.host}
 	case GroupRow:
@@ -197,9 +219,14 @@ func (r treeRow) key() string { return r.selection().key() }
 func (r treeRow) isRoot() bool { return r.kind == GroupRow && r.group == "" && r.host == "" }
 
 // folds reports whether the row opens and closes: a group, a connection,
-// the Runs or Automations header, or an Automation over its firings.
+// the Runs, Automations or Bots header, an Automation over its firings or
+// a Bot Profile over its live Bots.
 func (r treeRow) folds() bool {
-	return r.kind == GroupRow || r.kind == ConnectionRow || r.kind == RunsRow || r.kind == AutomationsRow || r.kind == AutomationRow
+	switch r.kind {
+	case GroupRow, ConnectionRow, RunsRow, AutomationsRow, AutomationRow, BotsRow, BotProfileRow:
+		return true
+	}
+	return false
 }
 
 type statusFilter uint8
@@ -227,12 +254,15 @@ type Model struct {
 	// openAutomations holds the Automations whose firings are listed; an
 	// Automation starts folded, so the section stays one row each.
 	openAutomations map[string]bool
-	search          string
-	searching       bool
+	// openProfiles holds the Bot Profiles whose live Bots are listed; a
+	// Profile starts folded, like an Automation.
+	openProfiles map[string]bool
+	search       string
+	searching    bool
 }
 
 func New(collapsed []string) Model {
-	m := Model{collapsed: make(map[string]bool, len(collapsed)), hostFolds: map[HostFold]bool{}, openAutomations: map[string]bool{}}
+	m := Model{collapsed: make(map[string]bool, len(collapsed)), hostFolds: map[HostFold]bool{}, openAutomations: map[string]bool{}, openProfiles: map[string]bool{}}
 	for _, path := range collapsed {
 		m.collapsed[path] = true
 	}
@@ -247,6 +277,7 @@ func cloneSnapshot(snapshot Snapshot) Snapshot {
 		Hosts:          make([]Host, len(snapshot.Hosts)),
 		Runs:           append([]Run(nil), snapshot.Runs...),
 		Automations:    make([]Automation, len(snapshot.Automations)),
+		Bots:           append([]BotProfile(nil), snapshot.Bots...),
 
 		RunsFinished:     snapshot.RunsFinished,
 		RunsShowFinished: snapshot.RunsShowFinished,
@@ -319,6 +350,11 @@ func (m Model) Rows() []Row {
 			rows[i].Name = row.auto.Name
 		case row.kind == FiringRow:
 			rows[i].Name = row.fire.When
+		case row.kind == BotsRow:
+			rows[i].Name = "bots"
+		case row.kind == BotProfileRow:
+			rows[i].Name = row.bot.Name
+			rows[i].Tool = row.bot.Tool
 		case row.kind == ConnectionRow:
 			rows[i].Name = row.host
 		case row.isRoot():
@@ -438,9 +474,10 @@ func (m *Model) rebuildRows() {
 		previous = row.key()
 	}
 	rows := []treeRow{{kind: GroupRow}}
-	rows = append(rows, m.treeRows("", m.snapshot.Sessions, m.snapshot.Groups, m.snapshot.ArchivedGroups, 0)...)
+	rows = append(rows, m.treeRows("", m.treeSessions(), m.snapshot.Groups, m.snapshot.ArchivedGroups, 0)...)
 	rows = append(rows, m.runRows()...)
 	rows = append(rows, m.automationRows()...)
+	rows = append(rows, m.botRows()...)
 	for _, host := range m.snapshot.Hosts {
 		rows = append(rows, treeRow{kind: ConnectionRow, host: host.Name})
 		if m.honorFolds() && m.folded(host.Name, "") {
@@ -451,13 +488,19 @@ func (m *Model) rebuildRows() {
 
 	m.rows = rows
 	if previous != "" {
+		found := false
 		for i, row := range rows {
 			if row.key() == previous {
-				m.cursor = i
+				m.cursor, found = i, true
 				break
 			}
 		}
-	} else if m.cursor == 0 && len(rows) > 1 && rows[0].isRoot() {
+		// A rail emptied under the cursor rests on the root, not on the
+		// empty Bots header that happens to sit where the row was.
+		if !found && m.nothingListed() {
+			m.cursor = 0
+		}
+	} else if m.cursor == 0 && len(rows) > 1 && rows[0].isRoot() && rows[1].kind != BotsRow {
 		m.cursor = 1
 	}
 	if m.cursor >= len(rows) {

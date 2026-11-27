@@ -62,7 +62,7 @@ func TestConnectionRowsNestUnderTheConnectionAfterTheLocalTree(t *testing.T) {
 	model := New(nil)
 	model.Reconcile(hostsSnapshot(HostOnline))
 	want := []string{
-		"g:", "s:local", "g:work", " s:near",
+		"g:", "s:local", "g:work", " s:near", "bots",
 		"c:box", " rs:box::far", " rg:box::ops", "  rs:box::deep", "   rs:box::shell",
 	}
 	if got := rowKeys(model); !slices.Equal(got, want) {

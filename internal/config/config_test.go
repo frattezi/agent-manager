@@ -723,3 +723,25 @@ func TestDirHonorsOverrideThenXDGThenUserConfig(t *testing.T) {
 func pathInside(path, dir string) bool {
 	return dirInside(path, dir)
 }
+
+// The owner's flags follow the model on every launch line, so a restart,
+// a revive and a fork launch the way the first spawn did.
+func TestWithChoiceAppendsTheOwnersFlagsToEveryLaunchLine(t *testing.T) {
+	cfg, err := Default()
+	if err != nil {
+		t.Fatalf("Default: %v", err)
+	}
+	base := cfg.Tools["pi"]
+	chosen := base.WithChoice(Choice{Model: "m", Flags: "  --one --two=x "})
+	plain := base.WithChoice(Choice{Model: "m"})
+	for _, tc := range []struct{ field, plain, got string }{
+		{"command", plain.Command, chosen.Command},
+		{"revive_command", plain.ReviveCommand, chosen.ReviveCommand},
+		{"resume_by_id_command", plain.ResumeByIDCommand, chosen.ResumeByIDCommand},
+		{"fork_command", plain.ForkCommand, chosen.ForkCommand},
+	} {
+		if want := tc.plain + " --one --two=x"; tc.got != want {
+			t.Errorf("%s = %q, want %q", tc.field, tc.got, want)
+		}
+	}
+}

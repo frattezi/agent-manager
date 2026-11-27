@@ -173,7 +173,7 @@ func TestFormProfileScopesModelsAndTypedEffort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (config.Choice{Provider: "xai-oauth", Model: "grok-4.6", Effort: "high", Profile: "work"}); config.Choice(picked) != want {
+	if want := (config.Choice{Provider: "xai-oauth", Model: "grok-4.6", Effort: "high", Profile: "work"}); uilaunch.ChoiceOf(picked) != want {
 		t.Fatalf("choice = %+v, want %+v", picked, want)
 	}
 }
@@ -635,7 +635,7 @@ func TestChoiceIsKeptPerCLI(t *testing.T) {
 		m.handleFormKey(tea.KeyMsg{Type: tea.KeyRight})
 		m.handleFormKey(tea.KeyMsg{Type: tea.KeyEsc})
 		openFormOnClaude(t, m)
-		if got := m.form().Choice().Current(m.spawnHost(), "claude"); config.Choice(got) != (config.Choice{Model: "opus", Effort: "high"}) {
+		if got := m.form().Choice().Current(m.spawnHost(), "claude"); uilaunch.ChoiceOf(got) != (config.Choice{Model: "opus", Effort: "high"}) {
 			t.Fatalf("reopened form choice = %+v", got)
 		}
 		if m.form().Choice().FilterValue() != "opus" {
@@ -680,7 +680,7 @@ func TestChoiceIsKeptPerCLI(t *testing.T) {
 			t.Fatal("placed a model before the CLI answered")
 		}
 		m.handleCatalog(uilaunch.CatalogMsg{Tool: "claude", Cat: claudeAnswer})
-		if got := m.form().Choice().Current(m.spawnHost(), "claude"); config.Choice(got) != (config.Choice{Model: "opus", Effort: "medium"}) {
+		if got := m.form().Choice().Current(m.spawnHost(), "claude"); uilaunch.ChoiceOf(got) != (config.Choice{Model: "opus", Effort: "medium"}) {
 			t.Fatalf("choice once answered = %+v", got)
 		}
 	})

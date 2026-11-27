@@ -103,6 +103,8 @@ const (
 	RunNow
 	// DebugSession opens a Debug Session on a finished Automation firing.
 	DebugSession
+	// SpawnBot starts a Bot from the Bot Profile under the cursor.
+	SpawnBot
 )
 
 type Intent struct {
