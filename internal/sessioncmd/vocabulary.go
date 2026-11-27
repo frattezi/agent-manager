@@ -8,6 +8,7 @@ type Vocabulary struct {
 	ListSessions   string
 	ListTerminals  string
 	ListTasks      string
+	ListSurfaces   string
 	ListGroups     string
 	CreateGroup    string
 	CreateTerminal string
@@ -29,6 +30,7 @@ func MCPVocabulary() Vocabulary {
 		ListSessions:   "list_sessions",
 		ListTerminals:  "list_terminals",
 		ListTasks:      `task with action "list"`,
+		ListSurfaces:   `surface with action "list"`,
 		ListGroups:     "list_groups",
 		CreateGroup:    "create_group",
 		CreateTerminal: "create_terminal",
@@ -51,6 +53,7 @@ func CLIVocabulary() Vocabulary {
 		ListSessions:   "agent-manager sessions",
 		ListTerminals:  "agent-manager terminal list",
 		ListTasks:      "agent-manager task list",
+		ListSurfaces:   "agent-manager surface list",
 		ListGroups:     "agent-manager groups",
 		CreateGroup:    "agent-manager create-group",
 		CreateTerminal: "agent-manager terminal create",
