@@ -43,7 +43,7 @@ func TestRenderFormMarksTheFocusAndTargetsEachLine(t *testing.T) {
 │   > _                                                    │
 │ [ Send answers ]                                         │
 +──────────────────────────────────────────────────────────+`, "\n")
-	if got := strings.Join(lines, "\n"); got != want {
+	if got := strings.Join(Texts(lines), "\n"); got != want {
 		t.Fatalf("form:\n%s\nwant\n%s", got, want)
 	}
 	wantTargets := []Target{{}, {}, {1, 0}, {1, 1}, {1, 1}, {1, 2}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {}, {3, 0}, {3, 0}, {}, {}}
@@ -55,13 +55,13 @@ func TestRenderFormMarksTheFocusAndTargetsEachLine(t *testing.T) {
 			t.Errorf("line %d targets %v, want %v", i, targets[i], wantTargets[i])
 		}
 	}
-	assertWithin(t, strings.Join(lines, "\n"), 60)
+	assertWithin(t, strings.Join(Texts(lines), "\n"), 60)
 }
 
 func TestRenderFormPutsTheCursorOnAMultipleChoice(t *testing.T) {
 	doc := fixture(t, "every")
 	lines, _ := RenderForm(doc, 30, Focus{Field: 3, Option: 2})
-	got := strings.Join(lines, "\n")
+	got := strings.Join(Texts(lines), "\n")
 	for _, want := range []string{"› Tools", "    [x] claude", "  › [ ] codex", "    [x] gemini"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in\n%s", want, got)

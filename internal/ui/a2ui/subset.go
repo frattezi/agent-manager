@@ -1,7 +1,9 @@
 // Package a2ui reads an Agent Surface, an A2UI document an agent wrote, and
 // draws it as terminal text. It is the format half of Agent Surfaces: a
 // document goes in with a width and text comes out, with no store, tmux, Git,
-// clock or file behind it.
+// clock or file behind it. The text comes as segments that each carry a Role,
+// what the text is; how a role looks is the caller's, so the package reads no
+// theme and no lipgloss.
 //
 // A document is a JSON array of A2UI messages (createSurface,
 // updateComponents, updateDataModel) for one surface, in the order a stream

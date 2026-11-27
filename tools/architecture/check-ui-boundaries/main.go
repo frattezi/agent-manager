@@ -25,6 +25,10 @@ type boundary struct {
 	path    string
 	runtime bool
 	allowed []string
+	// refused are imports the package may not make itself, even where a
+	// package it imports makes them. A path that starts with / is within
+	// the module.
+	refused []string
 }
 
 func main() {
@@ -51,15 +55,32 @@ func checkBoundary(feature boundary) error {
 	if err != nil {
 		return err
 	}
-	return checkBoundaryDependencies(feature, dependencies)
+	if err := checkBoundaryDependencies(feature, dependencies); err != nil {
+		return err
+	}
+	imports, err := listed(feature, `{{join .Imports " "}}`, false)
+	if err != nil {
+		return err
+	}
+	return checkRefusedImports(feature, imports)
 }
 
 // graph is the package's transitive imports within the module on every
 // platform, without the module prefix.
 func graph(feature boundary) ([]string, error) {
+	return listed(feature, "{{.ImportPath}}", true)
+}
+
+// listed is what go list prints for the package, or with deps for its whole
+// graph, on every platform.
+func listed(feature boundary, format string, deps bool) ([]string, error) {
 	var all []string
 	for _, goos := range platforms {
-		command := exec.Command("go", "list", "-deps", "-f", "{{.ImportPath}}", module+feature.path)
+		args := []string{"list", "-f", format, module + feature.path}
+		if deps {
+			args = []string{"list", "-deps", "-f", format, module + feature.path}
+		}
+		command := exec.Command("go", args...)
 		command.Env = append(os.Environ(), "GOOS="+goos)
 		output, err := command.CombinedOutput()
 		if err != nil {
@@ -88,6 +109,20 @@ func checkBoundaryDependencies(feature boundary, dependencies []string) error {
 		}
 		if !allowed[dependency] {
 			return fmt.Errorf("%s depends on forbidden package %s", feature.name, dependency)
+		}
+	}
+	return nil
+}
+
+// checkRefusedImports fails on an import the package makes itself that its
+// boundary refuses.
+func checkRefusedImports(feature boundary, imports []string) error {
+	for _, path := range feature.refused {
+		if strings.HasPrefix(path, "/") {
+			path = module + path
+		}
+		if slices.Contains(imports, path) {
+			return fmt.Errorf("%s imports %s, which its boundary refuses", feature.name, path)
 		}
 	}
 	return nil
@@ -123,7 +158,15 @@ func writeBoundaries(file string) error {
 			}
 			allowed = append(allowed, fmt.Sprintf("%q", strings.TrimPrefix(dependency, module)))
 		}
-		fmt.Fprintf(&b, "\t%s = boundary{%q, %q, %t, []string{%s}}\n", boundaryNames[i], feature.name, feature.path, feature.runtime, strings.Join(allowed, ", "))
+		refused := "nil"
+		if len(feature.refused) > 0 {
+			quoted := make([]string, len(feature.refused))
+			for j, path := range feature.refused {
+				quoted[j] = fmt.Sprintf("%q", path)
+			}
+			refused = "[]string{" + strings.Join(quoted, ", ") + "}"
+		}
+		fmt.Fprintf(&b, "\t%s = boundary{%q, %q, %t, []string{%s}, %s}\n", boundaryNames[i], feature.name, feature.path, feature.runtime, strings.Join(allowed, ", "), refused)
 	}
 	quoted := make([]string, len(boundaryNames))
 	for i, name := range boundaryNames {
