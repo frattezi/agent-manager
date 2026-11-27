@@ -7,6 +7,7 @@ func TestCLIVocabulary(t *testing.T) {
 		ListSessions:   "agent-manager sessions",
 		ListTerminals:  "agent-manager terminal list",
 		ListTasks:      "agent-manager task list",
+		ListSurfaces:   "agent-manager surface list",
 		ListGroups:     "agent-manager groups",
 		CreateGroup:    "agent-manager create-group",
 		CreateTerminal: "agent-manager terminal create",

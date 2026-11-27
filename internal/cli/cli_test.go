@@ -588,7 +588,7 @@ func TestCommandsAndHelpCoverEverySection(t *testing.T) {
 	table := Commands("dev", sampleSpecs)
 	registered := []string{
 		"sessions", "snapshot", "spawn", "send", "type", "read", "wait", "message-status", "kill", "delete", "revive", "archive", "move", "rename-session", "archive-self", "kill-self", "prompts", "env",
-		"groups", "create-group", "delete-group", "rename-group", "task", "reserve", "release-files", "reservations", "terminal",
+		"groups", "create-group", "delete-group", "rename-group", "task", "reserve", "release-files", "reservations", "surface", "terminal",
 		"rename", "review-repo", "review-base", "review-mode", "review-comment", "issue", "feature", "settings", "hooks", "runs", "automations", "bots", "export", "import", "update", "rebuild", "rollback",
 	}
 	for _, name := range registered {
@@ -601,7 +601,7 @@ func TestCommandsAndHelpCoverEverySection(t *testing.T) {
 	}
 
 	help := Help("dev", false)
-	for _, line := range []string{usageSessions, usageReserve, usageTerminalSend, usageRename, usageReviewComment, usageIssue, usageFeature, usageUpdate, usageSettingsSet, usageHooks, usagePromptsAdd, usageEnvSet, "task <list|create|claim|finish|release|delete>", "settings <list|get|set>", "prompts <list|add|rm>", "env <list|show|set|unset|rm>", "update, rebuild, rollback, settings, hooks, runs, automations and bots need no caller", usageRunsResolve, usageAutomationsAdd, "automations <list|show|add|change|remove|enable|disable>", usageBotsCreate, "bots <list|show|create|edit>", usageRebuild, usageRollback} {
+	for _, line := range []string{usageSessions, usageReserve, usageTerminalSend, usageRename, usageReviewComment, usageIssue, usageFeature, usageUpdate, usageSurfacePublish, usageSurfaceList, usageSurfaceShow, usageSettingsSet, usageHooks, usagePromptsAdd, usageEnvSet, "task <list|create|claim|finish|release|delete>", "settings <list|get|set>", "prompts <list|add|rm>", "env <list|show|set|unset|rm>", "update, rebuild, rollback, settings, hooks, runs, automations and bots need no caller", usageRunsResolve, usageAutomationsAdd, "automations <list|show|add|change|remove|enable|disable>", usageBotsCreate, "bots <list|show|create|edit>", usageRebuild, usageRollback} {
 		if !strings.Contains(help, line) {
 			t.Fatalf("help is missing %q:\n%s", line, help)
 		}

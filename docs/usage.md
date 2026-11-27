@@ -28,6 +28,7 @@ Tell your agent what you want to review in Agent Manager. Your agent will set up
 | `f` | Fork the selected conversation into a named session in the same group and directory |
 | `g` | New group (name, parent, default path, worktree default, worktree base) |
 | `C` | New SSH connection: another machine's sessions in this list (see [SSH connections](#ssh-connections)) |
+| `S` | New Automation: work Fractory runs on a schedule (see [Automations](#automations)). On an Automation row, `r` edits it, `E` enables or disables it, `!` runs it now, `d` deletes it, and `D` on a finished firing opens a Debug Session |
 | `enter` | Focus session in place (keys go to the agent, list stays) / fold group |
 | click | Focus the session from its row or its preview (the full-screen layout selects the row) |
 | double click | Fold the group / focus the session in the full-screen layout |
@@ -290,6 +291,7 @@ Every session of an MCP-capable tool carries the agent-manager MCP server on spa
 | `reserve_files` | Declare the files this session is editing, and see who else claims them |
 | `release_files` | Give those claims back |
 | `list_reservations` | See what every session is editing right now |
+| `surface` | Agent Surfaces in one tool: `action` is `publish`, `list` or `show` |
 | `list_groups` | List groups with their default directories, worktree defaults and session counts |
 | `create_group` | Add a group, nested with a slash path, to file a fleet under |
 | `delete_group` | Remove a group whose work is done; sessions still filed there move to the root rather than stopping |
@@ -342,6 +344,12 @@ The task list is the manager's shared to-do list, visible to every session, all 
 A worktree per session stops two agents overwriting one checkout, and that is the right answer whenever the work divides cleanly. It does not help when sessions deliberately share a checkout, and it defers the other kind of collision to merge time: two agents making incompatible decisions about the same interface find out only when the branches meet.
 
 `reserve_files` declares the paths a session is about to edit. Overlap with a lease another session holds comes back as conflicts, naming the holder and what they said they were doing, so the two can settle it through `send_session` before either commits. The lease is advisory throughout: nothing is blocked, and an agent may edit anyway. It expires on its own, so a session that dies holding one never keeps the repo to itself, and `release_files` hands it back as soon as the edits land. An exclusive lease conflicts with any other lease on the same paths; two shared leases sit side by side. Matching compares a pattern against a literal path in both directions, so two patterns that each contain wildcards are only compared exactly, which is another reason these are a conversation starter rather than a lock.
+
+### Agent Surfaces
+
+An agent that needs you to decide something richer than prose, such as a grilling round, describes it as an [A2UI](https://a2ui.org) document and publishes it with `surface` (`agent-manager surface publish round.json`, or the document on stdin). The manager validates it and stores it against the calling session. Only an agent session publishes: the answer goes back into its conversation, so a shell outside Agent Manager is refused, and so is a terminal, which can be sent to but never asked. A document of another A2UI version, or one whose fields cannot describe a surface, is refused with the version or the field named, and nothing is stored, so the agent fixes it and publishes again.
+
+`agent-manager surface list` reads back the surfaces the calling session published, oldest first, and `surface list <session-id>` reads another session's from any shell. `surface show <surface-id> [--width <cells>]` draws one as text. A session keeps its last 50 surfaces, the oldest going as a new one arrives, and they are deleted with the session.
 
 ### Terminals
 
@@ -433,6 +441,14 @@ Groups are paths (`backend/api/auth`) forming a tree of unlimited depth. Session
 Group archive and restore apply to the whole subtree, including sessions hidden by search or status filters. The archive card counts every session it touches, including those already archived. Restore counts archived sessions and leaves intentionally stopped active sessions stopped. Restoring a subgroup also reveals its ancestor groups without restoring their other sessions. Group kill/revive and `X`/`V` use the filtered list instead.
 
 The archived view offers management and Restore actions. Revive, restart, kill, contextual creation, group folding and Fold All are inactive there. CLI/MCP archive can leave a pane running: Restore returns that row to active controls while keeping its current pane and conversation, then Kill stops it. Delete also removes the row and is not a substitute for Kill. Fold All (`F`) is available in the active view.
+
+## Automations
+
+An Automation is work that starts on a schedule without anyone asking: a cron expression, the repository the work runs in, whether it is a prompt given to a CLI or a committed script, the CLI, the Mode, the launch flags and how many firings to keep. `S` opens the dialog, and the Automations section of the list shows each one with its Mode, how its last firing went and when it fires next; unfolding one lists its recent firings, where `enter` opens a firing's log in a tab and `D` on a finished one opens a Debug Session already pointed at it.
+
+The manager owns the configuration and holds the clock, but never executes an Automation: a due instant is written as a versioned JSON request for Fractory, which runs it in a worktree and a container and writes back a record the manager reads. So every Automation needs a Fractory repository, nothing fires while the manager is closed (a missed instant fires once when it next opens), and a firing has no pane to attach to.
+
+The whole reference — the dialog's fields, the cron syntax, the firing rules, the `agent-manager automations` commands and the files on disk — is [Automations](automations.md).
 
 ## SSH connections
 

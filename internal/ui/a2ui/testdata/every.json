@@ -1,0 +1,23 @@
+[
+  {"version": "v0.9", "createSurface": {"surfaceId": "every", "catalogId": "basic"}},
+  {"version": "v0.9", "updateComponents": {"surfaceId": "every", "components": [
+    {"id": "root", "component": "Column", "children": ["heading", "card", "list", "rule"]},
+    {"id": "heading", "component": "Text", "text": "Every component", "variant": "h1"},
+    {"id": "card", "component": "Card", "child": "fields"},
+    {"id": "fields", "component": "Row", "children": ["left", "right"]},
+    {"id": "left", "component": "Column", "children": ["name", "agree"]},
+    {"id": "name", "component": "TextField", "label": "Name", "value": "Ada"},
+    {"id": "agree", "component": "CheckBox", "label": "Agree", "value": {"path": "/agree"}},
+    {"id": "right", "component": "Column", "children": ["tools", "ok"]},
+    {"id": "tools", "component": "ChoicePicker", "label": "Tools", "variant": "multipleSelection",
+      "options": [{"label": "claude", "value": "claude"}, {"label": "codex", "value": "codex"}, {"label": "gemini", "value": "gemini"}],
+      "value": ["claude", "gemini"]},
+    {"id": "ok", "component": "Button", "child": "ok-label"},
+    {"id": "ok-label", "component": "Text", "text": "OK"},
+    {"id": "list", "component": "List", "direction": "vertical", "children": ["one", "two"]},
+    {"id": "one", "component": "Text", "text": "first item"},
+    {"id": "two", "component": "Text", "text": "second item"},
+    {"id": "rule", "component": "Divider", "axis": "horizontal"}
+  ]}},
+  {"version": "v0.9", "updateDataModel": {"surfaceId": "every", "value": {"agree": true}}}
+]

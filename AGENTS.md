@@ -27,6 +27,33 @@ including shared controls, capability discovery, and status detection.
 Provider-specific features multiply ongoing maintenance. Supporting a TUI does
 not mean mirroring its feature set; prefer workspace features shared across tools.
 
+## Agent Surfaces
+
+The manager is the only process in the system that owns a screen, so it is the only
+renderer. When an agent — a session here, a skill it runs, or a Run inside
+Fractory — needs the owner to see or decide something richer than prose, it
+publishes an **Agent Surface**: a description in [A2UI](https://a2ui.org), written
+to a file the manager reads on a poll, the way an Automation request and a Run's
+`.answer.json` already travel. The manager renders it in a surface of its own,
+beside or over the conversation; nothing is drawn inside a session's pane, which
+belongs to the CLI.
+
+- **A2UI is the format, not a library.** We render the subset our surfaces use with
+  the lipgloss and bubbles already in `go.mod`. `a2tea` renders the same format but
+  needs Bubble Tea v2, which this fork does not run; adopting it is deferred until
+  upstream moves to v2, or a feature is visibly held back by the subset, or the fork
+  breaks from upstream for a reason of its own. Because the contract is the format,
+  that swap deletes a renderer and changes no surface.
+- **Agent-authored only.** The Runs rail, the Tickets view and Automations are
+  computed from files on disk and stay plain Go. A view a model renders is one that
+  costs tokens to repaint, cannot be tested on its output, and breaks with no agent
+  running. The dividing line is whether the thing has a right answer.
+- **A surface is data, never instructions.** It is parsed, version-pinned and
+  validated like every other external document, and a component the subset does not
+  know is skipped with a reason rather than guessed at.
+- **Agent Surface, not Surface.** `internal/ui/surface` already owns the word for
+  the cards on the stack. The two are never called the same thing.
+
 ## What every change covers
 
 A feature, a tool, or a fix is done when it holds on the whole matrix. The
