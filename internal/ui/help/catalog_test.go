@@ -376,6 +376,10 @@ func TestCatalogNamesEveryBotsKeyAndClick(t *testing.T) {
 	if !strings.Contains(rows[open], "Profile's live Bots") {
 		t.Errorf("the fold key on a Profile is missing: %v", rows)
 	}
+	spawn := ctx.ListKeys.Binding(keybind.SpawnBot).Keys()[0].Glyph()
+	if !strings.Contains(rows[spawn], "spawn a Bot") {
+		t.Errorf("the spawn key on a Profile is missing: %v", rows)
+	}
 	if click := "click " + presentation.GlyphsFor(ctx.Glyphs.Mode).GroupOpenGlyph; !strings.Contains(rows[click], "fold or unfold") {
 		t.Errorf("the fold mark's click is missing: %v", rows)
 	}

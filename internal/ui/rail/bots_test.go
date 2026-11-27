@@ -124,7 +124,7 @@ func TestAnEmptyBotsAreaSaysHowToCreateAProfile(t *testing.T) {
 func TestEveryBotsKeyHasARowMenuEntry(t *testing.T) {
 	model := New(nil)
 	model.Reconcile(botsSnapshot())
-	if got := menuLabels(model, operator); !slices.Equal(got, []string{"Show Bots"}) {
+	if got := menuLabels(model, operator); !slices.Equal(got, []string{"Show Bots", "Spawn a Bot"}) {
 		t.Fatalf("folded Profile menu = %v", got)
 	}
 	if got := menuLabels(model, Selection{Kind: BotsRow}); !slices.Equal(got, []string{"Fold"}) {
@@ -135,7 +135,7 @@ func TestEveryBotsKeyHasARowMenuEntry(t *testing.T) {
 	if !slices.Contains(rowKeys(model), "  s:watch-runs") {
 		t.Fatalf("Show Bots left the Profile folded: %v", rowKeys(model))
 	}
-	if got := menuLabels(model, operator); !slices.Equal(got, []string{"Hide Bots"}) {
+	if got := menuLabels(model, operator); !slices.Equal(got, []string{"Hide Bots", "Spawn a Bot"}) {
 		t.Fatalf("unfolded Profile menu = %v", got)
 	}
 	pressOn(&model, Selection{Kind: BotsRow}, "enter")
@@ -227,5 +227,29 @@ func TestAttentionKeepsTheProfilesWithABotWaiting(t *testing.T) {
 	got := rowKeys(model)
 	if !slices.Contains(got, " p:op") || !slices.Contains(got, "  s:watch-host") || slices.Contains(got, " p:rev") {
 		t.Fatalf("attention = %v", got)
+	}
+}
+
+func TestTheSpawnKeyAndItsMenuEntryAskForABotOnAProfileOnly(t *testing.T) {
+	model := New(nil)
+	model.Reconcile(botsSnapshot())
+	decision := pressOn(&model, operator, "B")
+	if decision.Intent.Kind != SpawnBot || decision.Intent.Target != operator {
+		t.Fatalf("B on a Profile = %+v; want a SpawnBot intent on it", decision)
+	}
+	if decision := pressOn(&model, Selection{Kind: BotsRow}, "B"); decision.Intent.Kind == SpawnBot {
+		t.Fatalf("B on the Bots header asked for %+v", decision.Intent)
+	}
+	model.openMenu(operator, 0, 0, false)
+	var picked Intent
+	for range 4 {
+		if label := model.menu.items[model.menu.index].label; label == "Spawn a Bot" {
+			picked = model.menuKey(tea.KeyMsg{Type: tea.KeyEnter}, KeyContext{ListKeys: keybind.DefaultList()}).Intent
+			break
+		}
+		model.menuKey(tea.KeyMsg{Type: tea.KeyDown}, KeyContext{ListKeys: keybind.DefaultList()})
+	}
+	if picked.Kind != SpawnBot || picked.Target != operator {
+		t.Fatalf("the Spawn a Bot entry asked for %+v", picked)
 	}
 }

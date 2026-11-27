@@ -293,6 +293,8 @@ func actionKind(action string) ActionKind {
 		return RunNow
 	case keybind.DebugSession:
 		return DebugSession
+	case keybind.SpawnBot:
+		return SpawnBot
 	case keybind.Fork:
 		return Fork
 	case keybind.Revive:

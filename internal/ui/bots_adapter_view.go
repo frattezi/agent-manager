@@ -59,7 +59,8 @@ func (m *Model) liveBots(id string) []store.Session {
 
 // botsIntent runs a rail intent aimed at the Bots header or a Profile and
 // reports whether it took it. The keys that reach the whole workspace pass
-// through; a live Bot is a session row and never arrives here.
+// through, and a Profile spawns a Bot; a live Bot is a session row and never
+// arrives here.
 func (m *Model) botsIntent(intent uirail.Intent) (tea.Cmd, bool) {
 	if !isBotsRow(intent.Target.Kind) {
 		return nil, false
@@ -67,6 +68,11 @@ func (m *Model) botsIntent(intent uirail.Intent) (tea.Cmd, bool) {
 	switch intent.Kind {
 	case uirail.Quit, uirail.OpenSettings, uirail.Resize, uirail.OpenMessages, uirail.OpenHelp, uirail.Prompt, uirail.NewSession, uirail.NewGroup, uirail.NewConnection:
 		return nil, false
+	case uirail.SpawnBot:
+		if profile, ok := m.selectedBotProfile(); ok {
+			return m.spawnBot(botProfileOf(profile)), true
+		}
+		return nil, true
 	}
 	m.reportErr("a Bot Profile is made and edited from a shell: agent-manager bots")
 	return nil, true
@@ -90,6 +96,9 @@ func (m *Model) botsLegend() (legendSection, bool) {
 	pairs := [][2]string{{m.listGlyph(keybind.Open), action}}
 	if !m.prefs.mouseDisabled {
 		pairs = append(pairs, [2]string{"click " + mark, action})
+	}
+	if selection.Kind == uirail.BotProfileRow {
+		pairs = append(pairs, [2]string{m.listGlyph(keybind.SpawnBot), "spawn a Bot"})
 	}
 	title := "Bots"
 	if selection.Kind == uirail.BotProfileRow {

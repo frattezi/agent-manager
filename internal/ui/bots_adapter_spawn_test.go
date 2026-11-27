@@ -1,11 +1,14 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/ui/bots"
+	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	uilaunch "github.com/YoanWai/agent-manager/internal/ui/spawn/launch"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -143,5 +146,42 @@ func TestABotIsAnOrdinarySession(t *testing.T) {
 	archived, err := m.services.store.Get(renamed[0].ID)
 	if err != nil || !archived.Archived || archived.BotProfile != "p1" {
 		t.Fatalf("archived Bot = %+v, %v; want archived, still of p1", archived, err)
+	}
+}
+
+// B on a stored Profile's row spawns from what the store holds, and the poll
+// after it lists each Bot under that Profile.
+func TestTheSpawnKeyOnAProfileRowListsTheBotsUnderIt(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	dir := t.TempDir()
+	if err := m.services.store.AddBotProfile(store.BotProfile{ID: "p1", Name: "Operator", Tool: "claude", Dir: dir, Specialization: "fractory-operator"}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	m.applyCmd(t, m.refreshCmd())
+	profile := uirail.Selection{Kind: uirail.BotProfileRow, Profile: "p1"}
+	for range 2 {
+		if !m.rail.Focus(profile) {
+			t.Fatalf("no Profile row in %+v", m.rail.Rows())
+		}
+		_, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("B")})
+		m.applyCmd(t, cmd)
+		m.drainEffects(t)
+	}
+	m.applyCmd(t, m.refreshCmd())
+	spawned := liveBots(t, m, "p1")
+	if len(spawned) != 2 {
+		t.Fatalf("Bots of p1 = %+v; want two", spawned)
+	}
+	m.rail.Focus(profile)
+	m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	for _, bot := range spawned {
+		if !m.focusSession(bot.ID) {
+			t.Fatalf("the unfolded Profile does not list %s: %+v", bot.Name, m.rail.Rows())
+		}
+	}
+	m.rail.Focus(profile)
+	if legend, _ := m.botsLegend(); !slices.ContainsFunc(legend.Pairs, func(p [2]string) bool { return p[1] == "spawn a Bot" }) {
+		t.Fatalf("Profile footer = %+v; want the spawn key", legend)
 	}
 }

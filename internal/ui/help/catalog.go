@@ -172,6 +172,7 @@ func botRowHelpRows(list keybind.Table, mode presentation.GlyphMode) [][2]string
 	h := helpRows{list: list, mode: mode}
 	h.action("fold the Bots header, show or hide a Profile's live Bots", keybind.Open)
 	h.fixed("click "+presentation.GlyphsFor(mode).GroupOpenGlyph, "on the header or a Profile, fold or unfold it")
+	h.action("on a Profile, spawn a Bot from it; several may run at once", keybind.SpawnBot)
 	h.fixed("", "a live Bot is a session row: every session key works on it")
 	h.fixed("", "Profiles are made and edited from a shell: agent-manager bots")
 	h.fixed("", "each is in the row menu too")

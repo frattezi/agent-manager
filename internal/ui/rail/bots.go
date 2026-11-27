@@ -155,7 +155,16 @@ func botProfileMenuItems(folded bool) []menuItem {
 	if folded {
 		fold.label = "Show Bots"
 	}
-	return []menuItem{fold}
+	return menuSections([]menuItem{fold}, []menuItem{{label: "Spawn a Bot", action: SpawnBot}})
+}
+
+// botProfileIntent is a Bot Profile action, which only a Profile row takes;
+// anywhere else the key does nothing.
+func (m *Model) botProfileIntent(kind ActionKind) Decision {
+	if row, ok := m.row(); !ok || row.kind != BotProfileRow {
+		return Decision{Consumed: true}
+	}
+	return m.intent(kind)
 }
 
 func (r renderer) renderBotsHeader(selected bool, width int, pad, background string) renderedTreeRow {
