@@ -599,6 +599,10 @@ func (p *Runner) step(ctx context.Context) Result {
 	if err != nil {
 		return Result{Err: err}
 	}
+	botProfiles, err := p.store.BotProfiles()
+	if err != nil {
+		return Result{Err: err}
+	}
 	envNames := make([]string, len(profiles))
 	envKeys := make(map[string][]string, len(profiles))
 	for i, profile := range profiles {
@@ -651,6 +655,7 @@ func (p *Runner) step(ctx context.Context) Result {
 		GroupEnvs:      environments,
 		EnvProfiles:    envNames,
 		EnvKeys:        envKeys,
+		BotProfiles:    botProfiles,
 		ArchivedGroups: archivedGroups,
 		Proc:           proc,
 		ProcFor:        selectedID,

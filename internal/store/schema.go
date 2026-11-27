@@ -190,6 +190,9 @@ CREATE TABLE IF NOT EXISTS settings (
 			created_at     INTEGER NOT NULL,
 			updated_at     INTEGER NOT NULL
 		)`,
+		// A Bot is an ordinary session that remembers the Profile it was
+		// started from, which is how the rail lists it under that Profile.
+		`ALTER TABLE sessions ADD COLUMN bot_profile TEXT NOT NULL DEFAULT ''`,
 	}
 	for _, migration := range migrations {
 		if _, err := s.db.Exec(migration); err != nil {

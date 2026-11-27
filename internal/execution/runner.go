@@ -53,9 +53,12 @@ type Snapshot struct {
 	// GroupEnvs is each group's own environment profile, EnvProfiles every
 	// defined profile's name, and EnvKeys the variables each sets, without
 	// their values.
-	GroupEnvs              map[string]string
-	EnvProfiles            []string
-	EnvKeys                map[string][]string
+	GroupEnvs   map[string]string
+	EnvProfiles []string
+	EnvKeys     map[string][]string
+	// BotProfiles are the stored Bot Profiles, read on every pass so a
+	// Profile made from a shell shows without a restart.
+	BotProfiles            []store.BotProfile
 	ArchivedGroups         map[string]bool
 	Snap                   sysstat.Snapshot
 	SnapOK                 bool

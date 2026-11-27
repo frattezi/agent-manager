@@ -675,7 +675,7 @@ func TestReorderChildIgnoresAnotherParentsChild(t *testing.T) {
 	m = updated.(*Model)
 	var names []string
 	for _, row := range railRows(m) {
-		if !row.isGroup {
+		if !row.isGroup && row.sess.ID != "" {
 			names = append(names, row.sess.Name)
 		}
 	}

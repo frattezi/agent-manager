@@ -39,7 +39,7 @@ func listKeys() rail.KeyContext { return rail.KeyContext{ListKeys: keybind.Defau
 func TestAutomationsListFoldedAfterTheSessions(t *testing.T) {
 	model := rail.New(nil)
 	model.Reconcile(automationsSnapshot())
-	want := []rail.RowKind{rail.GroupRow, rail.SessionRow, rail.AutomationsRow, rail.AutomationRow, rail.AutomationRow, rail.AutomationRow}
+	want := []rail.RowKind{rail.GroupRow, rail.SessionRow, rail.AutomationsRow, rail.AutomationRow, rail.AutomationRow, rail.AutomationRow, rail.BotsRow}
 	if got := rowKinds(model); !slices.Equal(got, want) {
 		t.Fatalf("kinds = %v, want %v", got, want)
 	}
@@ -138,8 +138,8 @@ func TestClickingAnAutomationsFoldMarkListsItsFirings(t *testing.T) {
 	model := rail.New(nil)
 	model.Reconcile(automationsSnapshot())
 	frame := model.Render(renderContext(48, 12), rail.Frame{})
-	if len(frame.Folds) != 4 {
-		t.Fatalf("fold marks = %v; want the header's and one per Automation", frame.Folds)
+	if len(frame.Folds) != 5 {
+		t.Fatalf("fold marks = %v; want the header's, one per Automation and the Bots header's", frame.Folds)
 	}
 	x, ok := frame.Folds["a:report"]
 	if !ok {

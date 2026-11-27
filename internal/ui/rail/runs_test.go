@@ -30,7 +30,7 @@ func TestRunsSectionFollowsTheSessions(t *testing.T) {
 	for _, row := range model.Rows() {
 		got = append(got, row.Kind)
 	}
-	want := []rail.RowKind{rail.GroupRow, rail.SessionRow, rail.RunsRow, rail.RunRow, rail.RunRow}
+	want := []rail.RowKind{rail.GroupRow, rail.SessionRow, rail.RunsRow, rail.RunRow, rail.RunRow, rail.BotsRow}
 	if len(got) != len(want) {
 		t.Fatalf("kinds = %v, want %v", got, want)
 	}
@@ -421,12 +421,9 @@ func TestClickingTheRunsFoldMarkTogglesTheFold(t *testing.T) {
 	model := rail.New(nil)
 	model.Reconcile(runsSnapshot())
 	frame := model.Render(renderContext(48, 8), rail.Frame{})
-	if len(frame.Folds) != 1 {
-		t.Fatalf("fold marks = %v; want the header's alone", frame.Folds)
-	}
-	var x int
-	for _, column := range frame.Folds {
-		x = column
+	x, ok := frame.Folds["runs"]
+	if !ok || len(frame.Folds) != 2 {
+		t.Fatalf("fold marks = %v; want the Runs and Bots headers'", frame.Folds)
 	}
 	for _, line := range frame.Lines {
 		if line.HitOK && line.Hit.Kind == rail.RunsRow {

@@ -144,7 +144,7 @@ func (r renderer) filterBadgeLines() []string {
 
 func (r *renderer) entryLines(height int) []Line {
 	rows := r.model.rows
-	if len(rows) <= 1 && len(rows) > 0 && rows[0].isRoot() {
+	if r.model.nothingListed() {
 		r.frame.Window = Range{Start: 0, End: len(rows)}
 		var lines []Line
 		for i, row := range rows {
@@ -205,7 +205,7 @@ func (r *renderer) entryLines(height int) []Line {
 }
 
 func (r renderer) entryHeight(row treeRow) int {
-	if row.kind == AutomationRow {
+	if row.kind == AutomationRow || row.kind == BotsRow && r.model.botsHinted() {
 		return 2
 	}
 	if row.kind != SessionRow || !r.ctx.ComfortableRows {
@@ -308,7 +308,7 @@ func (r *renderer) entryRowLines(row treeRow, index int, tone string) []Line {
 	if rendered.handleX >= 0 {
 		r.frame.Handles[row.key()] = 1 + rendered.handleX
 	}
-	if (row.kind == RunsRow || row.kind == AutomationsRow || row.kind == AutomationRow) && !r.ctx.MouseDisabled {
+	if (row.kind == RunsRow || row.kind == AutomationsRow || row.kind == AutomationRow || row.kind == BotsRow || row.kind == BotProfileRow) && !r.ctx.MouseDisabled {
 		r.frame.Folds[row.key()] = 1 + rendered.foldX
 	}
 	var lines []Line
@@ -358,6 +358,10 @@ func (r renderer) renderTreeRow(row treeRow, selected bool, width, index int, ba
 		return r.renderAutomation(row, selected, width, pad, guides, trail, background)
 	case FiringRow:
 		return r.renderFiring(row, selected, width, pad, guides, background)
+	case BotsRow:
+		return r.renderBotsHeader(selected, width, pad, background)
+	case BotProfileRow:
+		return r.renderBotProfile(row, selected, width, pad, guides, background)
 	case ConnectionRow:
 		return r.renderConnection(row, selected, width, pad, background)
 	case GroupRow:
@@ -420,7 +424,7 @@ func (r renderer) slotContinues(index, slot int) bool {
 }
 
 func (r renderer) rowHandle(row treeRow, selected bool) string {
-	if row.isRoot() || row.host != "" || r.renaming(row) || r.ctx.MouseDisabled {
+	if row.isRoot() || row.host != "" || row.isBots() || r.renaming(row) || r.ctx.MouseDisabled {
 		return ""
 	}
 	style := lipgloss.NewStyle().Foreground(lipgloss.Color(r.palette.restingMark()))

@@ -166,3 +166,35 @@ func TestBotProfilesTableIsTheSameOnFreshAndUpgradedStores(t *testing.T) {
 		t.Fatalf("the upgrade lost an Automation: %v %v", found, err)
 	}
 }
+
+func TestASessionRemembersTheBotProfileItStartedFrom(t *testing.T) {
+	st := newTestStore(t)
+	bot := sample("bot", "ops")
+	bot.BotProfile = "p1"
+	if err := st.CreateSession(bot); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.CreateSession(sample("plain", "ops")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.Get(bot.ID)
+	if err != nil || got.BotProfile != "p1" {
+		t.Fatalf("get bot_profile = %q, %v", got.BotProfile, err)
+	}
+	listed, err := st.ListSessions(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profiles := map[string]string{}
+	for _, sess := range listed {
+		profiles[sess.ID] = sess.BotProfile
+	}
+	if profiles[bot.ID] != "p1" || len(profiles) != 2 {
+		t.Fatalf("listed profiles = %v", profiles)
+	}
+	for id, profile := range profiles {
+		if id != bot.ID && profile != "" {
+			t.Fatalf("a plain session lists the Profile %q", profile)
+		}
+	}
+}
