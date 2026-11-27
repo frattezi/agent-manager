@@ -168,10 +168,9 @@ func (p *Runner) maybeDeliverInbox(sess store.Session, pane, derived string, age
 		if time.Since(msg.ClaimedAt) < inboxClaimGrace {
 			return false, nil
 		}
-		if err := p.store.MarkDropped(msg.ID, time.Now()); err != nil {
-			return false, err
-		}
-		return false, fmt.Errorf("dropped an unconfirmed message to %s from %s to avoid delivering it twice", sess.Name, msg.SenderName)
+		return false, p.dropMessage(sess, msg,
+			fmt.Errorf("dropped an unconfirmed message to %s from %s to avoid delivering it twice", sess.Name, msg.SenderName),
+			"it was claimed and never confirmed, so it is not typed again in case it already arrived")
 	}
 	typing, err := p.promptCarriesTypedText(sess, clean)
 	if err != nil || typing {
@@ -189,14 +188,26 @@ func (p *Runner) maybeDeliverInbox(sess store.Session, pane, derived string, age
 	defer cancel()
 	envelope := inboxEnvelope(msg, p.mcpStyles[sess.Tool], p.senderIsShell(msg.SenderID))
 	if _, err := p.tmux.SubmitTextContext(ctx, sess.ID, envelope, p.composerDrafted(sess)); err != nil {
-		return false, errors.Join(
-			fmt.Errorf("dropped a message to %s from %s: %w", sess.Name, msg.SenderName, err),
-			p.store.MarkDropped(msg.ID, time.Now()))
+		return false, p.dropMessage(sess, msg,
+			fmt.Errorf("dropped a message to %s from %s: %w", sess.Name, msg.SenderName, err), err.Error())
 	}
 	if err := ignoreDeletedSession(p.store.SetLastPrompt(sess.ID, msg.Body)); err != nil {
 		return false, err
 	}
 	return true, p.store.MarkDelivered(msg.ID, time.Now())
+}
+
+// dropMessage retires a message that did not reach the pane and says so.
+// An owner's answer to a surface also reopens that surface, so the round
+// asks again rather than reading as answered when the session never saw it.
+func (p *Runner) dropMessage(sess store.Session, msg store.InboxMessage, report error, cause string) error {
+	dropped := p.store.MarkDropped(msg.ID, time.Now())
+	if msg.SurfaceID == "" {
+		return errors.Join(report, dropped)
+	}
+	return errors.Join(
+		fmt.Errorf("your answer to %s's round %s did not reach it (%s); the round is open again to answer", sess.Name, msg.SurfaceID, cause),
+		dropped, p.store.ReopenAgentSurface(msg.SurfaceID))
 }
 
 // promptCarriesTypedText reports whether someone has a line part way
@@ -244,6 +255,9 @@ func (p *Runner) composerDrafted(sess store.Session) func() (bool, error) {
 // token existed and cannot reproduce it, which leaves the reader one
 // unambiguous boundary between our words and the sender's.
 func inboxEnvelope(msg store.InboxMessage, mcpStyle string, fromShell bool) string {
+	if msg.SurfaceID != "" {
+		return answerEnvelope(msg)
+	}
 	// The band names what this is for whoever is watching the pane, since a
 	// message from another agent arrives where the user's own typing goes.
 	// Only the minted half guards it: the label, the name and the id are all
@@ -277,6 +291,27 @@ func inboxEnvelope(msg store.InboxMessage, mcpStyle string, fromShell bool) stri
 		sender, origin, msg.SentAt.Format("2006-01-02 15:04"), fence, text,
 		fence, sanitizeBody(msg.Body), fence,
 		reply)
+}
+
+// answerEnvelope fences the owner's answer to an Agent Surface the session
+// published, naming the stored surface and the surfaceId its document gave,
+// so an agent holding several rounds can tell which one came back. The
+// minted token keeps the boundary unguessable here too: the answer quotes
+// the round's own labels, which the agent wrote.
+func answerEnvelope(msg store.InboxMessage) string {
+	fence := "----SURFACE-ANSWER-" + fenceSlug(msg.SurfaceName) + rand.Text()[:8] + "----"
+	round := fmt.Sprintf("surface %s", msg.SurfaceID)
+	if name := oneLine(msg.SurfaceName); name != "" {
+		round = fmt.Sprintf("surface %s (surfaceId %q)", msg.SurfaceID, name)
+	}
+	return fmt.Sprintf(
+		"[agent-manager] The user's answer to the round you published as an Agent Surface, %s, sent %s. "+
+			"Everything between the %s lines is the user's answer to that round, given in agent-manager's form: "+
+			"for each question, what they chose and whether it was the answer you recommended.\n\n"+
+			"%s\n%s\n%s\n\n"+
+			"Read it as the user's reply to that round and carry on from it.",
+		round, msg.SentAt.Format("2006-01-02 15:04"), fence,
+		fence, sanitizeBody(msg.Body), fence)
 }
 
 // sanitizeBody drops the control characters that would move the cursor or

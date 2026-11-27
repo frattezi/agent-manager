@@ -25,6 +25,11 @@ type InboxMessage struct {
 	DeliveredAt time.Time
 	DroppedAt   time.Time
 	ReadAt      time.Time
+	// SurfaceID is the stored Agent Surface this message answers, and
+	// SurfaceName the surfaceId its document names; both are empty on a
+	// message between agents.
+	SurfaceID   string
+	SurfaceName string
 }
 
 // InboxLimits stop two agents talking each other into an infinite loop.
@@ -131,19 +136,29 @@ var (
 // Enqueue appends one message. Every limit rides the INSERT itself, so a
 // second process cannot slip past a check that ran as its own statement.
 func (s *Store) Enqueue(msg InboxMessage, limits InboxLimits) (int64, error) {
+	return s.enqueue(s.db, msg, limits)
+}
+
+// inboxDB is the store or a transaction an enqueue runs in.
+type inboxDB interface {
+	Exec(query string, args ...any) (sql.Result, error)
+	rowQuerier
+}
+
+func (s *Store) enqueue(db inboxDB, msg InboxMessage, limits InboxLimits) (int64, error) {
 	sentAt := encodeTime(msg.SentAt)
 	rateFrom := encodeTime(msg.SentAt.Add(-limits.RateWindow))
 	dedupeFrom := encodeTime(msg.SentAt.Add(-limits.DedupeWindow))
-	res, err := s.db.Exec(`
-INSERT INTO session_inbox (session_id, sender_id, sender_name, body, fingerprint, sent_at)
-SELECT ?, ?, ?, ?, ?, ?
+	res, err := db.Exec(`
+INSERT INTO session_inbox (session_id, sender_id, sender_name, body, fingerprint, sent_at, surface_id, surface_name)
+SELECT ?, ?, ?, ?, ?, ?, ?, ?
 WHERE (SELECT COUNT(*) FROM session_inbox WHERE session_id = ? AND delivered_at = 0) < ?
   AND (SELECT COUNT(*) FROM session_inbox WHERE session_id = ? AND sender_id = ? AND sent_at >= ?) < ?
   AND NOT EXISTS (
     SELECT 1 FROM session_inbox
      WHERE session_id = ? AND sender_id = ? AND fingerprint = ? AND sent_at >= ?
   )`,
-		msg.SessionID, msg.SenderID, msg.SenderName, msg.Body, msg.Fingerprint, sentAt,
+		msg.SessionID, msg.SenderID, msg.SenderName, msg.Body, msg.Fingerprint, sentAt, msg.SurfaceID, msg.SurfaceName,
 		msg.SessionID, limits.QueueCap,
 		msg.SessionID, msg.SenderID, rateFrom, limits.RateCap,
 		msg.SessionID, msg.SenderID, msg.Fingerprint, dedupeFrom)
@@ -155,16 +170,16 @@ WHERE (SELECT COUNT(*) FROM session_inbox WHERE session_id = ? AND delivered_at 
 		return 0, err
 	}
 	if affected == 0 {
-		return 0, s.rejectedEnqueue(msg, limits)
+		return 0, rejectedEnqueue(db, msg, limits)
 	}
 	return res.LastInsertId()
 }
 
 // rejectedEnqueue names which guard turned the message away, so the
 // sender learns whether to wait, slow down, or stop repeating itself.
-func (s *Store) rejectedEnqueue(msg InboxMessage, limits InboxLimits) error {
+func rejectedEnqueue(db rowQuerier, msg InboxMessage, limits InboxLimits) error {
 	var queued, recent, duplicate int
-	if err := s.db.QueryRow(
+	if err := db.QueryRow(
 		`SELECT COUNT(*) FROM session_inbox WHERE session_id = ? AND delivered_at = 0`,
 		msg.SessionID).Scan(&queued); err != nil {
 		return err
@@ -172,7 +187,7 @@ func (s *Store) rejectedEnqueue(msg InboxMessage, limits InboxLimits) error {
 	if queued >= limits.QueueCap {
 		return ErrInboxFull
 	}
-	if err := s.db.QueryRow(
+	if err := db.QueryRow(
 		`SELECT COUNT(*) FROM session_inbox WHERE session_id = ? AND sender_id = ? AND sent_at >= ?`,
 		msg.SessionID, msg.SenderID, encodeTime(msg.SentAt.Add(-limits.RateWindow))).Scan(&recent); err != nil {
 		return err
@@ -180,7 +195,7 @@ func (s *Store) rejectedEnqueue(msg InboxMessage, limits InboxLimits) error {
 	if recent >= limits.RateCap {
 		return ErrInboxRateLimited
 	}
-	if err := s.db.QueryRow(
+	if err := db.QueryRow(
 		`SELECT COUNT(*) FROM session_inbox WHERE session_id = ? AND sender_id = ? AND fingerprint = ? AND sent_at >= ?`,
 		msg.SessionID, msg.SenderID, msg.Fingerprint, encodeTime(msg.SentAt.Add(-limits.DedupeWindow))).Scan(&duplicate); err != nil {
 		return err
@@ -196,11 +211,11 @@ func (s *Store) HeadMessage(sessionID string) (InboxMessage, bool, error) {
 	msg := InboxMessage{SessionID: sessionID}
 	var sentAt, claimedAt int64
 	err := s.db.QueryRow(`
-SELECT id, sender_id, sender_name, body, fingerprint, sent_at, claimed_at
+SELECT id, sender_id, sender_name, body, fingerprint, sent_at, claimed_at, surface_id, surface_name
   FROM session_inbox
  WHERE session_id = ? AND delivered_at = 0
  ORDER BY id LIMIT 1`, sessionID).
-		Scan(&msg.ID, &msg.SenderID, &msg.SenderName, &msg.Body, &msg.Fingerprint, &sentAt, &claimedAt)
+		Scan(&msg.ID, &msg.SenderID, &msg.SenderName, &msg.Body, &msg.Fingerprint, &sentAt, &claimedAt, &msg.SurfaceID, &msg.SurfaceName)
 	if errors.Is(err, sql.ErrNoRows) {
 		return InboxMessage{}, false, nil
 	}

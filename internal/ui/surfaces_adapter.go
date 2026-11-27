@@ -53,3 +53,29 @@ func (m *Model) applySurfacesRead(inbox uisurfaces.Inbox, err error) tea.Cmd {
 func (s effectServices) surfacesServices() uisurfaces.Services {
 	return uisurfacespersist.Services(s.store)
 }
+
+// applySurfacesAnswer closes the card once the answer is queued and clears
+// the row's mark. A refusal keeps the card open with what was chosen, so
+// the owner can send again or close it unanswered.
+func (m *Model) applySurfacesAnswer(request uisurfaces.AnswerRequest, inbox uisurfaces.Inbox, err error) tea.Cmd {
+	name := request.SessionID
+	if sess, ok := m.sessionByID(request.SessionID); ok {
+		name = m.displayName(sess)
+	}
+	card, open := surfaceOf[*uisurfaces.Card](m)
+	open = open && card.SurfaceID() == request.SurfaceID
+	if err != nil {
+		if open {
+			card.Refused()
+		}
+		m.reportErr("your answer to " + name + " was not sent: " + err.Error())
+		return nil
+	}
+	if top, ok := m.top(); ok && open && top == card {
+		m.Pop()
+	}
+	m.workspace.surfaces.inbox = inbox
+	m.rebuildRows()
+	m.reportDone("answer queued for " + name + "; it is typed in once the session is at rest")
+	return nil
+}

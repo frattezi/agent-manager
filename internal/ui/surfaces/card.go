@@ -17,20 +17,29 @@ type Root interface {
 	// its foot, status block included.
 	ChromeRows(hint [][2]string) int
 	GlyphMode() presentation.GlyphMode
+	// Send hands the answer to the effect lane; the card stays open until
+	// the root reports it queued, so a refusal keeps what was chosen.
+	Send(AnswerRequest) tea.Cmd
 }
 
 // Card draws a session's current surface over the list as a form the owner
-// moves through, steps and types into. Nothing it holds is sent: closing it
-// leaves the surface unanswered, and the session still asking.
+// moves through, steps and types into. Only the send key sends what it
+// holds: closing it leaves the surface unanswered, and the session still
+// asking.
 type Card struct {
 	root      Root
 	sessionID string
 	surfaceID string
 	name      string
 	doc       a2ui.Document
-	fields    []*a2ui.Node
-	focus     a2ui.Focus
-	offset    int
+	// published is the round as the agent wrote it, which the answer is
+	// read against to tell a recommendation kept from one overridden.
+	published a2ui.Document
+	// sending holds a second send while the first is on the lane.
+	sending bool
+	fields  []*a2ui.Node
+	focus   a2ui.Focus
+	offset  int
 }
 
 // Open parses the stored document into a card titled for the session it
@@ -40,7 +49,11 @@ func Open(root Root, stored Stored, name string) (*Card, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := &Card{root: root, sessionID: stored.SessionID, surfaceID: stored.ID, name: name, doc: doc}
+	published, err := a2ui.Parse([]byte(stored.Document))
+	if err != nil {
+		return nil, err
+	}
+	c := &Card{root: root, sessionID: stored.SessionID, surfaceID: stored.ID, name: name, doc: doc, published: published}
 	c.fields = a2ui.Fields(&c.doc)
 	if len(c.fields) > 0 {
 		c.focusField(1)
@@ -146,11 +159,32 @@ func (c *Card) typeInto(msg tea.KeyMsg) bool {
 	return true
 }
 
+// send queues the round as answered. Only the owner's key or click calls
+// it: nothing on a timer, a poll or a close does.
+func (c *Card) send() tea.Cmd {
+	if c.sending {
+		return nil
+	}
+	c.sending = true
+	return c.root.Send(AnswerRequest{
+		SessionID:   c.sessionID,
+		SurfaceID:   c.surfaceID,
+		SurfaceName: c.doc.SurfaceID,
+		Answer:      AnswerText(c.published, c.doc),
+	})
+}
+
+// Refused takes the card back from sending after the answer was not
+// queued, so the owner can send again.
+func (c *Card) Refused() { c.sending = false }
+
 func (c *Card) Key(h surface.Host, msg tea.KeyMsg) (bool, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		h.Pop()
 		return true, nil
+	case "enter":
+		return true, c.send()
 	case "tab", "down":
 		c.move(1)
 	case "shift+tab", "up":
@@ -251,7 +285,7 @@ func (c *Card) hints() [][2]string {
 			hints = append(hints, [2]string{"type", "answer"}, [2]string{"⌫", "delete"})
 		}
 	}
-	return append(hints, [2]string{"esc", "close, still unanswered"})
+	return append(hints, [2]string{"↵", "send"}, [2]string{"esc", "close, still unanswered"})
 }
 
 func (c *Card) View(h surface.Host, _ string) string {

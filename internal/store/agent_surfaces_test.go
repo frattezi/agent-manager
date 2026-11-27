@@ -167,3 +167,60 @@ func TestLatestAgentSurfacesIsEachSessionsNewest(t *testing.T) {
 		t.Fatalf("latest = %+v", latest)
 	}
 }
+
+func answerMessage(sessionID string, at time.Time) InboxMessage {
+	return InboxMessage{SessionID: sessionID, SenderName: "the user", Body: "1. yes", Fingerprint: "surface:s1", SentAt: at, SurfaceName: "round-1"}
+}
+
+func TestAnAnswerIsKeptOnTheSurfaceAndQueuedForItsSession(t *testing.T) {
+	st := newTestStore(t)
+	at := time.Unix(1_700_000_000, 0)
+	publishSurface(t, st, "s1", "a1", at, 10)
+	if _, err := st.AnswerAgentSurface("s1", "1. yes", answerMessage("a1", at.Add(time.Minute)), DefaultInboxLimits); err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.AgentSurface("s1")
+	if err != nil || got.Answer != "1. yes" || !got.AnsweredAt.Equal(at.Add(time.Minute)) {
+		t.Fatalf("surface = %+v, %v", got, err)
+	}
+	head, queued, err := st.HeadMessage("a1")
+	if err != nil || !queued || head.SurfaceID != "s1" || head.SurfaceName != "round-1" || head.Body != "1. yes" {
+		t.Fatalf("head = %+v, %v, %v", head, queued, err)
+	}
+	if _, err := st.AnswerAgentSurface("s1", "again", answerMessage("a1", at.Add(2*time.Minute)), DefaultInboxLimits); !errors.Is(err, ErrAgentSurfaceAnswered) {
+		t.Fatalf("a second answer: %v", err)
+	}
+	if _, err := st.AnswerAgentSurface("s1", "x", answerMessage("other", at), DefaultInboxLimits); !errors.Is(err, ErrAgentSurfaceNotFound) {
+		t.Fatalf("an answer for another session's surface: %v", err)
+	}
+}
+
+// An answer the inbox refuses leaves the round unanswered, so the owner is
+// never shown a round as answered that its session will never read.
+func TestAnAnswerTheInboxRefusesLeavesTheRoundUnanswered(t *testing.T) {
+	st := newTestStore(t)
+	at := time.Unix(1_700_000_000, 0)
+	publishSurface(t, st, "s1", "a1", at, 10)
+	full := InboxLimits{QueueCap: 0, RateCap: 5, RateWindow: time.Minute, DedupeWindow: time.Minute}
+	if _, err := st.AnswerAgentSurface("s1", "1. yes", answerMessage("a1", at), full); !errors.Is(err, ErrInboxFull) {
+		t.Fatalf("err = %v", err)
+	}
+	if got, _ := st.AgentSurface("s1"); !got.AnsweredAt.IsZero() || got.Answer != "" {
+		t.Fatalf("a refused answer was kept: %+v", got)
+	}
+}
+
+func TestAReopenedSurfaceAsksAgain(t *testing.T) {
+	st := newTestStore(t)
+	at := time.Unix(1_700_000_000, 0)
+	publishSurface(t, st, "s1", "a1", at, 10)
+	if _, err := st.AnswerAgentSurface("s1", "1. yes", answerMessage("a1", at), DefaultInboxLimits); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReopenAgentSurface("s1"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := st.AgentSurface("s1"); !got.AnsweredAt.IsZero() {
+		t.Fatalf("reopened = %+v", got)
+	}
+}
