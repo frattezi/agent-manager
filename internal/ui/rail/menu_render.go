@@ -123,6 +123,8 @@ func (r renderer) menuGlyph(action ActionKind) string {
 		binding = keybind.Prompt
 	case CopyReply:
 		binding = keybind.CopyReply
+	case OpenSurface:
+		binding = keybind.AgentSurface
 	case NewTerminal:
 		binding = keybind.Terminal
 	case OpenEditor:

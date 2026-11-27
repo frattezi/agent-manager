@@ -30,6 +30,7 @@ import (
 	uilifecycle "github.com/YoanWai/agent-manager/internal/ui/session/lifecycle"
 	uipersist "github.com/YoanWai/agent-manager/internal/ui/settings/persist"
 	uilaunch "github.com/YoanWai/agent-manager/internal/ui/spawn/launch"
+	uisurfaces "github.com/YoanWai/agent-manager/internal/ui/surfaces"
 	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -77,6 +78,7 @@ func (m *Model) bindEffect(request uieffects.Request) func() (uieffects.Result, 
 		uieffects.Binder(func() uiquicksend.Services { return capture().quickServices() }),
 		uieffects.Binder(func() automations.Services { return capture().automationServices() }),
 		uieffects.Binder(func() uibots.Services { return capture().botServices() }),
+		uieffects.Binder(func() uisurfaces.Services { return capture().surfacesServices() }),
 	}
 	for _, bind := range binders {
 		if work, ok := bind(request); ok {
@@ -186,6 +188,8 @@ func (m *Model) applyEffect(job *uieffects.Job, result uieffects.Result, err err
 		return m.applyAutomationRunNow(request, as[automations.RunNowResult](result), err)
 	case uibots.SaveRequest:
 		return m.applyBotSave(request, as[uibots.Profile](result), err)
+	case uisurfaces.ReadRequest:
+		return m.applySurfacesRead(as[uisurfaces.Inbox](result), err)
 	}
 	if err != nil {
 		m.reportErr(err.Error())

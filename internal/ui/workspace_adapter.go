@@ -29,6 +29,8 @@ type workspace struct {
 	runs runsState
 	// automations is the clock that fires due Automations.
 	automations automationsState
+	// surfaces is which sessions are asking the owner something.
+	surfaces surfacesState
 	// tmuxSocket is the server the last poll read panes from; rows stamped
 	// with another server belong to a manager running against it, and rows
 	// stamped by none belong to whichever manager holds the store.

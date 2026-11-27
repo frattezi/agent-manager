@@ -105,6 +105,8 @@ const (
 	DebugSession
 	// SpawnBot starts a Bot from the Bot Profile under the cursor.
 	SpawnBot
+	// OpenSurface opens the Agent Surface an asking session published.
+	OpenSurface
 )
 
 type Intent struct {

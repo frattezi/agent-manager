@@ -146,3 +146,24 @@ func TestAnUpgradedDatabaseGetsTheSurfacesTable(t *testing.T) {
 		t.Fatalf("upgraded = %v", got)
 	}
 }
+
+// The poll reads one surface per session: its newest, answered or not, so
+// a later round replaces the one before it.
+func TestLatestAgentSurfacesIsEachSessionsNewest(t *testing.T) {
+	st := newTestStore(t)
+	base := time.Unix(1_700_000_000, 0)
+	publishSurface(t, st, "a-old", "a1", base, 10)
+	publishSurface(t, st, "a-new", "a1", base.Add(time.Second), 10)
+	publishSurface(t, st, "b-tie-1", "b2", base, 10)
+	publishSurface(t, st, "b-tie-2", "b2", base, 10)
+	if err := st.PublishAgentSurface(AgentSurface{ID: "c-done", SessionID: "c3", PublishedAt: base, Document: `[]`, AnsweredAt: base.Add(time.Minute), Answer: "yes"}, 10); err != nil {
+		t.Fatal(err)
+	}
+	latest, err := st.LatestAgentSurfaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(latest) != 3 || latest["a1"].ID != "a-new" || latest["b2"].ID != "b-tie-2" || latest["c3"].ID != "c-done" || latest["c3"].AnsweredAt.IsZero() {
+		t.Fatalf("latest = %+v", latest)
+	}
+}

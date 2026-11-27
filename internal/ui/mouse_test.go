@@ -2142,6 +2142,10 @@ var mouseOpeners = map[string]func(t *testing.T, m *Model){
 		selectRun(t, m, "r1")
 		m.runIntent(uirail.Intent{Kind: uirail.Prompt, Target: m.railSelection()})
 	},
+	"surfaces.Card": func(t *testing.T, m *Model) {
+		publishTestSurface(t, m, "alpha", "round-1", roundDocument(t), false)
+		m.openAgentSurface()
+	},
 	"review.Surface": func(t *testing.T, m *Model) {
 		m.base = baseReview
 		m.push(uireview.NewSurface(reviewRoot{m}, []uireview.PickerRow{{Label: "main"}}, "branch", uireview.PickRepo, "", uireview.PickerSource{}, "", uireview.RenderContext{}, ""))

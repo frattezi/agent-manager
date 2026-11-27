@@ -90,6 +90,8 @@ func (m *Model) railSnapshot() uirail.Snapshot {
 			AfterTurn:      session.AfterTurn,
 			AfterTurnGlyph: m.afterTurnGlyph(session.AfterTurn),
 			BotProfile:     session.BotProfile,
+			Asking:         m.workspace.surfaces.inbox.Asking(session.ID),
+			AskingGlyph:    m.glyphs().AskingGlyph,
 		})
 	}
 	return snapshot
@@ -289,6 +291,7 @@ func (m *Model) rowLegend() legendSection {
 			ctx.Session = uirail.Session{
 				ID: row.sess.ID, Group: row.sess.Group, Tool: row.sess.Tool, Status: row.sess.Status,
 				Archived: row.sess.Archived, AfterTurn: row.sess.AfterTurn, IsShell: m.isShell(row.sess.Tool),
+				Asking: m.workspace.surfaces.inbox.Asking(row.sess.ID),
 			}
 		}
 	}
@@ -531,6 +534,8 @@ func (m *Model) runRailIntent(intent uirail.Intent) (tea.Model, tea.Cmd) {
 		return m, m.openQuickMode()
 	case uirail.CopyReply:
 		return m.copyReplySelected()
+	case uirail.OpenSurface:
+		m.openAgentSurface()
 	case uirail.CancelEnd:
 		return m.cancelEndSelected()
 	case uirail.OpenSettings:

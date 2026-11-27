@@ -480,6 +480,9 @@ func (r renderer) renderSession(row treeRow, selected bool, width int, pad, guid
 	if session.AfterTurn != "" {
 		badges += " " + r.palette.inboxBadge.Render(session.AfterTurnGlyph)
 	}
+	if session.Asking {
+		badges += " " + r.palette.inboxBadge.Render(session.AskingGlyph)
+	}
 	// A connection's rows carry whatever its host sent.
 	name := presentation.EscapeControlsInline(sessionName(session))
 	room := width - railGutter - ansi.StringWidth(lead+handle+focus+badges)

@@ -37,6 +37,9 @@ type Node struct {
 	Children  []Node
 	Gap       bool
 	Reason    string
+	// Field numbers the components the owner answers (TextField, CheckBox
+	// and ChoicePicker) from 1 in document order; 0 on every other.
+	Field int
 }
 
 // Option is one choice of a ChoicePicker and whether it is chosen.
@@ -163,7 +166,11 @@ func Parse(data []byte) (Document, error) {
 	if err != nil {
 		return Document{}, err
 	}
-	return Document{SurfaceID: surface, Root: root}, nil
+	doc := Document{SurfaceID: surface, Root: root}
+	for i, field := range Fields(&doc) {
+		field.Field = i + 1
+	}
+	return doc, nil
 }
 
 func checkVersion(field string, raw *json.RawMessage) error {
