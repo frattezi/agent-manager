@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The status bar carries git and filesystem errors, whose text quotes a path
@@ -157,9 +158,9 @@ func TestFailureAfterAnOutcomeReadsAsAFailure(t *testing.T) {
 	// Dismissal takes the outcome with it, so the next message starts clean
 	// even when it repeats the words of the last one that worked.
 	m.reportDone("opened /tmp/project in code")
-	for range 3 {
-		m.ageError()
-	}
+	start := time.Now()
+	m.ageError(start)
+	m.ageError(start.Add(errorLifetime))
 	m.errBar.text = "opened /tmp/project in code"
 	if want := uitheme.ErrStyle().Render("✕ opened /tmp/project in code"); m.statusLine() != want {
 		t.Fatalf("status line is %q, want %q", m.statusLine(), want)
@@ -232,32 +233,37 @@ func TestErrBarKindFollowsTheRunThatNamedIt(t *testing.T) {
 	}
 }
 
-// A message's first poll records it, and it clears two polls later, so a
-// transient error needs no timer of its own.
-func TestErrBarClearsAfterTwoPolls(t *testing.T) {
+// A message's first poll starts its lifetime and the first poll past it
+// clears it, however many passes land in between: a finished effect asks for
+// a pass of its own, so a count of passes took a message down unread.
+func TestErrBarClearsOnceItsLifetimeIsUp(t *testing.T) {
 	m := &Model{}
-	m.ageError()
+	start := time.Now()
+	m.ageError(start)
 	if m.errBar != (errBar{}) {
 		t.Fatalf("an empty bar grew %+v", m.errBar)
 	}
 	m.reportErr("boom")
-	m.ageError()
-	if m.errBar.text != "boom" || m.errBar.shown != "boom" || m.errBar.age != 0 {
-		t.Fatalf("the first poll should only record the baseline: %+v", m.errBar)
+	m.ageError(start)
+	if m.errBar.text != "boom" || m.errBar.shown != "boom" || !m.errBar.since.Equal(start) {
+		t.Fatalf("the first poll should only record when it saw the bar: %+v", m.errBar)
 	}
-	m.ageError()
-	if m.errBar.text != "boom" || m.errBar.age != 1 {
-		t.Fatalf("the second poll should age the bar: %+v", m.errBar)
+	for range 10 {
+		m.ageError(start.Add(errorLifetime - time.Millisecond))
 	}
-	m.ageError()
+	if m.errBar.text != "boom" {
+		t.Fatalf("passes inside the lifetime cleared the bar: %+v", m.errBar)
+	}
+	m.ageError(start.Add(errorLifetime))
 	if m.errBar.text != "" {
-		t.Fatalf("the third poll should clear the bar, kept %q", m.errBar.text)
+		t.Fatalf("a poll past the lifetime should clear the bar, kept %q", m.errBar.text)
 	}
 	m.reportErr("boom")
-	m.ageError()
+	m.ageError(start)
 	m.reportErr("newer")
-	m.ageError()
-	if m.errBar.text != "newer" || m.errBar.age != 0 {
-		t.Fatalf("new text should restart the count: %+v", m.errBar)
+	later := start.Add(errorLifetime)
+	m.ageError(later)
+	if m.errBar.text != "newer" || !m.errBar.since.Equal(later) {
+		t.Fatalf("new text should restart the lifetime: %+v", m.errBar)
 	}
 }

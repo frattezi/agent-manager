@@ -154,3 +154,21 @@ func TestToastWrapsAtItsWidest(t *testing.T) {
 		}
 	}
 }
+
+// A word wider than the card, a path most often, is broken across rows
+// rather than cut, so all of it can be read.
+func TestToastBreaksAWordWiderThanItself(t *testing.T) {
+	path := "/tmp/" + strings.Repeat("skills/", 12) + "SKILL.md"
+	rows := Toast("looked for "+path, 200, testTones(), presentation.GlyphModeAdvanced)
+	var text strings.Builder
+	for _, row := range rows[1 : len(rows)-1] {
+		plain := ansi.Strip(row)
+		if strings.Contains(plain, "…") {
+			t.Fatalf("card row cut short: %q", plain)
+		}
+		text.WriteString(strings.TrimSpace(strings.Trim(plain, "│")))
+	}
+	if !strings.Contains(text.String(), path) {
+		t.Fatalf("card reads %q; want all of %s", text.String(), path)
+	}
+}
