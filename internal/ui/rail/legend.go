@@ -119,6 +119,9 @@ func (m Model) RowLegend(ctx LegendContext) Legend {
 	if (session.Status == "finished" || session.Status == "waiting") && !session.Archived {
 		pairs = append(pairs, [2]string{k(keybind.MarkIdle), "mark idle"})
 	}
+	if session.Asking {
+		pairs = append(pairs, [2]string{k(keybind.AgentSurface), "open what it asks"})
+	}
 	if session.AfterTurn != "" {
 		pairs = append(pairs, [2]string{k(keybind.CancelEnd), "cancel " + session.AfterTurn})
 	}

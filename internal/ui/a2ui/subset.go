@@ -16,11 +16,11 @@ import "sort"
 const Version = "v0.9"
 
 // component is how one type in the subset is read from its properties and
-// drawn at a width. draw gets its children's drawing from child, so the
+// drawn at a width. draw gets its children's drawing from the pen, so the
 // subset can name every component without referring back to itself.
 type component struct {
 	read func(p props) (Node, []childRef, error)
-	draw func(n Node, width int, child func(Node, int) []string) []string
+	draw func(p pen, n Node, width int) []line
 }
 
 // subset is every component this build draws, and the only place one is

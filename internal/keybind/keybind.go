@@ -251,6 +251,7 @@ const (
 	NewGroup     = "new_group"
 	Fork         = "fork"
 	Prompt       = "prompt"
+	AgentSurface = "agent_surface"
 	CopyReply    = "copy_reply"
 	MarkIdle     = "mark_idle"
 	Rename       = "rename"
@@ -320,6 +321,7 @@ var listActions = []Action{
 	{SpawnBot, "Bot Profile: spawn a Bot from it", keys("B")},
 	{Fork, "fork the session", keys("f")},
 	{Prompt, "quick prompt mode; needs-human Run: answer its question", keys("space")},
+	{AgentSurface, "session asking: open what it asks", keys("i")},
 	{CopyReply, "copy the session's newest reply to the clipboard", keys("y")},
 	{Review, "review the session's diff", keys("ctrl+r")},
 	{MarkIdle, "session: mark it idle when finished or waiting; Ticket: mark it solved / unmark it", keys(".")},

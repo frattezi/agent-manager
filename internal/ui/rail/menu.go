@@ -118,6 +118,9 @@ func (m Model) rowMenuItems(row treeRow) []menuItem {
 	if row.sess.AfterTurn != "" {
 		keep = []menuItem{{label: "Cancel " + row.sess.AfterTurn, action: CancelEnd}}
 	}
+	if row.sess.Asking {
+		keep = append([]menuItem{{label: "Open what it asks", action: OpenSurface}}, keep...)
+	}
 	if row.sess.Status == "dead" {
 		return menuSections(manage, keep, []menuItem{revive, m.archiveMenuItem(), remove})
 	}
@@ -313,6 +316,8 @@ func actionKind(action string) ActionKind {
 		return Prompt
 	case keybind.CopyReply:
 		return CopyReply
+	case keybind.AgentSurface:
+		return OpenSurface
 	case keybind.Terminal:
 		return NewTerminal
 	case keybind.Editor:

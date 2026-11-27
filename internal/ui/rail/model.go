@@ -43,6 +43,10 @@ type Session struct {
 	// BotProfile is the Profile a Bot was started from, empty for any
 	// other session.
 	BotProfile string
+	// Asking is whether the session published an Agent Surface the owner
+	// has not answered; AskingGlyph is root's mark for it.
+	Asking      bool
+	AskingGlyph string
 }
 
 // Snapshot is an immutable-by-convention inventory copied at the root
@@ -457,7 +461,7 @@ func (m Model) eligibleSessions(host string, sessions []Session, archivedGroups 
 	held, _ := m.Selected()
 	listed := make([]Session, 0, len(visible))
 	for _, session := range visible {
-		if attentionStatus(session.Status) || held.Kind == SessionRow && held.Host == host && held.SessionID == session.ID {
+		if attentionStatus(session.Status) || session.Asking || held.Kind == SessionRow && held.Host == host && held.SessionID == session.ID {
 			listed = append(listed, session)
 		}
 	}

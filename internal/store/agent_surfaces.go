@@ -81,3 +81,25 @@ func (s *Store) AgentSurface(id string) (AgentSurface, error) {
 	}
 	return a, err
 }
+
+// LatestAgentSurfaces is each session's newest surface, answered or not,
+// keyed by session, in one query for the manager's poll.
+func (s *Store) LatestAgentSurfaces() (map[string]AgentSurface, error) {
+	rows, err := s.db.Query(`SELECT ` + agentSurfaceColumns + ` FROM agent_surfaces a WHERE NOT EXISTS (
+	SELECT 1 FROM agent_surfaces b WHERE b.session_id = a.session_id
+	AND (b.published_at > a.published_at OR (b.published_at = a.published_at AND b.rowid > a.rowid))
+)`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	latest := map[string]AgentSurface{}
+	for rows.Next() {
+		a, err := scanAgentSurface(rows)
+		if err != nil {
+			return nil, err
+		}
+		latest[a.SessionID] = a
+	}
+	return latest, rows.Err()
+}
