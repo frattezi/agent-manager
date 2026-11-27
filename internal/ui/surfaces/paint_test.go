@@ -107,7 +107,7 @@ func TestTheCardRepaintsInATheme(t *testing.T) {
 // The card frame drops nothing the plain rendering lays out.
 func TestPaintKeepsTheLayout(t *testing.T) {
 	trueColor(t)
-	lines, _ := a2ui.RenderForm(mustOpen(t).Document(), 60, a2ui.Focus{Field: 2, Option: 1})
+	lines, _ := mustOpen(t).render(60)
 	for i, p := range paint(lines) {
 		if got := ansi.Strip(p); got != lines[i].Text() {
 			t.Errorf("line %d paints as %q, want %q", i, got, lines[i].Text())

@@ -26,9 +26,9 @@ func TestFieldsNumberTheAnsweredComponentsInDocumentOrder(t *testing.T) {
 // which field and choice each line shows so a click lands on it.
 func TestRenderFormMarksTheFocusAndTargetsEachLine(t *testing.T) {
 	doc := fixture(t, "round")
-	lines, targets := RenderForm(doc, 60, Focus{Field: 3})
+	lines, targets := RenderForm(doc, 60, Focus{Field: 3}, advanced)
 	want := strings.TrimPrefix(`
-+──────────────────────────────────────────────────────────+
+╭──────────────────────────────────────────────────────────╮
 │ Grilling round 1 of 3: where retained rounds live        │
 │   1. Which package owns the A2UI format?                 │
 │     (*) internal/ui/a2ui, boundary-restricted like       │
@@ -42,7 +42,7 @@ func TestRenderFormMarksTheFocusAndTargetsEachLine(t *testing.T) {
 │   Anything the choices do not cover                      │
 │   > _                                                    │
 │ [ Send answers ]                                         │
-+──────────────────────────────────────────────────────────+`, "\n")
+╰──────────────────────────────────────────────────────────╯`, "\n")
 	if got := strings.Join(Texts(lines), "\n"); got != want {
 		t.Fatalf("form:\n%s\nwant\n%s", got, want)
 	}
@@ -60,7 +60,7 @@ func TestRenderFormMarksTheFocusAndTargetsEachLine(t *testing.T) {
 
 func TestRenderFormPutsTheCursorOnAMultipleChoice(t *testing.T) {
 	doc := fixture(t, "every")
-	lines, _ := RenderForm(doc, 30, Focus{Field: 3, Option: 2})
+	lines, _ := RenderForm(doc, 30, Focus{Field: 3, Option: 2}, advanced)
 	got := strings.Join(Texts(lines), "\n")
 	for _, want := range []string{"  Tools", "    [x] claude", "    [ ] codex", "    [x] gemini"} {
 		if !strings.Contains(got, want) {
@@ -72,7 +72,7 @@ func TestRenderFormPutsTheCursorOnAMultipleChoice(t *testing.T) {
 // Reading the document plainly draws no gutter, so surface show is
 // unchanged by the form.
 func TestRenderDrawsNoGutter(t *testing.T) {
-	if got := Render(fixture(t, "round"), 80); strings.Contains(got, "› ") || strings.Contains(got, "│   1. Which") {
+	if got := Render(fixture(t, "round"), 80, advanced); strings.Contains(got, "› ") || strings.Contains(got, "│   1. Which") {
 		t.Fatalf("plain render carries a form gutter:\n%s", got)
 	}
 }

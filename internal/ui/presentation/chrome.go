@@ -7,6 +7,12 @@ type ChromeSet struct {
 	TopLeftGlyph, TopRightGlyph, BottomLeftGlyph, BottomRightGlyph          string
 	RuleGlyph, DashedRuleGlyph, ScrollThumbGlyph, SectionGlyph, CursorGlyph string
 	ReviewSelectionGlyph, QuickEdgeGlyph, ResizeGlyph                       string
+	// EdgeGlyph and SideGlyph are a frame's edges between its corners, kept
+	// apart from RuleGlyph so a Compatible frame stays ASCII end to end.
+	EdgeGlyph, SideGlyph string
+	// Marks are an answer's state as a form draws it: a choice of one and a
+	// box of many, each on or off. A mode's pair shares a width.
+	ChoiceOnMark, ChoiceOffMark, CheckOnMark, CheckOffMark string
 }
 
 func ChromeFor(mode GlyphMode) ChromeSet {
@@ -15,11 +21,15 @@ func ChromeFor(mode GlyphMode) ChromeSet {
 			ChoiceLeftGlyph: "◂", ChoiceRightGlyph: "▸", TopLeftGlyph: "╭", TopRightGlyph: "╮", BottomLeftGlyph: "╰", BottomRightGlyph: "╯",
 			RuleGlyph: "━", DashedRuleGlyph: "┄", ScrollThumbGlyph: "┃", SectionGlyph: "▍", CursorGlyph: "▏",
 			ReviewSelectionGlyph: "▎", QuickEdgeGlyph: "▌", ResizeGlyph: "║",
+			EdgeGlyph: "─", SideGlyph: "│",
+			ChoiceOnMark: "(*)", ChoiceOffMark: "( )", CheckOnMark: "[x]", CheckOffMark: "[ ]",
 		}
 	}
 	return ChromeSet{
 		ChoiceLeftGlyph: "<", ChoiceRightGlyph: ">", TopLeftGlyph: "+", TopRightGlyph: "+", BottomLeftGlyph: "+", BottomRightGlyph: "+",
 		RuleGlyph: "─", DashedRuleGlyph: "─", ScrollThumbGlyph: "█", SectionGlyph: "│", CursorGlyph: "│",
 		ReviewSelectionGlyph: "│", QuickEdgeGlyph: "│", ResizeGlyph: "│",
+		EdgeGlyph: "-", SideGlyph: "|",
+		ChoiceOnMark: "(*)", ChoiceOffMark: "( )", CheckOnMark: "[x]", CheckOffMark: "[ ]",
 	}
 }

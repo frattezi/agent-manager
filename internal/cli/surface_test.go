@@ -13,6 +13,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/ui/a2ui"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	"github.com/google/uuid"
 )
 
@@ -194,8 +195,11 @@ func TestAStoredSurfaceIsListedAndDrawnAsText(t *testing.T) {
 	if err := runSurfaceShow(&shown, w.surfaces, []string{published.ID, "--width", "60"}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if want := strings.TrimRight(a2ui.Render(parsed, 60), "\n") + "\n"; shown.String() != want {
+	if want := strings.TrimRight(a2ui.Render(parsed, 60, presentation.ChromeFor(presentation.DefaultGlyphMode)), "\n") + "\n"; shown.String() != want {
 		t.Fatalf("show =\n%s\nwant\n%s", shown.String(), want)
+	}
+	if strings.Contains(shown.String(), "\x1b") {
+		t.Fatalf("show wrote escapes:\n%q", shown.String())
 	}
 	if err := runSurfaceShow(&bytes.Buffer{}, w.surfaces, []string{"nosuch12"}, ""); err == nil || !strings.Contains(err.Error(), "agent-manager surface list") {
 		t.Fatalf("show of a missing surface = %v", err)

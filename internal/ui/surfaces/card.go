@@ -206,7 +206,7 @@ func (c *Card) Key(h surface.Host, msg tea.KeyMsg) (bool, tea.Cmd) {
 // toggled where several may be, and a check box flips.
 func (c *Card) Click(h surface.Host, line int) tea.Cmd {
 	_, inner, rows := c.size(h)
-	_, targets := a2ui.RenderForm(c.doc, inner, c.focus)
+	_, targets := c.render(inner)
 	at := clampOffset(c.offset, len(targets), rows) + line
 	if line < 0 || at >= len(targets) || targets[at].Field == 0 {
 		return nil
@@ -227,7 +227,7 @@ func (c *Card) Click(h surface.Host, line int) tea.Cmd {
 // Wheel scrolls a round taller than the card.
 func (c *Card) Wheel(h surface.Host, arrow tea.KeyMsg) tea.Cmd {
 	_, inner, rows := c.size(h)
-	lines, _ := a2ui.RenderForm(c.doc, inner, c.focus)
+	lines, _ := c.render(inner)
 	switch arrow.Type {
 	case tea.KeyUp:
 		c.offset--
@@ -241,7 +241,7 @@ func (c *Card) Wheel(h surface.Host, arrow tea.KeyMsg) tea.Cmd {
 // follow scrolls the window just far enough to show the focused field.
 func (c *Card) follow(h surface.Host) {
 	_, inner, rows := c.size(h)
-	_, targets := a2ui.RenderForm(c.doc, inner, c.focus)
+	_, targets := c.render(inner)
 	first, last := -1, -1
 	for i, t := range targets {
 		if t.Field == c.focus.Field && c.focus.Field != 0 {
@@ -256,6 +256,11 @@ func (c *Card) follow(h surface.Host) {
 		c.offset = presentation.Follow(c.offset, first, len(targets), rows)
 	}
 	c.offset = clampOffset(c.offset, len(targets), rows)
+}
+
+// render draws the round at width in the glyph mode the owner chose.
+func (c *Card) render(width int) ([]a2ui.Line, []a2ui.Target) {
+	return a2ui.RenderForm(c.doc, width, c.focus, presentation.ChromeFor(c.root.GlyphMode()))
 }
 
 func clampOffset(offset, count, rows int) int {
@@ -290,7 +295,7 @@ func (c *Card) hints() [][2]string {
 
 func (c *Card) View(h surface.Host, _ string) string {
 	width, inner, rows := c.size(h)
-	lines, _ := a2ui.RenderForm(c.doc, inner, c.focus)
+	lines, _ := c.render(inner)
 	window := presentation.Window(paint(lines), rows, clampOffset(c.offset, len(lines), rows), uitheme.SubtleStyle(), c.root.GlyphMode())
 	return h.CardSized(width, presentation.EscapeControlsInline(c.name)+" is asking", strings.Join(window, "\n"), c.hints())
 }

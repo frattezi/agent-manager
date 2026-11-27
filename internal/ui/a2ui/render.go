@@ -43,14 +43,16 @@ type line struct {
 // pen draws a tree. A form pen keeps a gutter beside each field and fills
 // the focused one; the plain pen draws the document as it reads.
 type pen struct {
-	form  bool
-	focus Focus
+	form   bool
+	focus  Focus
+	chrome presentation.ChromeSet
 }
 
 // Render draws a document as plain text no wider than width, one string
-// with a line per row. It reads nothing but its arguments.
-func Render(doc Document, width int) string {
-	return strings.Join(Texts(segments(pen{}.draw(doc.Root, max(width, 1)))), "\n")
+// with a line per row, its furniture from chrome. It reads nothing but its
+// arguments.
+func Render(doc Document, width int, chrome presentation.ChromeSet) string {
+	return strings.Join(Texts(segments(pen{chrome: chrome}.draw(doc.Root, max(width, 1)))), "\n")
 }
 
 // RenderForm draws a document as a form the owner answers: each field
@@ -58,8 +60,8 @@ func Render(doc Document, width int) string {
 // a focused text field, and the cursor on a focused choice. Each line comes as
 // segments that say what their text is, and beside it the field and choice
 // it shows, so a click can be turned into one.
-func RenderForm(doc Document, width int, focus Focus) ([]Line, []Target) {
-	lines := pen{form: true, focus: focus}.draw(doc.Root, max(width, 1))
+func RenderForm(doc Document, width int, focus Focus, chrome presentation.ChromeSet) ([]Line, []Target) {
+	lines := pen{form: true, focus: focus, chrome: chrome}.draw(doc.Root, max(width, 1))
 	targets := make([]Target, len(lines))
 	for i, l := range lines {
 		targets[i] = l.at
@@ -221,18 +223,19 @@ func drawCard(p pen, n Node, width int) []line {
 	if width < 5 {
 		return p.stack(n, width)
 	}
+	g := p.chrome
 	inner := width - 4
-	border := seg(RoleRule, "+"+strings.Repeat("─", width-2)+"+")
-	lines := []line{{segs: border}}
+	edge := strings.Repeat(g.EdgeGlyph, width-2)
+	lines := []line{{segs: seg(RoleRule, g.TopLeftGlyph+edge+g.TopRightGlyph)}}
 	for _, l := range p.stack(n, inner) {
-		segs := seg(RoleRule, "│ ").join(l.segs.padRight(inner)).add(RoleRule, " │")
+		segs := seg(RoleRule, g.SideGlyph+" ").join(l.segs.padRight(inner)).add(RoleRule, " "+g.SideGlyph)
 		lines = append(lines, line{segs: segs, at: l.at})
 	}
-	return append(lines, line{segs: border})
+	return append(lines, line{segs: seg(RoleRule, g.BottomLeftGlyph+edge+g.BottomRightGlyph)})
 }
 
-func drawDivider(_ pen, _ Node, width int) []line {
-	return []line{{segs: seg(RoleRule, strings.Repeat("─", width))}}
+func drawDivider(p pen, _ Node, width int) []line {
+	return []line{{segs: seg(RoleRule, strings.Repeat(p.chrome.EdgeGlyph, width))}}
 }
 
 func drawButton(p pen, n Node, width int) []line {
@@ -268,9 +271,9 @@ func withCaret(l Line) Line {
 	return append(l[:len(l)-1:len(l)-1], seg(end.Role, text)...).add(RoleFocused, caret)
 }
 
-func drawCheckBox(_ pen, n Node, width int) []line {
+func drawCheckBox(p pen, n Node, width int) []line {
 	var lines []line
-	for _, segs := range hang(mark(n.Checked, true), n.Label, RoleLabel, width) {
+	for _, segs := range hang(p.mark(n.Checked, true), n.Label, RoleLabel, width) {
 		lines = append(lines, line{segs: segs})
 	}
 	return lines
@@ -286,24 +289,26 @@ func drawChoicePicker(p pen, n Node, width int) []line {
 		if p.focused(n) && p.focus.Option == i+1 {
 			role = RoleFocused
 		}
-		for _, segs := range hang(seg(RoleBody, "  ").join(mark(option.Selected, n.Multiple)), option.Label, role, width) {
+		for _, segs := range hang(seg(RoleBody, "  ").join(p.mark(option.Selected, n.Multiple)), option.Label, role, width) {
 			lines = append(lines, line{segs: segs, at: Target{Option: i + 1}})
 		}
 	}
 	return lines
 }
 
-// mark is a choice's box: square for one of many that may all be chosen,
-// round for one of a set that allows only one. A chosen box is selected.
-func mark(selected, square bool) Line {
+// mark is a choice's box: a check box for one of many that may all be
+// chosen, a choice mark for one of a set that allows only one. A chosen box
+// is selected.
+func (p pen) mark(selected, many bool) Line {
+	g := p.chrome
 	switch {
-	case square && selected:
-		return seg(RoleSelected, "[x] ")
-	case square:
-		return seg(RoleBody, "[ ] ")
+	case many && selected:
+		return seg(RoleSelected, g.CheckOnMark+" ")
+	case many:
+		return seg(RoleBody, g.CheckOffMark+" ")
 	case selected:
-		return seg(RoleSelected, "(*) ")
+		return seg(RoleSelected, g.ChoiceOnMark+" ")
 	default:
-		return seg(RoleBody, "( ) ")
+		return seg(RoleBody, g.ChoiceOffMark+" ")
 	}
 }
