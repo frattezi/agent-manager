@@ -26,6 +26,7 @@ session_report = "claude"
 # that exact conversation regardless of what else ran in the directory
 session_id_flag = "--session-id"
 resume_by_id_command = "claude --resume {id}"
+append_system_prompt_flag = "--append-system-prompt-file"
 resume_picker_command = "claude --resume"
 fork_command = "claude --resume {id} --fork-session --session-id {new_id} --name {name}"
 # fallback when a session predates id tracking: resumes the last conversation there
@@ -474,6 +475,8 @@ minimum_version = "0.84.3"
 session_report = "pi"
 session_id_flag = "--session-id"
 resume_by_id_command = "pi --session {id}"
+# a path given to it is read as the file it names
+append_system_prompt_flag = "--append-system-prompt"
 fork_command = "pi --fork {id} --session-id {new_id}"
 resume_picker_command = "pi --resume"
 revive_command = "pi --continue"
@@ -517,6 +520,8 @@ session_report = "omp"
 # reply lands; capture it from ~/.omp/agent/sessions and resume it
 session_store = "omp"
 resume_by_id_command = "omp --resume {id}"
+# a path given to it is read as the file it names
+append_system_prompt_flag = "--append-system-prompt"
 resume_picker_command = "omp --resume"
 revive_command = "omp --continue"
 catalog = "omp"

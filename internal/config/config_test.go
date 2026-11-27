@@ -294,6 +294,28 @@ func TestApplyDefaults(t *testing.T) {
 	}
 }
 
+func TestDefaultAppendSystemPromptFlag(t *testing.T) {
+	cfg, err := Default()
+	if err != nil {
+		t.Fatalf("Default: %v", err)
+	}
+	want := map[string]string{
+		"claude": "--append-system-prompt-file",
+		"pi":     "--append-system-prompt",
+		"omp":    "--append-system-prompt",
+	}
+	for name, tool := range cfg.Tools {
+		if got := tool.AppendSystemPromptFlag; got != want[name] {
+			t.Errorf("%s append_system_prompt_flag = %q want %q", name, got, want[name])
+		}
+	}
+	for name := range want {
+		if _, ok := cfg.Tools[name]; !ok {
+			t.Errorf("builtinTools has no %s", name)
+		}
+	}
+}
+
 func TestDefaultResumeByIDFields(t *testing.T) {
 	cfg, err := Default()
 	if err != nil {
