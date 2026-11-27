@@ -22,7 +22,7 @@ func TestFieldsNumberTheAnsweredComponentsInDocumentOrder(t *testing.T) {
 	}
 }
 
-// A form keeps a gutter beside each field, marks the focused one, and says
+// A form keeps a gutter beside each field, fills the focused one, and says
 // which field and choice each line shows so a click lands on it.
 func TestRenderFormMarksTheFocusAndTargetsEachLine(t *testing.T) {
 	doc := fixture(t, "round")
@@ -39,7 +39,7 @@ func TestRenderFormMarksTheFocusAndTargetsEachLine(t *testing.T) {
 │     ( ) All of them                                      │
 │     ( ) A Settings row                                   │
 │ ──────────────────────────────────────────────────────── │
-│ › Anything the choices do not cover                      │
+│   Anything the choices do not cover                      │
 │   > _                                                    │
 │ [ Send answers ]                                         │
 +──────────────────────────────────────────────────────────+`, "\n")
@@ -62,7 +62,7 @@ func TestRenderFormPutsTheCursorOnAMultipleChoice(t *testing.T) {
 	doc := fixture(t, "every")
 	lines, _ := RenderForm(doc, 30, Focus{Field: 3, Option: 2})
 	got := strings.Join(Texts(lines), "\n")
-	for _, want := range []string{"› Tools", "    [x] claude", "  › [ ] codex", "    [x] gemini"} {
+	for _, want := range []string{"  Tools", "    [x] claude", "    [ ] codex", "    [x] gemini"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in\n%s", want, got)
 		}

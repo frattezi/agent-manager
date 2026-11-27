@@ -13,12 +13,11 @@ const minColumn = 20
 
 const columnGap = "  "
 
-// The gutter is the column a form keeps left of every field it answers, where
-// the focused one is marked.
+// The gutter is the column a form keeps left of every field it answers, so
+// the block a focused field is filled as starts clear of its text.
 const (
-	gutterFocus = "› "
-	gutterRest  = "  "
-	caret       = "_"
+	gutter = "  "
+	caret  = "_"
 )
 
 // Target is what a drawn line belongs to: Field is a field's number, 0 for
@@ -41,7 +40,7 @@ type line struct {
 	at   Target
 }
 
-// pen draws a tree. A form pen keeps a gutter beside each field and marks
+// pen draws a tree. A form pen keeps a gutter beside each field and fills
 // the focused one; the plain pen draws the document as it reads.
 type pen struct {
 	form  bool
@@ -55,8 +54,8 @@ func Render(doc Document, width int) string {
 }
 
 // RenderForm draws a document as a form the owner answers: each field
-// behind a gutter that marks the one focus is on, a caret in a focused text
-// field, and the cursor on a focused multiple choice. Each line comes as
+// behind a gutter, the one focus is on filled to its full width, a caret in
+// a focused text field, and the cursor on a focused choice. Each line comes as
 // segments that say what their text is, and beside it the field and choice
 // it shows, so a click can be turned into one.
 func RenderForm(doc Document, width int, focus Focus) ([]Line, []Target) {
@@ -102,14 +101,15 @@ func (p pen) draw(n Node, width int) []line {
 	if !p.form || n.Field == 0 {
 		return drawers[n.Type](p, n, width)
 	}
-	inner := max(width-len(gutterRest), 1)
+	inner := max(width-len(gutter), 1)
 	lines := drawers[n.Type](p, n, inner)
+	focused := p.focused(n)
 	for i := range lines {
-		gutter := seg(RoleBody, gutterRest)
-		if i == 0 && p.focused(n) {
-			gutter = seg(RoleFocused, gutterFocus)
+		segs := seg(RoleBody, gutter).join(lines[i].segs)
+		if focused {
+			segs = segs.padRight(width).filled()
 		}
-		lines[i].segs = gutter.join(lines[i].segs)
+		lines[i].segs = segs
 		lines[i].at.Field = n.Field
 	}
 	return lines
@@ -282,11 +282,11 @@ func drawChoicePicker(p pen, n Node, width int) []line {
 		lines = under(RoleLabel, wrap(n.Label, width))
 	}
 	for i, option := range n.Options {
-		indent := seg(RoleBody, "  ")
-		if p.focused(n) && n.Multiple && p.focus.Option == i+1 {
-			indent = seg(RoleFocused, gutterFocus)
+		role := RoleBody
+		if p.focused(n) && p.focus.Option == i+1 {
+			role = RoleFocused
 		}
-		for _, segs := range hang(indent.join(mark(option.Selected, n.Multiple)), option.Label, RoleBody, width) {
+		for _, segs := range hang(seg(RoleBody, "  ").join(mark(option.Selected, n.Multiple)), option.Label, role, width) {
 			lines = append(lines, line{segs: segs, at: Target{Option: i + 1}})
 		}
 	}
