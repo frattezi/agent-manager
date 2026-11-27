@@ -87,7 +87,7 @@ func TestTheCardOpensOnTheFirstQuestionWithItsRecommendationChosen(t *testing.T)
 		t.Fatalf("focus = %+v", card.Focus())
 	}
 	view := card.View(h, "")
-	for _, want := range []string{"alpha is asking", "› 1. Which package owns the A2UI format?", "(*) internal/ui/a2ui", "(*) A named cap"} {
+	for _, want := range []string{"alpha is asking", "  1. Which package owns the A2UI format?", "(*) internal/ui/a2ui", "(*) A named cap"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("missing %q in\n%s", want, view)
 		}
@@ -188,7 +188,7 @@ func TestAComponentThisBuildCannotDrawOpensAsALabelledGap(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := &fakeHost{cols: 100, rows: 40}
-	if view := card.View(h, ""); !strings.Contains(view, `[skipped Chart "chart": not in the subset this build`) || !strings.Contains(view, "› Why?") {
+	if view := card.View(h, ""); !strings.Contains(view, `[skipped Chart "chart": not in the subset this build`) || !strings.Contains(view, "  Why?") {
 		t.Fatalf("view:\n%s", view)
 	}
 }
@@ -210,7 +210,7 @@ func TestATallRoundFollowsTheFocusAndScrolls(t *testing.T) {
 	}
 	press(card, h, tab, tab)
 	card.View(h, "")
-	if !strings.Contains(h.body, "› Anything the choices") {
+	if !strings.Contains(h.body, "Anything the choices") {
 		t.Fatalf("the focused field is off the card:\n%s", h.body)
 	}
 	card.Wheel(h, tea.KeyMsg{Type: tea.KeyUp})

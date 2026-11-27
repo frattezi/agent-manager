@@ -291,7 +291,7 @@ func (c *Card) hints() [][2]string {
 func (c *Card) View(h surface.Host, _ string) string {
 	width, inner, rows := c.size(h)
 	lines, _ := a2ui.RenderForm(c.doc, inner, c.focus)
-	window := presentation.Window(a2ui.Texts(lines), rows, clampOffset(c.offset, len(lines), rows), uitheme.SubtleStyle(), c.root.GlyphMode())
+	window := presentation.Window(paint(lines), rows, clampOffset(c.offset, len(lines), rows), uitheme.SubtleStyle(), c.root.GlyphMode())
 	return h.CardSized(width, presentation.EscapeControlsInline(c.name)+" is asking", strings.Join(window, "\n"), c.hints())
 }
 

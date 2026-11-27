@@ -7,11 +7,16 @@ import (
 )
 
 // describe names each segment of a line by its role, in order, so a test
-// reads what the text is and never how it is painted.
+// reads what the text is and never how it is painted. A segment of the
+// focused control is marked with a leading *.
 func describe(l Line) string {
 	parts := make([]string, len(l))
 	for i, s := range l {
-		parts[i] = fmt.Sprintf("%s%q", s.Role, s.Text)
+		fill := ""
+		if s.Filled {
+			fill = "*"
+		}
+		parts[i] = fmt.Sprintf("%s%s%q", fill, s.Role, s.Text)
 	}
 	return strings.Join(parts, " ")
 }
@@ -84,8 +89,8 @@ func TestRenderFormGivesARoundItsRoles(t *testing.T) {
 		`rule"│ " body"    ( ) All of them` + pad(37) + `" rule" │"`,
 		`rule"│ " body"    ( ) A Settings row` + pad(34) + `" rule" │"`,
 		`rule"│ ` + strings.Repeat("─", 56) + ` │"`,
-		`rule"│ " focused"› " label"Anything the choices do not cover" body"` + pad(21) + `" rule" │"`,
-		`rule"│ " body"  " muted"> " focused"_" body"` + pad(51) + `" rule" │"`,
+		`rule"│ " *body"  " *label"Anything the choices do not cover" *body"` + pad(21) + `" rule" │"`,
+		`rule"│ " *body"  " *muted"> " *focused"_" *body"` + pad(51) + `" rule" │"`,
 		`rule"│ " accent"[ Send answers ]" body"` + pad(40) + `" rule" │"`,
 		`rule"+` + rule + `+"`,
 	})
@@ -95,8 +100,8 @@ func TestAFocusedValueCarriesItsCaret(t *testing.T) {
 	doc := parse(t, `{"id":"root","component":"TextField","label":"Name","value":"Ada"}`)
 	lines, _ := RenderForm(doc, 30, Focus{Field: 1})
 	assertLines(t, lines, []string{
-		`focused"› " label"Name"`,
-		`body"  " muted"> " value"Ada" focused"_"`,
+		`*body"  " *label"Name" *body"` + pad(24) + `"`,
+		`*body"  " *muted"> " *value"Ada" *focused"_" *body"` + pad(22) + `"`,
 	})
 	lines, _ = RenderForm(doc, 30, Focus{})
 	assertLines(t, lines, []string{
@@ -105,18 +110,47 @@ func TestAFocusedValueCarriesItsCaret(t *testing.T) {
 	})
 }
 
-// A multiple choice keeps the option under the cursor apart from the ones
-// that are selected.
+// A choice keeps the option under the cursor apart from the ones that are
+// selected, and both apart from the rest.
 func TestTheCursorOptionIsFocusedAndTheChosenOnesSelected(t *testing.T) {
 	doc := parse(t, `{"id":"root","component":"Column","children":["tools"]},
 		{"id":"tools","component":"ChoicePicker","label":"Tools","variant":"multipleSelection",
-		"options":[{"label":"claude","value":"claude"},{"label":"codex","value":"codex"}],"value":["claude"]}`)
+		"options":[{"label":"claude","value":"claude"},{"label":"codex","value":"codex"},{"label":"gemini","value":"gemini"}],"value":["claude"]}`)
 	lines, _ := RenderForm(doc, 30, Focus{Field: 1, Option: 2})
 	assertLines(t, lines, []string{
-		`focused"› " label"Tools"`,
-		`body"    " selected"[x] " body"claude"`,
-		`body"  " focused"› " body"[ ] codex"`,
+		`*body"  " *label"Tools" *body"` + pad(23) + `"`,
+		`*body"    " *selected"[x] " *body"claude` + pad(16) + `"`,
+		`*body"    [ ] " *focused"codex" *body"` + pad(17) + `"`,
+		`*body"    [ ] gemini` + pad(16) + `"`,
 	})
+}
+
+// A single choice puts its cursor on the chosen option, which then reads
+// as both.
+func TestASingleChoiceCursorSitsOnTheChosenOption(t *testing.T) {
+	doc := parse(t, `{"id":"root","component":"ChoicePicker","label":"Pick","variant":"mutuallyExclusive",
+		"options":[{"label":"one","value":"one"},{"label":"two","value":"two"}],"value":["two"]}`)
+	lines, _ := RenderForm(doc, 20, Focus{Field: 1, Option: 2})
+	assertLines(t, lines, []string{
+		`*body"  " *label"Pick" *body"` + pad(14) + `"`,
+		`*body"    ( ) one` + pad(9) + `"`,
+		`*body"    " *selected"(*) " *focused"two" *body"` + pad(9) + `"`,
+	})
+}
+
+// Only the focused field is filled, and no line carries a gutter mark.
+func TestOnlyTheFocusedFieldIsFilled(t *testing.T) {
+	lines, targets := RenderForm(fixture(t, "round"), 60, Focus{Field: 2, Option: 1})
+	for i, l := range lines {
+		for _, s := range l {
+			if s.Role != RoleRule && s.Filled != (targets[i].Field == 2) {
+				t.Errorf("line %d segment %s%q filled=%v", i, s.Role, s.Text, s.Filled)
+			}
+			if strings.Contains(s.Text, "›") {
+				t.Errorf("line %d carries a gutter mark: %q", i, l.Text())
+			}
+		}
+	}
 }
 
 func TestACheckBoxSetsItsMarkBesideItsLabel(t *testing.T) {

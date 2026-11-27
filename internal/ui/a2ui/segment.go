@@ -54,10 +54,12 @@ func variantRole(n Node, fallback Role) Role {
 	return fallback
 }
 
-// Segment is a run of text on one line that carries one role.
+// Segment is a run of text on one line that carries one role. Filled says
+// it belongs to the control the focus is on, which is drawn as one block.
 type Segment struct {
-	Text string
-	Role Role
+	Text   string
+	Role   Role
+	Filled bool
 }
 
 // Line is one drawn row, its segments in reading order.
@@ -99,7 +101,7 @@ func (l Line) add(role Role, text string) Line {
 	}
 	out := make(Line, len(l), len(l)+1)
 	copy(out, l)
-	if n := len(out); n > 0 && out[n-1].Role == role {
+	if n := len(out); n > 0 && out[n-1].Role == role && !out[n-1].Filled {
 		out[n-1].Text += text
 		return out
 	}
@@ -108,9 +110,22 @@ func (l Line) add(role Role, text string) Line {
 
 func (l Line) join(other Line) Line {
 	for _, s := range other {
+		if s.Filled {
+			l = append(l[:len(l):len(l)], s)
+			continue
+		}
 		l = l.add(s.Role, s.Text)
 	}
 	return l
+}
+
+// filled marks every segment of the line as part of the focused control.
+func (l Line) filled() Line {
+	out := append(Line(nil), l...)
+	for i := range out {
+		out[i].Filled = true
+	}
+	return out
 }
 
 func (l Line) padRight(width int) Line {
@@ -121,6 +136,9 @@ func (l Line) trimRight() Line {
 	out := append(Line(nil), l...)
 	for len(out) > 0 {
 		last := &out[len(out)-1]
+		if last.Filled {
+			break
+		}
 		last.Text = strings.TrimRight(last.Text, " ")
 		if last.Text != "" {
 			break
