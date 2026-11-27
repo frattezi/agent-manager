@@ -6,6 +6,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/systheme"
+	uibots "github.com/YoanWai/agent-manager/internal/ui/bots"
 	uieffects "github.com/YoanWai/agent-manager/internal/ui/effects"
 	uiframe "github.com/YoanWai/agent-manager/internal/ui/frame"
 	uinotices "github.com/YoanWai/agent-manager/internal/ui/notices"
@@ -21,16 +22,22 @@ import (
 
 // SettingSpecs is every key Settings writes and the values each takes, so
 // the shell checks a value against the same choices the modal steps
-// through. A key with no row is one the shell alone sets.
+// through. A key with no row is one the shell alone sets. The fields of a
+// Bot Profile follow, marked Bot, since they live on the Profile's row.
 func SettingSpecs() ([]store.SettingSpec, error) {
 	cfg, err := config.Default()
 	if err != nil {
 		return nil, err
 	}
-	specs := uisettings.Specs(cfg.AgentToolNames())
-	out := make([]store.SettingSpec, len(specs))
-	for i, spec := range specs {
-		out[i] = store.SettingSpec(spec)
+	tools := cfg.AgentToolNames()
+	specs := uisettings.Specs(tools)
+	profile := uibots.Specs(tools, len(uitheme.Current().Swatches()))
+	out := make([]store.SettingSpec, 0, len(specs)+len(profile))
+	for _, spec := range specs {
+		out = append(out, store.SettingSpec{Key: spec.Key, Values: spec.Values, Default: spec.Default, List: spec.List, Row: spec.Row})
+	}
+	for _, spec := range profile {
+		out = append(out, store.SettingSpec{Key: spec.Key, Values: spec.Values, Default: spec.Default, Bot: true})
 	}
 	return out, nil
 }

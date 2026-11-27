@@ -17,6 +17,9 @@ type SettingSpec struct {
 	// Row is the label of the Settings row that steps this key, empty for a
 	// key the shell alone sets.
 	Row string
+	// Bot marks a field of a Bot Profile: it is stored on the Profile's
+	// row, never in the settings table.
+	Bot bool
 }
 
 // Check reports whether value is one the key takes. A key with no Values
