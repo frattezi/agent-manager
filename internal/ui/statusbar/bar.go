@@ -156,7 +156,7 @@ func Toast(text string, room int, tones Tones, mode presentation.GlyphMode) []st
 	edge := tones.Border.Render("│")
 	g := presentation.ChromeFor(mode)
 	rows := []string{paint(tones.Border.Render(g.TopLeftGlyph+strings.Repeat("─", width-2)+g.TopRightGlyph), width, tones.Fill)}
-	for _, line := range strings.Split(ansi.Wordwrap(text, inner, ""), "\n") {
+	for _, line := range strings.Split(ansi.Wrap(text, inner, ""), "\n") {
 		rows = append(rows, paint(edge+" "+presentation.PadRight(line, inner)+" "+edge, width, tones.Fill))
 	}
 	return append(rows, paint(tones.Border.Render(g.BottomLeftGlyph+strings.Repeat("─", width-2)+g.BottomRightGlyph), width, tones.Fill))

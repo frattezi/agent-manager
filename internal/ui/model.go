@@ -8,6 +8,7 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/execution"
+	"github.com/YoanWai/agent-manager/internal/fractoryhome"
 	"github.com/YoanWai/agent-manager/internal/git"
 	"github.com/YoanWai/agent-manager/internal/hooks"
 	"github.com/YoanWai/agent-manager/internal/lifecyclehook"
@@ -122,6 +123,9 @@ type mouseCapture struct {
 type environment struct {
 	workDir string
 	homeDir string
+	// factoryDir is the Fractory home, where a Bot's Specialization is
+	// looked up before the owner's global skills.
+	factoryDir string
 	// scheme is the light or dark side the terminal last reported, unknown
 	// until a report arrives.
 	scheme systheme.Scheme
@@ -202,8 +206,9 @@ func newView(deps Dependencies, version string) (*Model, error) {
 		poller:  &poller{runner: deps.Execution},
 		layout:  layoutState{split: uigeometry.Gesture{Ratio: uigeometrypanes.Load(st)}},
 		env: environment{
-			workDir: uilaunch.InitialWorkingDir(),
-			homeDir: uilaunch.InitialHomeDir(),
+			workDir:    uilaunch.InitialWorkingDir(),
+			homeDir:    uilaunch.InitialHomeDir(),
+			factoryDir: fractoryhome.Dir(),
 		},
 		release: uirelease.New(st, version),
 		services: services{

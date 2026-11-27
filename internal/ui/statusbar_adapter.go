@@ -2,7 +2,9 @@ package ui
 
 import (
 	"strings"
+	"time"
 
+	"github.com/YoanWai/agent-manager/internal/config"
 	uiframe "github.com/YoanWai/agent-manager/internal/ui/frame"
 	uistatusbar "github.com/YoanWai/agent-manager/internal/ui/statusbar"
 	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
@@ -10,13 +12,19 @@ import (
 )
 
 // errBar is what the manager last put on the status bar: the text, the run
-// that named it an outcome or a warning, and the poll baseline that ages it
-// out. Only reportDone and reportWarn set those runs; any later text alone
+// that named it an outcome or a warning, and when a poll first saw it, which
+// ages it out. Only reportDone and reportWarn set those runs; any later text alone
 // leaves them behind, so a message says it worked or reads as a failure.
 type errBar struct {
 	text, done, warn, shown string
-	age                     int
+	since                   time.Time
 }
+
+// errorLifetime is how long a message stays up. It is a duration rather
+// than a count of polls because a finished effect asks for a pass of its
+// own: counted in passes, a message raised while the lane is busy came down
+// before it could be read.
+const errorLifetime = 2 * config.PollInterval
 
 func (e errBar) kind() uistatusbar.Kind {
 	switch {
@@ -46,20 +54,18 @@ func (m *Model) reportWarn(text string) { m.errBar = errBar{text: text, warn: te
 
 type errMsg struct{ err error }
 
-// ageError counts one poll against the message. Text that just changed
-// starts over, and text that survived two ticks clears, so a transient
-// message self-dismisses without a timer per callsite.
-func (m *Model) ageError() {
+// ageError holds the message against a poll that lands at now. Text that
+// just changed starts its lifetime, and text up for errorLifetime clears, so
+// a transient message self-dismisses without a timer per callsite.
+func (m *Model) ageError(now time.Time) {
 	e := &m.errBar
 	switch {
 	case e.text == "":
 		*e = errBar{}
 	case e.text != e.shown:
-		e.shown, e.age = e.text, 0
-	default:
-		if e.age++; e.age >= 2 {
-			*e = errBar{}
-		}
+		e.shown, e.since = e.text, now
+	case now.Sub(e.since) >= errorLifetime:
+		*e = errBar{}
 	}
 }
 

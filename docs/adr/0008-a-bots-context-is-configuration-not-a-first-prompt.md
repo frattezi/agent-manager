@@ -52,9 +52,10 @@ release.
 
 **The flag is a field on the tool definition, not a literal in the Bots package.**
 `--append-system-prompt-file` is Claude Code's spelling; another CLI spells it
-differently or not at all. The capability is declared per tool in
-`internal/config/builtin.go`, set for every CLI that has one, and a CLI without
-it starts its Bot unspecialized rather than failing. Hardcoding the Claude flag
+differently or not at all. The capability is declared per tool as
+`append_system_prompt_flag` in `internal/config/builtin.go`, set for every CLI
+that has one, and a CLI without it starts its Bot unspecialized rather than
+failing. Hardcoding the Claude flag
 would break both the Thin Wrapper Principle and the every-tool rule in
 [AGENTS.md](../../AGENTS.md).
 
@@ -82,9 +83,10 @@ The cost is that specializing a Bot now depends on a capability of the CLI it
 runs, where a first prompt worked on anything that reads stdin. That is the
 honest trade: the previous mechanism worked everywhere and guaranteed nothing.
 
-A skill file is read as a system prompt, so its YAML frontmatter travels with it
-unless stripped. Whether to strip it is an implementation question, not a
-decision this record settles.
+A skill file is read as a system prompt, so its YAML frontmatter travels with
+it. It is not stripped: stripping means writing a copy somewhere, which stops the
+Bot following the file in git and leaves something that can be gone before a
+revive. The frontmatter is a name and a description, harmless as text.
 
 This reverses only the delivery. Where a Specialization lives — a committed,
 versioned skill in Fractory rather than text in a configuration field — is

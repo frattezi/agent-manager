@@ -317,7 +317,7 @@ func (m *Model) routeRefreshMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			m.requestRefresh()
 		}
 		m.startup.Booting = false
-		m.ageError()
+		m.ageError(time.Now())
 		if msg.followWarning != "" {
 			m.reportWarn(msg.followWarning)
 		}
