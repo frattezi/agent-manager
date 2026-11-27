@@ -16,8 +16,9 @@ import (
 	"github.com/YoanWai/agent-manager/internal/ui/pathcomplete"
 )
 
-// Kind says which surface asked for the spawn: the form, the quick bar, or
-// the terminal key, which opens a shell with no prompt of its own.
+// Kind says which surface asked for the spawn: the form, the quick bar, the
+// terminal key, which opens a shell with no prompt of its own, the setup
+// import, or a Debug Session on an Automation firing.
 type Kind uint8
 
 const (
@@ -25,6 +26,7 @@ const (
 	Quick
 	Shell
 	Import
+	Debug
 )
 
 // Request captures everything a spawn needs at dispatch time, so the worker

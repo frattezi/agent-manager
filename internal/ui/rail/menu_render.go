@@ -101,6 +101,8 @@ func (r renderer) menuGlyph(action ActionKind) string {
 		binding = keybind.EnableToggle
 	case RunNow:
 		binding = keybind.RunNow
+	case DebugSession:
+		binding = keybind.DebugSession
 	case Fork:
 		binding = keybind.Fork
 	case Revive:

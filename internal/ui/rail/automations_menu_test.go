@@ -74,3 +74,26 @@ func TestAutomationKeysAimAtAnAutomationRowOnly(t *testing.T) {
 		t.Errorf("! on an Automation = %+v", got)
 	}
 }
+
+func TestDebugSessionAimsAtAFiringRowAndIsInItsMenu(t *testing.T) {
+	model := New(nil)
+	model.Reconcile(Snapshot{
+		Sessions:    []Session{{ID: "one", Name: "one"}},
+		Automations: []Automation{{ID: "on", Name: "on", Mode: "work", Enabled: true, Firings: []Firing{{ID: "f1", When: "Nov 23 07:00", Status: "done", Outcome: "done"}}}},
+	})
+	keys := KeyContext{ListKeys: keybind.DefaultList()}
+	press := func(msg tea.KeyMsg) Intent { return model.Key(msg, Frame{}, keys).Intent }
+	model.Focus(Selection{Kind: AutomationRow, Automation: "on"})
+	if got := press(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("D")}); got.Kind != NoAction {
+		t.Errorf("D on an Automation = %+v; want nothing", got)
+	}
+	model.Key(tea.KeyMsg{Type: tea.KeyEnter}, Frame{}, keys)
+	firing := Selection{Kind: FiringRow, Automation: "on", Firing: "f1"}
+	model.Focus(firing)
+	if got := press(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("D")}); got != (Intent{Kind: DebugSession, Target: firing}) {
+		t.Errorf("D on a firing = %+v", got)
+	}
+	if got := menuLabels(model, firing); !slices.Equal(got, []string{"Open log", "Debug session"}) {
+		t.Errorf("firing menu = %v", got)
+	}
+}

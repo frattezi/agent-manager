@@ -512,7 +512,7 @@ func (m *Model) commitSpawn(request uilaunch.Request, sess store.Session) {
 	if request.AutoNamed {
 		m.ledger.lifecycle.AwaitRename(sess.ID, sess.Name, request.Prompt)
 	}
-	if request.Kind != uilaunch.Shell && request.Kind != uilaunch.Import {
+	if request.Kind != uilaunch.Shell && request.Kind != uilaunch.Import && request.Kind != uilaunch.Debug {
 		m.ledger.spawner.RememberSpawn(request.ToolName, request.PickWorktree)
 		spawn.RememberModel(m.spawnHost(), request.ToolName, spawn.Pick(request.Choice))
 		// The pick is the Settings default from now on, so the next form,
@@ -536,7 +536,7 @@ func (m *Model) commitSpawn(request uilaunch.Request, sess store.Session) {
 		if q, ok := m.quickFor(request.ComposerGen); ok {
 			m.clearAccepted(request.ComposerGen, request.Draft, q.CloseAfterSend)
 		}
-	case uilaunch.Import:
+	case uilaunch.Import, uilaunch.Debug:
 		reveal = m.base == baseList && !m.focused() && !m.cardOpen()
 	}
 	m.rebuildRows()

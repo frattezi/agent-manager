@@ -101,6 +101,8 @@ const (
 	// ToggleEnabled enables a disabled Automation and disables an enabled one.
 	ToggleEnabled
 	RunNow
+	// DebugSession opens a Debug Session on a finished Automation firing.
+	DebugSession
 )
 
 type Intent struct {

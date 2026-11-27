@@ -61,7 +61,7 @@ func (m Model) rowMenuItems(row treeRow) []menuItem {
 	case AutomationRow:
 		return automationMenuItems(row.auto, m.rowFolded(row))
 	case FiringRow:
-		return []menuItem{{label: "Open log", action: Attach}}
+		return []menuItem{{label: "Open log", action: Attach}, {label: "Debug session", action: DebugSession}}
 	}
 	editor := menuItem{label: "Open in editor", action: OpenEditor}
 	manage := []menuItem{editor, {label: "Rename", action: RenameAction}, {label: "Move to group", action: MoveToGroup}}
@@ -283,6 +283,8 @@ func actionKind(action string) ActionKind {
 		return ToggleEnabled
 	case keybind.RunNow:
 		return RunNow
+	case keybind.DebugSession:
+		return DebugSession
 	case keybind.Fork:
 		return Fork
 	case keybind.Revive:
