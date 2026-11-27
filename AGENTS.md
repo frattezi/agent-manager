@@ -39,11 +39,16 @@ beside or over the conversation; nothing is drawn inside a session's pane, which
 belongs to the CLI.
 
 - **A2UI is the format, not a library.** We render the subset our surfaces use with
-  the lipgloss and bubbles already in `go.mod`. `a2tea` renders the same format but
-  needs Bubble Tea v2, which this fork does not run; adopting it is deferred until
-  upstream moves to v2, or a feature is visibly held back by the subset, or the fork
-  breaks from upstream for a reason of its own. Because the contract is the format,
-  that swap deletes a renderer and changes no surface.
+  the lipgloss and bubbles already in `go.mod`, and a surface looks like the rest of
+  the manager: themed border, a title that reads as one, muted secondary text, the
+  focused control filled rather than marked in a gutter. `a2tea` renders the same
+  format for hosts that are not us, which is the point of choosing a format; we do
+  not adopt it, because it has no editable inputs or data-model bindings and every
+  surface here is a form ([ADR 0007](docs/adr/0007-agent-authored-surfaces-are-a2ui.md)).
+- **An agent cannot use what it was never told about.** A capability only exists once
+  the MCP server's instructions, the tool descriptions and the skills that ask
+  questions all say a question can be a form. Adding a surface feature includes
+  saying so where an agent will read it.
 - **Agent-authored only.** The Runs rail, the Tickets view and Automations are
   computed from files on disk and stay plain Go. A view a model renders is one that
   costs tokens to repaint, cannot be tested on its output, and breaks with no agent
