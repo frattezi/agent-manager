@@ -95,7 +95,8 @@ func (c *Card) move(delta int) {
 	if len(c.fields) == 0 {
 		return
 	}
-	c.focusField(min(max(c.focus.Field+delta, 1), len(c.fields)))
+	n := len(c.fields)
+	c.focusField(((c.focus.Field-1+delta)%n+n)%n + 1)
 }
 
 // step moves a choice: a single choice moves what is chosen, a multiple
@@ -221,6 +222,7 @@ func (c *Card) Click(h surface.Host, line int) tea.Cmd {
 	case f.Type == "CheckBox":
 		f.Checked = !f.Checked
 	}
+	c.follow(h)
 	return nil
 }
 
@@ -238,24 +240,32 @@ func (c *Card) Wheel(h surface.Host, arrow tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-// follow scrolls the window just far enough to show the focused field.
+// follow scrolls the window just far enough to show the whole focused
+// field. A field taller than the card shows the end of it, where a text
+// field takes what is typed, or the choice under the cursor.
 func (c *Card) follow(h surface.Host) {
 	_, inner, rows := c.size(h)
 	_, targets := c.render(inner)
-	first, last := -1, -1
+	first, last, cursor := -1, -1, -1
 	for i, t := range targets {
 		if t.Field == c.focus.Field && c.focus.Field != 0 {
 			if first < 0 {
 				first = i
 			}
 			last = i
+			if t.Option != 0 && t.Option == c.focus.Option {
+				cursor = i
+			}
 		}
 	}
-	if first >= 0 {
-		c.offset = presentation.Follow(c.offset, last, len(targets), rows)
-		c.offset = presentation.Follow(c.offset, first, len(targets), rows)
+	if first < 0 {
+		c.offset = clampOffset(c.offset, len(targets), rows)
+		return
 	}
-	c.offset = clampOffset(c.offset, len(targets), rows)
+	c.offset = presentation.Reveal(c.offset, first, last, len(targets), rows)
+	if top, bottom := presentation.Shown(c.offset, len(targets), rows); cursor >= 0 && (cursor < top || cursor > bottom) {
+		c.offset = presentation.Reveal(c.offset, cursor, cursor, len(targets), rows)
+	}
 }
 
 // render draws the round at width in the glyph mode the owner chose.
