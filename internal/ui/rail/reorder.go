@@ -24,6 +24,9 @@ func (m *Model) requestReorder(delta int) Decision {
 	if row.isAutomation() {
 		return Decision{Consumed: true, Error: "Automations keep their own order"}
 	}
+	if row.isBots() {
+		return Decision{Consumed: true, Error: "Bots keep their own order"}
+	}
 	request, ok := m.swapRequest(row, delta)
 	if !ok {
 		edge, what := "top", "group"
@@ -298,7 +301,7 @@ func (m Model) resolveDrop(target Selection) (dropTarget, bool) {
 		return dropTarget{}, false
 	}
 	lifted, targetRow := m.rows[liftedIndex], m.rows[targetIndex]
-	if lifted.host != "" || targetRow.host != "" || targetRow.isRun() || targetRow.isAutomation() {
+	if lifted.host != "" || targetRow.host != "" || targetRow.isRun() || targetRow.isAutomation() || lifted.isBots() || targetRow.isBots() {
 		return dropTarget{}, false
 	}
 	if lifted.kind == GroupRow {

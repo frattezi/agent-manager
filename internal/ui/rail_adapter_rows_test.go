@@ -301,7 +301,7 @@ func TestUnlistedParentsLeaveChildrenInStoreOrder(t *testing.T) {
 	m.applyCmd(t, m.refreshCmd())
 	var names []string
 	for _, row := range railRows(m) {
-		if !row.isGroup {
+		if !row.isGroup && row.sess.ID != "" {
 			names = append(names, row.sess.Name)
 			if row.depth != 1 {
 				t.Fatalf("%s painted nested: depth %d", row.sess.Name, row.depth)

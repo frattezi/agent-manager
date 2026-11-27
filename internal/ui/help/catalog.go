@@ -168,6 +168,16 @@ func automationRowHelpRows(list keybind.Table, mode presentation.GlyphMode) [][2
 	return h.rows
 }
 
+func botRowHelpRows(list keybind.Table, mode presentation.GlyphMode) [][2]string {
+	h := helpRows{list: list, mode: mode}
+	h.action("fold the Bots header, show or hide a Profile's live Bots", keybind.Open)
+	h.fixed("click "+presentation.GlyphsFor(mode).GroupOpenGlyph, "on the header or a Profile, fold or unfold it")
+	h.fixed("", "a live Bot is a session row: every session key works on it")
+	h.fixed("", "Profiles are made and edited from a shell: agent-manager bots")
+	h.fixed("", "each is in the row menu too")
+	return h.rows
+}
+
 // helpSections is the catalog for one setting of the arrow-step pair: off,
 // the rows that pair would answer are left out rather than named as dead.
 func helpSections(ctx Context) []helpSection {
@@ -180,6 +190,7 @@ func helpSections(ctx Context) []helpSection {
 		{title: "group under the cursor", rows: groupRowHelpRows(list, mode)},
 		{title: "SSH connection under the cursor", rows: connectionRowHelpRows(list, mode)},
 		{title: "Automation under the cursor", rows: automationRowHelpRows(list, mode)},
+		{title: "Bot Profile under the cursor", rows: botRowHelpRows(list, mode)},
 		{title: titledWith("quick prompt mode", list, mode, keybind.Prompt), rows: [][2]string{
 			{"↵", "send"},
 			{presentation.NavigationLabel(mode, "↑↓"), "switch the target session, or step the caret in a taller prompt"},

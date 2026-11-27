@@ -360,3 +360,23 @@ func TestCatalogNamesTheRunAnswerKey(t *testing.T) {
 	}
 	t.Fatal("the key map does not name the key that answers a needs-human Run")
 }
+
+func TestCatalogNamesEveryBotsKeyAndClick(t *testing.T) {
+	ctx := testContext(84)
+	rows := map[string]string{}
+	for _, section := range helpSections(ctx) {
+		if section.title != "Bot Profile under the cursor" {
+			continue
+		}
+		for _, row := range section.rows {
+			rows[row[0]] = row[1]
+		}
+	}
+	open := ctx.ListKeys.Binding(keybind.Open).Keys()[0].Glyph()
+	if !strings.Contains(rows[open], "Profile's live Bots") {
+		t.Errorf("the fold key on a Profile is missing: %v", rows)
+	}
+	if click := "click " + presentation.GlyphsFor(ctx.Glyphs.Mode).GroupOpenGlyph; !strings.Contains(rows[click], "fold or unfold") {
+		t.Errorf("the fold mark's click is missing: %v", rows)
+	}
+}

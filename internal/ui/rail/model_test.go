@@ -140,7 +140,7 @@ func TestReconcileCopiesSnapshotValues(t *testing.T) {
 	snapshot.Sessions[0].Name = "after"
 
 	rows := model.Rows()
-	if len(rows) != 2 || rows[1].Name != "before" {
+	if len(rows) != 3 || rows[1].Name != "before" {
 		t.Fatalf("rows = %+v; want copied session name", rows)
 	}
 }

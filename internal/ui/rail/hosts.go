@@ -80,6 +80,10 @@ func (m Model) rowFolded(row treeRow) bool {
 		return m.hostFolds[AutomationsFold]
 	case AutomationRow:
 		return !m.openAutomations[row.auto.ID]
+	case BotsRow:
+		return m.hostFolds[BotsFold]
+	case BotProfileRow:
+		return !m.openProfiles[row.bot.ID]
 	}
 	return m.folded(row.host, row.foldPath())
 }
@@ -97,6 +101,16 @@ func (m *Model) setRowFolded(row treeRow, folded bool) {
 			delete(m.openAutomations, row.auto.ID)
 		} else {
 			m.openAutomations[row.auto.ID] = true
+		}
+		return
+	case BotsRow:
+		m.hostFolds[BotsFold] = folded
+		return
+	case BotProfileRow:
+		if folded {
+			delete(m.openProfiles, row.bot.ID)
+		} else {
+			m.openProfiles[row.bot.ID] = true
 		}
 		return
 	}
@@ -174,7 +188,7 @@ func (m *Model) ForgetHost(name string) Decision {
 
 func (m *Model) RestoreHostFolds(folds []HostFold) {
 	for _, fold := range folds {
-		if fold.Host != "" || fold == RunsFold || fold == AutomationsFold {
+		if fold.Host != "" || fold == RunsFold || fold == AutomationsFold || fold == BotsFold {
 			m.hostFolds[fold] = true
 		}
 	}
@@ -188,6 +202,10 @@ func (m Model) SelectionCollapsed(selection Selection) bool {
 		return m.hostFolds[AutomationsFold]
 	case AutomationRow:
 		return !m.openAutomations[selection.Automation]
+	case BotsRow:
+		return m.hostFolds[BotsFold]
+	case BotProfileRow:
+		return !m.openProfiles[selection.Profile]
 	}
 	return m.folded(selection.Host, selection.Group)
 }
