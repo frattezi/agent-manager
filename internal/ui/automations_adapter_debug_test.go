@@ -77,7 +77,7 @@ func TestDebugSessionOnAFinishedFiringSpawnsUnderANewProjectGroup(t *testing.T) 
 	if want := "debug-weekly-report-" + firedFor.Format("20060102-1504"); spawn.Name != want {
 		t.Fatalf("name = %q; want %q", spawn.Name, want)
 	}
-	for _, want := range []string{`"weekly report"`, firedFor.Format(time.RFC3339), "outcome was done", `"/logs/report old.log"`, `"/wt/run-old"`} {
+	for _, want := range []string{`"weekly report"`, firedFor.Format(time.RFC3339), "outcome was done", `"/logs/report old.log"`, `"/out/run-old"`} {
 		if !strings.Contains(spawn.Prompt, want) {
 			t.Fatalf("prompt lacks %q:\n%s", want, spawn.Prompt)
 		}
@@ -188,7 +188,7 @@ func TestDebugSessionFromTheRowMenuOpensInTheRepository(t *testing.T) {
 	if sess.Group != "books" || sess.Cwd != repo || sess.Name != "debug-reconcile-20261123-0700" {
 		t.Fatalf("session = %+v", sess)
 	}
-	for _, want := range []string{`"reconcile"`, "outcome was failed (status done)", `"` + logPath + `"`, `"/wt/recon-1"`} {
+	for _, want := range []string{`"reconcile"`, "outcome was failed (status done)", `"` + logPath + `"`, `"/out/recon-1"`} {
 		if !strings.Contains(sess.LaunchPrompt, want) {
 			t.Fatalf("launch prompt lacks %q:\n%s", want, sess.LaunchPrompt)
 		}

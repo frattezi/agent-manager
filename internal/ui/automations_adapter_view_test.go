@@ -46,7 +46,7 @@ func writeFiringRecord(t *testing.T, home, id, automation, status, outcome strin
 		return `"` + at.UTC().Format(time.RFC3339) + `"`
 	}
 	body := `{"version":1,"id":"` + id + `","automationId":"` + automation + `","firedFor":` + stamp(firedFor) + `,"status":"` + status +
-		`","startedAt":` + stamp(started) + `,"updatedAt":` + stamp(updated) + `,"logPath":"` + logPath + `","result":` + result + `,"worktreePath":"/wt/` + id + `"}`
+		`","startedAt":` + stamp(started) + `,"updatedAt":` + stamp(updated) + `,"logPath":"` + logPath + `","result":` + result + `,"outputPath":"/out/` + id + `"}`
 	if err := os.WriteFile(filepath.Join(dir, id+".json"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +262,7 @@ func TestEnterOnAnAutomationListsItsFiringsAndEnterOnAFiringOpensItsLog(t *testi
 	if footer := ansi.Strip(m.viewFooter()); !strings.Contains(footer, "open log") {
 		t.Fatalf("footer lacks the log key:\n%s", footer)
 	}
-	if text := detailText(t, m); !strings.Contains(text, "wrote the report") || !strings.Contains(text, "/wt/run-old") {
+	if text := detailText(t, m); !strings.Contains(text, "wrote the report") || !strings.Contains(text, "/out/run-old") {
 		t.Fatalf("firing detail:\n%s", text)
 	}
 	m.applyTestMsg(t, tea.KeyMsg{Type: tea.KeyEnter})

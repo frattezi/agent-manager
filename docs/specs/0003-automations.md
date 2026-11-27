@@ -55,7 +55,9 @@ A run's output is a file on disk. `Enter` on a run opens it in a log tab, tailed
 runs and readable long after it finished — the same tab the Runs view already uses. `D` on a
 finished run opens a Debug Session: a new chat session, in the Automation's repository and
 under that project's group, whose first prompt names the Automation, the instant it fired for,
-its outcome and the paths to its log and its worktree. The agent reads what it needs; nothing
+its outcome and the paths to its log and its output directory. The worktree is torn down when
+the firing ends; the output directory, which Fractory mounts into the container, stays on the
+host. The agent reads what it needs; nothing
 is pasted into the prompt.
 
 Every key has a click and every click has a key, and both appear in the footer and under `?`.
@@ -156,7 +158,7 @@ store.
 
 **Record contract, version 1.** Read-only, from `$FRACTORY_HOME/automation-runs/`:
 `version`, `id`, `automationId`, `firedFor`, `status`, `startedAt`, `updatedAt`, `logPath`,
-`result`, and the worktree path. Parsing refuses any other version and ignores unknown fields,
+`outputPath` (the firing's output directory), and `result`. Parsing refuses any other version and ignores unknown fields,
 so Fractory can extend the contract — the rule `internal/ui/runs` already follows for a Run
 record. Fractory owns the schema for all three contracts in its `src/contracts/`; the Go side
 mirrors them pinned to a version.

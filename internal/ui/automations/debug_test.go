@@ -9,22 +9,29 @@ import (
 	"time"
 )
 
-func debugFixture(t *testing.T) (Config, Record, string) {
+func debugFixture(t *testing.T) (Config, Record, string, string) {
 	t.Helper()
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "firing.log")
 	if err := os.WriteFile(logPath, []byte("SECRET-LOG-LINE: reconcile failed on row 42\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	outputPath := filepath.Join(dir, "output")
+	if err := os.MkdirAll(outputPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outputPath, "report.md"), []byte("SECRET-OUTPUT: the report\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	config := Config{Version: Version, ID: "recon", Name: "Weekly reconcile", Kind: KindAgent, RepoPath: "/src/books", Cron: "0 7 * * 1",
 		Timezone: "Europe/Lisbon", Mode: ModeWork, Tool: "claude", Entry: "prompts/reconcile.md", Retention: 3}
 	record := Record{Version: RecordVersion, ID: "run-1", AutomationID: "recon", FiredFor: time.Date(2026, 7, 6, 6, 0, 0, 0, time.UTC),
-		Status: "done", LogPath: logPath, WorktreePath: "/wt/recon-run-1", Result: &Result{Outcome: "failed", Summary: "SUMMARY-TEXT from the run"}}
-	return config, record, logPath
+		Status: "done", LogPath: logPath, OutputPath: outputPath, Result: &Result{Outcome: "failed", Summary: "SUMMARY-TEXT from the run"}}
+	return config, record, logPath, outputPath
 }
 
 func TestDebugSessionNamesTheFiringAndCarriesPathsNotContents(t *testing.T) {
-	config, record, logPath := debugFixture(t)
+	config, record, logPath, outputPath := debugFixture(t)
 	debug, err := DebugSession(config, record)
 	if err != nil {
 		t.Fatal(err)
@@ -35,12 +42,12 @@ func TestDebugSessionNamesTheFiringAndCarriesPathsNotContents(t *testing.T) {
 	if debug.Dir != "/src/books" {
 		t.Fatalf("dir = %q", debug.Dir)
 	}
-	for _, want := range []string{`"Weekly reconcile"`, "recon", "2026-07-06T07:00:00+01:00", "failed (status done)", `"` + logPath + `"`, `"/wt/recon-run-1"`, "prompts/reconcile.md"} {
+	for _, want := range []string{`"Weekly reconcile"`, "recon", "2026-07-06T07:00:00+01:00", "failed (status done)", `"` + logPath + `"`, `"` + outputPath + `"`, "output directory", "prompts/reconcile.md"} {
 		if !strings.Contains(debug.Prompt, want) {
 			t.Fatalf("prompt lacks %q:\n%s", want, debug.Prompt)
 		}
 	}
-	for _, pasted := range []string{"SECRET-LOG-LINE", "row 42", "SUMMARY-TEXT"} {
+	for _, pasted := range []string{"SECRET-LOG-LINE", "row 42", "SUMMARY-TEXT", "SECRET-OUTPUT", "worktree"} {
 		if strings.Contains(debug.Prompt, pasted) {
 			t.Fatalf("prompt pastes %q from the firing:\n%s", pasted, debug.Prompt)
 		}
@@ -48,22 +55,25 @@ func TestDebugSessionNamesTheFiringAndCarriesPathsNotContents(t *testing.T) {
 }
 
 func TestDebugSessionSaysWhatTheRecordLacks(t *testing.T) {
-	config, record, _ := debugFixture(t)
-	record.LogPath, record.WorktreePath, record.Result = "", "", nil
+	config, record, _, _ := debugFixture(t)
+	record.LogPath, record.OutputPath, record.Result = "", "", nil
 	record.Status = "failed"
 	debug, err := DebugSession(config, record)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"outcome was failed.", "names no log", "names no worktree"} {
+	for _, want := range []string{"outcome was failed.", "names no log", "names no output directory"} {
 		if !strings.Contains(debug.Prompt, want) {
 			t.Fatalf("prompt lacks %q:\n%s", want, debug.Prompt)
 		}
 	}
+	if strings.Contains(debug.Prompt, `""`) || strings.Contains(debug.Prompt, "worktree") {
+		t.Fatalf("prompt shows an empty path or a worktree:\n%s", debug.Prompt)
+	}
 }
 
 func TestDebugSessionRefusesAnUnfinishedFiring(t *testing.T) {
-	config, record, _ := debugFixture(t)
+	config, record, _, _ := debugFixture(t)
 	for _, status := range []string{StatusQueued, StatusRunning} {
 		record.Status = status
 		if _, err := DebugSession(config, record); !errors.Is(err, ErrUnfinished) {

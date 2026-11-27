@@ -254,7 +254,7 @@ func (m *Model) automationContentLines(width int) ([]contentLine, bool) {
 		}
 		add("Duration", firingDuration(record, now))
 		add("Log", record.LogPath)
-		add("Worktree", record.WorktreePath)
+		add("Output", record.OutputPath)
 		return lines, true
 	}
 	entry, ok := m.selectedAutomation()
