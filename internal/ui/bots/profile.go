@@ -5,6 +5,7 @@ package bots
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -124,7 +125,7 @@ func (p *Profile) Set(key, value string) error {
 	case ColorKey:
 		color, err := strconv.Atoi(value)
 		if err != nil {
-			return fmt.Errorf("%s takes a swatch index, not %q", key, value)
+			return refuse(key, "takes a swatch index, not %q", value)
 		}
 		p.Color = color
 	case ToolKey:
@@ -145,19 +146,50 @@ func (p *Profile) Set(key, value string) error {
 	return nil
 }
 
+// FieldError is a value a Profile field refused, so the dialog shows the
+// reason against the field and the shell names it.
+type FieldError struct {
+	Key    string
+	Reason string
+}
+
+func (e *FieldError) Error() string { return e.Key + " " + e.Reason }
+
+func refuse(key, format string, args ...any) error {
+	return &FieldError{Key: key, Reason: fmt.Sprintf(format, args...)}
+}
+
 // Admit refuses a Profile no Bot could start from, or text a row cannot
 // draw, naming the field.
 func (p Profile) Admit() error {
 	if p.Name == "" || utf8.RuneCountInString(p.Name) > 60 {
-		return fmt.Errorf("%s needs 1 to 60 characters", NameKey)
+		return refuse(NameKey, "needs 1 to 60 characters")
 	}
 	if p.Tool == "" {
-		return fmt.Errorf("%s is required: a Bot needs a CLI to run", ToolKey)
+		return refuse(ToolKey, "is required: a Bot needs a CLI to run")
 	}
 	for _, field := range Fields {
 		value := p.Get(field.Key)
 		if !utf8.ValidString(value) || strings.ContainsFunc(value, unicode.IsControl) {
-			return fmt.Errorf("%s cannot hold control characters", field.Key)
+			return refuse(field.Key, "cannot hold control characters")
+		}
+	}
+	return nil
+}
+
+// AdmitAmong is Admit, and refuses a field whose Spec lists the values it
+// takes when the Profile holds another: a CLI the manager does not know, or
+// a colour past the theme's swatches.
+func (p Profile) AdmitAmong(tools []string, swatches int) error {
+	if err := p.Admit(); err != nil {
+		return err
+	}
+	for _, spec := range Specs(tools, swatches) {
+		if spec.Values == nil {
+			continue
+		}
+		if value := p.Get(spec.Key); !slices.Contains(spec.Values, value) {
+			return refuse(spec.Key, "takes one of %s, not %q", strings.Join(spec.Values, ", "), value)
 		}
 	}
 	return nil

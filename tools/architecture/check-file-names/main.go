@@ -30,7 +30,7 @@ const uiRoot = "internal/ui"
 var packaged = map[string]string{
 	"a2ui":         "the Agent Surfaces format adapter: later the card that draws a published surface",
 	"automations":  "the Automations adapter: the poll, the rail rows, the detail column, the log tab and the Debug Session intent",
-	"bots":         "the Bots adapter: the Profiles' fields in SettingSpecs, and later the area, the dialog and the spawn",
+	"bots":         "the Bots adapter: the Profiles' fields in SettingSpecs, the area, the spawn, and the dialog with the store effect it saves through",
 	"composer":     "the prompt box adapter: which box a paste lands in, its painters and the pastes sweep",
 	"connections":  "the SSH connections adapter: the client, refreshes, remote rows, preview and routed actions, and their effects",
 	"dialogs":      "the confirm, rename, move, fork and New Group dialog adapters and their effects",
