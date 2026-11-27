@@ -188,6 +188,8 @@ func (m *Model) applyEffect(job *uieffects.Job, result uieffects.Result, err err
 		return m.applyAutomationRunNow(request, as[automations.RunNowResult](result), err)
 	case uibots.SaveRequest:
 		return m.applyBotSave(request, as[uibots.Profile](result), err)
+	case uibots.SpecializeRequest:
+		return m.applyBotSpecialize(request, as[string](result), err)
 	case uisurfaces.ReadRequest:
 		return m.applySurfacesRead(as[uisurfaces.Inbox](result), err)
 	case uisurfaces.AnswerRequest:

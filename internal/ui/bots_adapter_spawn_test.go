@@ -1,12 +1,15 @@
 package ui
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/tmux"
 	"github.com/YoanWai/agent-manager/internal/ui/bots"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	uilaunch "github.com/YoanWai/agent-manager/internal/ui/spawn/launch"
@@ -65,13 +68,104 @@ func TestSpawnBotOpensOneSessionOnTheProfile(t *testing.T) {
 	if bot.Choice.Model != "opus" || bot.Choice.Flags != "-u" {
 		t.Fatalf("Bot choice = %+v; want the Profile's model and flags", bot.Choice)
 	}
-	for _, want := range []string{"fractory-operator skill", `"fractory-ops"`} {
-		if !strings.Contains(bot.LaunchPrompt+strings.Join(bot.PendingInputs, "\n"), want) {
-			t.Fatalf("first prompt lacks %q: %q %q", want, bot.LaunchPrompt, bot.PendingInputs)
-		}
+	prompt := bot.LaunchPrompt + strings.Join(bot.PendingInputs, "\n")
+	if !strings.Contains(prompt, `"fractory-ops"`) || strings.Contains(prompt, "skill") {
+		t.Fatalf("first prompt = %q %q; want the memory and no skill", bot.LaunchPrompt, bot.PendingInputs)
 	}
 	if !botPaneRuns(t, m, bot.ID) {
 		t.Fatalf("no pane runs the Bot %s", bot.ID)
+	}
+}
+
+// specializingModel is a Model whose claude appends a file to its system
+// prompt, with the Fractory home and the owner's home in temp directories.
+func specializingModel(t *testing.T) (m *Model, factory, home string) {
+	t.Helper()
+	m = buildModel(t)
+	tool := m.services.cfg.Tools["claude"]
+	tool.AppendSystemPromptFlag = "--append-system-prompt-file"
+	m.services.cfg.Tools["claude"] = tool
+	m.env.factoryDir, m.env.homeDir = t.TempDir(), t.TempDir()
+	return m, m.env.factoryDir, m.env.homeDir
+}
+
+func writeSkill(t *testing.T, root, name string) string {
+	t.Helper()
+	path := filepath.Join(root, name, "SKILL.md")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("---\nname: "+name+"\n---\nWatch the Runs.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestSpawnBotPassesItsSpecializationAsASystemPromptFile(t *testing.T) {
+	t.Parallel()
+	m, factory, home := specializingModel(t)
+	writeSkill(t, filepath.Join(home, ".claude", "skills"), "fractory-operator")
+	want := writeSkill(t, filepath.Join(factory, ".agents", "skills"), "fractory-operator")
+	m.applyCmd(t, m.spawnBot(testBotProfile(t.TempDir())))
+	m.drainEffects(t)
+	spawned := liveBots(t, m, "p1")
+	if len(spawned) != 1 {
+		t.Fatalf("Bots of p1 = %+v; want one", spawned)
+	}
+	flags := "-u --append-system-prompt-file " + tmux.ShellQuote(want)
+	if got := spawned[0].Choice.Flags; got != flags {
+		t.Fatalf("launch flags = %q; want %q, the Fractory skill ahead of the global one", got, flags)
+	}
+	if !botPaneRuns(t, m, spawned[0].ID) {
+		t.Fatalf("no pane runs the Bot %s", spawned[0].ID)
+	}
+}
+
+func TestSpawnBotFallsBackToTheGlobalSkill(t *testing.T) {
+	t.Parallel()
+	m, _, home := specializingModel(t)
+	want := writeSkill(t, filepath.Join(home, ".claude", "skills"), "fractory-operator")
+	m.applyCmd(t, m.spawnBot(testBotProfile(t.TempDir())))
+	m.drainEffects(t)
+	spawned := liveBots(t, m, "p1")
+	if len(spawned) != 1 || !strings.HasSuffix(spawned[0].Choice.Flags, tmux.ShellQuote(want)) {
+		t.Fatalf("Bots of p1 = %+v; want one launched on %s", spawned, want)
+	}
+}
+
+func TestSpawnBotRefusesASpecializationWithNoSkillFile(t *testing.T) {
+	t.Parallel()
+	m, _, _ := specializingModel(t)
+	m.applyCmd(t, m.spawnBot(testBotProfile(t.TempDir())))
+	m.drainEffects(t)
+	if spawned := liveBots(t, m, "p1"); len(spawned) != 0 {
+		t.Fatalf("a Specialization with no skill started %+v", spawned)
+	}
+	for _, want := range []string{"Operator", "fractory-operator", "SKILL.md"} {
+		if !strings.Contains(m.errBar.text, want) {
+			t.Fatalf("status = %q; want %q named", m.errBar.text, want)
+		}
+	}
+}
+
+func TestSpawnBotAddsNoFlagWithoutASpecializationOrTheCapability(t *testing.T) {
+	t.Parallel()
+	m, factory, _ := specializingModel(t)
+	writeSkill(t, filepath.Join(factory, ".agents", "skills"), "fractory-operator")
+	plain := testBotProfile(t.TempDir())
+	plain.Specialization = ""
+	m.applyCmd(t, m.spawnBot(plain))
+	m.drainEffects(t)
+	incapable, _, _ := specializingModel(t)
+	tool := incapable.services.cfg.Tools["claude"]
+	tool.AppendSystemPromptFlag = ""
+	incapable.services.cfg.Tools["claude"] = tool
+	incapable.applyCmd(t, incapable.spawnBot(testBotProfile(t.TempDir())))
+	incapable.drainEffects(t)
+	for _, spawned := range [][]store.Session{liveBots(t, m, "p1"), liveBots(t, incapable, "p1")} {
+		if len(spawned) != 1 || spawned[0].Choice.Flags != "-u" {
+			t.Fatalf("Bots = %+v; want one on the Profile's own flags", spawned)
+		}
 	}
 }
 

@@ -8,7 +8,7 @@ import (
 )
 
 // Bot is the Session a spawn from a Profile opens: its name, and the first
-// prompt that specializes it.
+// prompt it starts on.
 type Bot struct {
 	Name   string
 	Prompt string
@@ -38,14 +38,11 @@ func Spawn(p Profile, taken []string) Bot {
 }
 
 // FirstPrompt is assembled at spawn time and never stored, so a better one
-// reaches every Profile with a release. It names the Specialization to load
-// and the ai-memory project to recall from; a Profile with neither starts
-// its Bot on the CLI's own empty prompt.
+// reaches every Profile with a release. It names the ai-memory project to
+// recall from; the Specialization travels on the command line instead, and a
+// Profile with no memory starts its Bot on the CLI's own empty prompt.
 func FirstPrompt(p Profile) string {
 	var lines []string
-	if p.Specialization != "" {
-		lines = append(lines, fmt.Sprintf("Load the %s skill now and work as it says for the rest of this conversation.", p.Specialization))
-	}
 	if p.MemoryProject != "" {
 		lines = append(lines, fmt.Sprintf("Your memory is the ai-memory project %q: recall from it before you answer anything, and store what you conclude there, so the next Bot from this Profile starts where you leave off.", p.MemoryProject))
 	}
