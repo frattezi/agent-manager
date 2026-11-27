@@ -27,7 +27,7 @@ var debugNameChars = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
 // DebugSession is the session a Debug Session on record opens. The prompt
 // names the Automation, the instant, the outcome and where the log and the
-// worktree are; it carries paths only, so the agent reads what it needs and
+// output directory are; the worktree is gone by then. It carries paths only, so the agent reads what it needs and
 // nothing the firing printed is pasted in.
 func DebugSession(config Config, record Record) (Debug, error) {
 	if !record.Finished() {
@@ -51,15 +51,15 @@ func DebugSession(config Config, record Record) (Debug, error) {
 	if record.LogPath == "" {
 		logLine = "Its record names no log."
 	}
-	worktreeLine := "It ran in the worktree at " + strconv.Quote(record.WorktreePath) + "."
-	if record.WorktreePath == "" {
-		worktreeLine = "Its record names no worktree."
+	outputLine := "Its output directory is at " + strconv.Quote(record.OutputPath) + "."
+	if record.OutputPath == "" {
+		outputLine = "Its record names no output directory."
 	}
 	lines := []string{
 		fmt.Sprintf("Look into a firing of the %s Automation %q (id %s), which runs %q in this repository.", config.Kind, config.Name, config.ID, config.Entry),
 		"It fired for " + firedFor.Format(time.RFC3339) + " and its outcome was " + outcome + ".",
 		logLine,
-		worktreeLine,
+		outputLine,
 		"Read them to find out what it did and why it ended that way.",
 	}
 	return Debug{Name: name, Dir: config.RepoPath, Prompt: strings.Join(lines, "\n")}, nil

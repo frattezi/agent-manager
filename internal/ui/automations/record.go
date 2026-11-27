@@ -29,8 +29,8 @@ type Record struct {
 	StartedAt    time.Time `json:"startedAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 	LogPath      string    `json:"logPath"`
+	OutputPath   string    `json:"outputPath"`
 	Result       *Result   `json:"result"`
-	WorktreePath string    `json:"worktreePath"`
 }
 
 // Result is how the Automation Run ended.

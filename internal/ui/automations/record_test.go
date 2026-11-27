@@ -20,7 +20,7 @@ func writeFile(t *testing.T, dir, name, data string) {
 func recordJSON(id, firedFor, updatedAt string) string {
 	return `{"version":1,"id":"` + id + `","automationId":"weekly-1","firedFor":"` + firedFor + `","status":"done",` +
 		`"startedAt":"` + firedFor + `","updatedAt":"` + updatedAt + `","logPath":"/logs/` + id + `.log",` +
-		`"result":{"outcome":"done","summary":"ok"},"worktreePath":"/wt/` + id + `"}`
+		`"result":{"outcome":"done","summary":"ok"},"outputPath":"/out/` + id + `"}`
 }
 
 func TestLoadRecordsReturnsEveryValidRecordNewestFirst(t *testing.T) {
@@ -40,7 +40,7 @@ func TestLoadRecordsReturnsEveryValidRecordNewestFirst(t *testing.T) {
 		t.Fatalf("order = %v, want c,b,a", ids)
 	}
 	c := got[0]
-	if c.AutomationID != "weekly-1" || c.Status != "done" || c.LogPath != "/logs/c.log" || c.WorktreePath != "/wt/c" ||
+	if c.AutomationID != "weekly-1" || c.Status != "done" || c.LogPath != "/logs/c.log" || c.OutputPath != "/out/c" ||
 		c.Result == nil || c.Result.Outcome != "done" || c.StartedAt.IsZero() || c.UpdatedAt.IsZero() {
 		t.Fatalf("record = %+v", c)
 	}
