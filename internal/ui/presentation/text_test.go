@@ -169,3 +169,47 @@ func TestWindowDirectionsKeepBoundsAndInput(t *testing.T) {
 		}
 	}
 }
+
+// Reveal is checked against what Window draws, so a row it promises is never
+// one an indicator covers.
+func TestRevealShowsTheWholeRangeClearOfTheIndicators(t *testing.T) {
+	const count, rows = 20, 6
+	lines := make([]string, count)
+	for i := range lines {
+		lines[i] = fmt.Sprintf("row %d", i)
+	}
+	drawn := func(offset int) string {
+		return strings.Join(Window(lines, rows, offset, lipgloss.NewStyle(), DefaultGlyphMode), "\n")
+	}
+	for offset := 0; offset <= count-rows; offset++ {
+		for first := 0; first < count; first++ {
+			for last := first; last < count && last-first < 3; last++ {
+				got := Reveal(offset, first, last, count, rows)
+				view := drawn(got)
+				for row := first; row <= last; row++ {
+					if !strings.Contains(view, fmt.Sprintf("row %d\n", row)) && !strings.HasSuffix(view, fmt.Sprintf("row %d", row)) {
+						t.Fatalf("Reveal(%d, %d, %d) = %d hides row %d:\n%s", offset, first, last, got, row, view)
+					}
+				}
+				if top, bottom := Shown(offset, count, rows); first >= top && last <= bottom && got != offset {
+					t.Fatalf("Reveal(%d, %d, %d) scrolled a range already shown to %d", offset, first, last, got)
+				}
+			}
+		}
+	}
+}
+
+func TestRevealKeepsTheEndOfARangeTallerThanTheWindow(t *testing.T) {
+	if got := Reveal(0, 5, 15, 20, 6); got != 11 {
+		t.Fatalf("offset = %d, want 11 so row 15 sits above more below", got)
+	}
+	if top, bottom := Shown(11, 20, 6); top != 12 || bottom != 15 {
+		t.Fatalf("shown = %d..%d", top, bottom)
+	}
+	if got := Reveal(0, 5, 19, 20, 6); got != 14 {
+		t.Fatalf("offset = %d, want the last page", got)
+	}
+	if got := Reveal(3, 1, 2, 5, 9); got != 0 {
+		t.Fatalf("a window taller than its rows scrolled to %d", got)
+	}
+}

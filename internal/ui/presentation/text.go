@@ -101,6 +101,51 @@ func Follow(first, cursor, count, visible int) int {
 	return min(max(first, 0), count-visible)
 }
 
+// Shown is the range of rows, first and last inclusive, that Window shows
+// as rows of its own at offset: the rows it spends on "more above" and
+// "more below" are not among them.
+func Shown(offset, count, rows int) (first, last int) {
+	rows = max(rows, 1)
+	if rows >= count {
+		return 0, count - 1
+	}
+	offset = min(max(offset, 0), count-rows)
+	first, last = offset, offset+rows-1
+	if offset > 0 {
+		first++
+	}
+	if offset+rows < count {
+		last--
+	}
+	return first, last
+}
+
+// Reveal is the offset nearest to offset at which Window shows every row
+// from first to last. A range taller than the window shows as much of it as
+// fits ending at last, so the row that matters most goes last.
+func Reveal(offset, first, last, count, rows int) int {
+	rows = max(rows, 1)
+	if rows >= count {
+		return 0
+	}
+	offset = min(max(offset, 0), count-rows)
+	top, bottom := Shown(offset, count, rows)
+	if first >= top && last <= bottom {
+		return offset
+	}
+	if first < top {
+		up := min(max(first-1, 0), count-rows)
+		if top, bottom := Shown(up, count, rows); first >= top && last <= bottom {
+			return up
+		}
+	}
+	down := count - rows
+	if last < count-1 {
+		down = min(max(last-rows+2, 0), count-rows)
+	}
+	return down
+}
+
 // TruncateTail keeps the end of the string, best for paths and URLs.
 func TruncateTail(s string, max int) string {
 	runes := []rune(s)
