@@ -23,17 +23,17 @@ func TestSpawnNamesEachBotFromAProfileApart(t *testing.T) {
 	}
 }
 
-func TestFirstPromptLoadsTheSpecializationAndNamesTheMemory(t *testing.T) {
+func TestFirstPromptNamesTheMemoryAndNoSkill(t *testing.T) {
 	prompt := FirstPrompt(Profile{Name: "Operator", Specialization: "fractory-operator", MemoryProject: "fractory-ops"})
-	for _, want := range []string{`"Operator"`, "fractory-operator skill", `ai-memory project "fractory-ops"`} {
+	for _, want := range []string{`"Operator"`, `ai-memory project "fractory-ops"`} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("prompt lacks %q:\n%s", want, prompt)
 		}
 	}
-	if only := FirstPrompt(Profile{Name: "Operator", MemoryProject: "m"}); strings.Contains(only, "skill") {
-		t.Errorf("a Profile with no Specialization names a skill:\n%s", only)
+	if strings.Contains(prompt, "skill") || strings.Contains(prompt, "fractory-operator") {
+		t.Errorf("the first prompt still loads the Specialization:\n%s", prompt)
 	}
-	if empty := FirstPrompt(Profile{Name: "Operator"}); empty != "" {
-		t.Errorf("a Profile with nothing to load still sends %q", empty)
+	if empty := FirstPrompt(Profile{Name: "Operator", Specialization: "fractory-operator"}); empty != "" {
+		t.Errorf("a Profile with no memory still sends %q", empty)
 	}
 }

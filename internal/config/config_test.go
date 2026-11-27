@@ -299,10 +299,12 @@ func TestDefaultAppendSystemPromptFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Default: %v", err)
 	}
+	// Only a flag that takes a file's path belongs here: the manager passes
+	// the skill's path, so a flag taking prompt text would make the path
+	// itself the system prompt. A CLI whose spelling is unverified is left
+	// empty, which starts its Bot unspecialized.
 	want := map[string]string{
 		"claude": "--append-system-prompt-file",
-		"pi":     "--append-system-prompt",
-		"omp":    "--append-system-prompt",
 	}
 	for name, tool := range cfg.Tools {
 		if got := tool.AppendSystemPromptFlag; got != want[name] {
