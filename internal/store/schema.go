@@ -174,6 +174,22 @@ CREATE TABLE IF NOT EXISTS settings (
 			created_at     INTEGER NOT NULL,
 			updated_at     INTEGER NOT NULL
 		)`,
+		// A Bot Profile is what a Bot starts from. The colour is an index
+		// into the theme's swatches, so it stays legible in every theme.
+		`CREATE TABLE IF NOT EXISTS bot_profiles (
+			id             TEXT PRIMARY KEY,
+			name           TEXT NOT NULL,
+			emoji          TEXT NOT NULL DEFAULT '',
+			color          INTEGER NOT NULL DEFAULT 0,
+			tool           TEXT NOT NULL,
+			model          TEXT NOT NULL DEFAULT '',
+			dir            TEXT NOT NULL DEFAULT '',
+			flags          TEXT NOT NULL DEFAULT '',
+			specialization TEXT NOT NULL DEFAULT '',
+			memory_project TEXT NOT NULL DEFAULT '',
+			created_at     INTEGER NOT NULL,
+			updated_at     INTEGER NOT NULL
+		)`,
 	}
 	for _, migration := range migrations {
 		if _, err := s.db.Exec(migration); err != nil {

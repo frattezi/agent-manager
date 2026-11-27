@@ -17,6 +17,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/launch"
 	"github.com/YoanWai/agent-manager/internal/rebuild"
 	"github.com/YoanWai/agent-manager/internal/store"
+	uibots "github.com/YoanWai/agent-manager/internal/ui/bots"
 	uieffects "github.com/YoanWai/agent-manager/internal/ui/effects"
 	uirelease "github.com/YoanWai/agent-manager/internal/ui/notices/release"
 	"github.com/YoanWai/agent-manager/internal/ui/presentation"
@@ -1965,6 +1966,34 @@ func TestSettingSpecsNameEveryThemeAndAgentCLI(t *testing.T) {
 	}
 	if !specs[store.HiddenToolsSetting].List {
 		t.Fatal("hidden_tools should take a comma list")
+	}
+}
+
+// A Bot Profile's fields are in SettingSpecs so the shell refuses what the
+// dialog would never write, and are marked Bot so no settings verb stores
+// them in the settings table.
+func TestSettingSpecsNameEveryBotProfileField(t *testing.T) {
+	specs := specByKey(t)
+	for _, field := range uibots.Fields {
+		spec, ok := specs[field.Key]
+		if !ok {
+			t.Fatalf("SettingSpecs does not name %s", field.Key)
+		}
+		if !spec.Bot || spec.Row != "" {
+			t.Errorf("%s = %+v, want a Bot field with no Settings row", field.Key, spec)
+		}
+	}
+	for key, spec := range specs {
+		if spec.Bot && !strings.HasPrefix(key, "bot.") {
+			t.Errorf("%s is marked Bot but is not a Profile field", key)
+		}
+	}
+	if !slices.Equal(specs[uibots.ToolKey].Values, specs[store.DefaultToolSetting].Values) {
+		t.Fatalf("bot.tool takes %v, want the agent CLIs %v", specs[uibots.ToolKey].Values, specs[store.DefaultToolSetting].Values)
+	}
+	color := specs[uibots.ColorKey]
+	if len(color.Values) != len(uitheme.Current().Swatches()) || color.Check("0") != nil || color.Check("#ff0000") == nil {
+		t.Fatalf("bot.color takes %v, want an index into the theme's swatches", color.Values)
 	}
 }
 

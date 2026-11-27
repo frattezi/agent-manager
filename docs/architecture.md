@@ -41,6 +41,7 @@ Under `internal/`:
   - `ui/spawn/launch`: the spawn and group creation, the catalog and worktree answers, and the base ref and its fetch.
 - `ui/runs`: Fractory's Run registry, a directory of `<id>.json` files read every 2s, and the review-comment, Re-run, solved and answer files written beside it. Runs are listed read-only in the rail. `ui/runs/answer` is the field the owner answers a needs-human Run in.
 - `ui/automations`: the Automation contracts, the clock that fires them, and the commands that add, change, enable, disable, remove and run one now. The Automations dialog and `agent-manager automations` both call those commands. `ui/automations/form` is the dialog. `ui/automations/persist` is the store as the commands read and write it.
+- `ui/bots`: the Bot Profile's fields and the values each takes, which `ui.SettingSpecs` hands the shell marked as Profile fields. `agent-manager bots` lists, shows, creates and edits Profiles in the `bot_profiles` table of `state.db`; `settings`, `export` and `import` leave those fields out.
 - `ui/theme`: the built-in palettes and color math, a leaf any UI package may import.
 - `ui/presentation`: pure text helpers shared by `ui` and its feature packages.
 - `ui/surface`: the surface stack's contract, a leaf a feature package implements to put its own screen on the root's stack. `ui/help`, `ui/review`, `ui/notices`, `ui/onboarding`, `ui/connections`, `ui/settings`, `ui/dialogs`, `ui/geometry`, `ui/focus`, `ui/spawn`, `ui/quick`, `ui/automations/form` and `ui/runs/answer` do. See [Decisions](#decisions).

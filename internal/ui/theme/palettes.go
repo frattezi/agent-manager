@@ -38,6 +38,13 @@ type Theme struct {
 	Counterpart string
 }
 
+// Swatches are the colours an owner picks by index, in picker order. Each
+// theme hands out the same count from its own tokens, so an index stored
+// once stays legible in every theme.
+func (t Theme) Swatches() []string {
+	return []string{t.Accent, t.Accent2, t.Remote, t.Working, t.Waiting, t.Finished, t.Errored}
+}
+
 // Palettes is the built-in set, in picker order. Classic leads: it
 // is the default, a restrained take on the sixteen colors every terminal
 // has had for decades.

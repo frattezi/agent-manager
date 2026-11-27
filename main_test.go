@@ -300,6 +300,66 @@ func TestMainDispatchesNonInteractiveCommands(t *testing.T) {
 	}
 }
 
+// agent-manager bots writes the same state.db every process opens: one
+// process creates and edits a Profile, two others read it back the same,
+// and a value outside its SettingSpecs entry is refused.
+func TestMainBotsCommandSharesProfilesAcrossProcesses(t *testing.T) {
+	if prepareMainProcess() {
+		main()
+		return
+	}
+	configDir := t.TempDir()
+	run := func(args ...string) (string, error) {
+		t.Helper()
+		cmd := mainTestCommand(t, args...)
+		cmd.Env = replaceEnv(cmd.Env, "AGENT_MANAGER_CONFIG_DIR", configDir)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &stdout, &stderr
+		err := cmd.Run()
+		if err != nil {
+			return stdout.String() + stderr.String(), err
+		}
+		return stdout.String(), nil
+	}
+	created, err := run("bots", "create", "--name", "operator", "--emoji", "🛠", "--color", "2", "--tool", "claude", "--specialization", "fractory-operator", "--memory", "fractory-ops")
+	if err != nil || !strings.HasPrefix(created, "created operator (") {
+		t.Fatalf("bots create = %q, %v", created, err)
+	}
+	if _, err := os.Stat(filepath.Join(configDir, "state.db")); err != nil {
+		t.Fatalf("bots create wrote outside the chosen config dir: %v", err)
+	}
+	if out, err := run("bots", "edit", "operator", "--color", "4", "--model", "opus"); err != nil || !strings.HasPrefix(out, "changed operator (") {
+		t.Fatalf("bots edit = %q, %v", out, err)
+	}
+	listed, err := run("bots", "list")
+	if err != nil || !strings.Contains(listed, "operator") || !strings.Contains(listed, "opus") {
+		t.Fatalf("bots list = %q, %v", listed, err)
+	}
+	first, err := run("bots", "show", "operator")
+	if err != nil {
+		t.Fatalf("bots show = %q, %v", first, err)
+	}
+	second, err := run("bots", "show", "operator")
+	if err != nil || second != first {
+		t.Fatalf("a second process read %q, %v; the first read %q", second, err, first)
+	}
+	if !strings.Contains(first, `"color": 4`) || !strings.Contains(first, `"model": "opus"`) || !strings.Contains(first, `"memoryProject": "fractory-ops"`) {
+		t.Fatalf("bots show = %q, want the edit applied", first)
+	}
+	for _, args := range [][]string{
+		{"bots", "create", "--name", "ops", "--tool", "no-such-cli"},
+		{"bots", "edit", "operator", "--color", "99"},
+		{"settings", "set", "bot.color", "1"},
+	} {
+		if out, err := run(args...); err == nil {
+			t.Errorf("agent-manager %s = %q, want it refused", strings.Join(args, " "), out)
+		}
+	}
+	if again, err := run("bots", "show", "operator"); err != nil || again != first {
+		t.Fatalf("a refused command changed the Profile: %q, %v", again, err)
+	}
+}
+
 // Startup is the only place the alternate-scroll reset goes out. Reading
 // the call out of the syntax tree fails if it is dropped, which is what
 // would put wheel notches back on the session cursor (#110).

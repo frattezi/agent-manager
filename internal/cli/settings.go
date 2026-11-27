@@ -21,6 +21,24 @@ const (
 // table is built for every other subcommand.
 type settingSpecs func() ([]store.SettingSpec, error)
 
+// settingsTable leaves out the fields of a Bot Profile, which live on the
+// Profile's row and are written by agent-manager bots alone.
+func (specs settingSpecs) settingsTable() settingSpecs {
+	return func() ([]store.SettingSpec, error) {
+		all, err := specs()
+		if err != nil {
+			return nil, err
+		}
+		table := make([]store.SettingSpec, 0, len(all))
+		for _, spec := range all {
+			if !spec.Bot {
+				table = append(table, spec)
+			}
+		}
+		return table, nil
+	}
+}
+
 func settingsSection(specs settingSpecs) section {
 	verbs := []command{
 		{name: "list", usage: usageSettingsList, about: "every setting with its value, its Settings row and the values it takes", run: settingsCommand(specs, runSettingsList)},
