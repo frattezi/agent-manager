@@ -15,9 +15,11 @@ type Stored struct {
 	AnsweredAt  time.Time
 }
 
-// Store is where the poll reads each session's newest surface.
+// Store is where the poll reads each session's newest surface, and where an
+// answer is recorded and queued for its session.
 type Store interface {
 	LatestSurfaces() ([]Stored, error)
+	AnswerSurface(AnswerRequest) error
 }
 
 // Services is what the poll runs against.

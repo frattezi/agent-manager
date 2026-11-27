@@ -11,10 +11,16 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type fakeRoot struct{}
+type fakeRoot struct{ sent *[]AnswerRequest }
 
 func (fakeRoot) ChromeRows([][2]string) int        { return 6 }
 func (fakeRoot) GlyphMode() presentation.GlyphMode { return presentation.GlyphModeBasic }
+func (r fakeRoot) Send(request AnswerRequest) tea.Cmd {
+	if r.sent != nil {
+		*r.sent = append(*r.sent, request)
+	}
+	return nil
+}
 
 type fakeHost struct {
 	cols, rows int

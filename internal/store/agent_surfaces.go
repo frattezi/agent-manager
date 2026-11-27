@@ -103,3 +103,51 @@ func (s *Store) LatestAgentSurfaces() (map[string]AgentSurface, error) {
 	}
 	return latest, rows.Err()
 }
+
+// ErrAgentSurfaceAnswered refuses a second answer to one surface: the first
+// is already on its way into the session.
+var ErrAgentSurfaceAnswered = errors.New("agent surface is already answered")
+
+// AnswerAgentSurface records the owner's answer to a surface and queues
+// msg, which carries it, on the session's inbox, in one transaction: a
+// surface is never marked answered without its answer queued, and an answer
+// the inbox refuses leaves the round unanswered.
+func (s *Store) AnswerAgentSurface(id, answer string, msg InboxMessage, limits InboxLimits) (int64, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(`UPDATE agent_surfaces SET answered_at = ?, answer = ? WHERE id = ? AND session_id = ? AND answered_at = 0`,
+		encodeTime(msg.SentAt), answer, id, msg.SessionID)
+	if err != nil {
+		return 0, err
+	}
+	if affected, err := res.RowsAffected(); err != nil {
+		return 0, err
+	} else if affected == 0 {
+		var answered int64
+		err := tx.QueryRow(`SELECT answered_at FROM agent_surfaces WHERE id = ? AND session_id = ?`, id, msg.SessionID).Scan(&answered)
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrAgentSurfaceNotFound
+		}
+		if err != nil {
+			return 0, err
+		}
+		return 0, ErrAgentSurfaceAnswered
+	}
+	msg.SurfaceID = id
+	queued, err := s.enqueue(tx, msg, limits)
+	if err != nil {
+		return 0, err
+	}
+	return queued, tx.Commit()
+}
+
+// ReopenAgentSurface puts a surface whose answer never reached its session
+// back in front of the owner, so a dropped answer asks again instead of
+// passing for a delivered one.
+func (s *Store) ReopenAgentSurface(id string) error {
+	_, err := s.db.Exec(`UPDATE agent_surfaces SET answered_at = 0, answer = '' WHERE id = ?`, id)
+	return err
+}

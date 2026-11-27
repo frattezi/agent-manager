@@ -46,6 +46,7 @@ type fakeStore struct {
 }
 
 func (f fakeStore) LatestSurfaces() ([]Stored, error) { return f.latest, f.err }
+func (f fakeStore) AnswerSurface(AnswerRequest) error { return f.err }
 
 func TestReadRequestReadsTheInboxFromTheStore(t *testing.T) {
 	result, err := ReadRequest{}.Run(Services{Store: fakeStore{latest: []Stored{{ID: "s", SessionID: "alpha"}}}})

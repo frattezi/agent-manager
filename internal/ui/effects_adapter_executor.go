@@ -190,6 +190,8 @@ func (m *Model) applyEffect(job *uieffects.Job, result uieffects.Result, err err
 		return m.applyBotSave(request, as[uibots.Profile](result), err)
 	case uisurfaces.ReadRequest:
 		return m.applySurfacesRead(as[uisurfaces.Inbox](result), err)
+	case uisurfaces.AnswerRequest:
+		return m.applySurfacesAnswer(request, as[uisurfaces.Inbox](result), err)
 	}
 	if err != nil {
 		m.reportErr(err.Error())

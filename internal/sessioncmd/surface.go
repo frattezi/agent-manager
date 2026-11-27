@@ -207,6 +207,11 @@ func FormatSurfaceList(surfaces []AgentSurface) string {
 	lines := make([]string, 0, len(surfaces))
 	for _, surface := range surfaces {
 		lines = append(lines, FormatSurface(surface))
+		if surface.Answered {
+			for _, line := range strings.Split(surface.Answer, "\n") {
+				lines = append(lines, "  "+line)
+			}
+		}
 	}
 	return strings.Join(lines, "\n")
 }

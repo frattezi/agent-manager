@@ -206,6 +206,11 @@ CREATE TABLE IF NOT EXISTS settings (
 		`ALTER TABLE sessions ADD COLUMN bot_profile TEXT NOT NULL DEFAULT ''`,
 		// A Bot keeps its Profile's launch flags on every later launch.
 		`ALTER TABLE sessions ADD COLUMN launch_flags TEXT NOT NULL DEFAULT ''`,
+		// A message that answers a published surface names it, so delivery
+		// fences it as the owner's answer to that round rather than as
+		// another agent's text.
+		`ALTER TABLE session_inbox ADD COLUMN surface_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE session_inbox ADD COLUMN surface_name TEXT NOT NULL DEFAULT ''`,
 	}
 	for _, migration := range migrations {
 		if _, err := s.db.Exec(migration); err != nil {
