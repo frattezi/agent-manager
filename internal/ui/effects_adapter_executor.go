@@ -14,6 +14,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	"github.com/YoanWai/agent-manager/internal/ui/automations"
+	uibots "github.com/YoanWai/agent-manager/internal/ui/bots"
 	uilink "github.com/YoanWai/agent-manager/internal/ui/connections/link"
 	uiapply "github.com/YoanWai/agent-manager/internal/ui/dialogs/apply"
 	uieffects "github.com/YoanWai/agent-manager/internal/ui/effects"
@@ -75,6 +76,7 @@ func (m *Model) bindEffect(request uieffects.Request) func() (uieffects.Result, 
 		uieffects.Binder(func() uilaunch.Services { return capture().launchServices() }),
 		uieffects.Binder(func() uiquicksend.Services { return capture().quickServices() }),
 		uieffects.Binder(func() automations.Services { return capture().automationServices() }),
+		uieffects.Binder(func() uibots.Services { return capture().botServices() }),
 	}
 	for _, bind := range binders {
 		if work, ok := bind(request); ok {
@@ -182,6 +184,8 @@ func (m *Model) applyEffect(job *uieffects.Job, result uieffects.Result, err err
 		return m.applyAutomationRemove(request, as[automations.Listing](result), err)
 	case automations.RunNowRequest:
 		return m.applyAutomationRunNow(request, as[automations.RunNowResult](result), err)
+	case uibots.SaveRequest:
+		return m.applyBotSave(request, as[uibots.Profile](result), err)
 	}
 	if err != nil {
 		m.reportErr(err.Error())

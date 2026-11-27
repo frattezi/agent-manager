@@ -29,7 +29,7 @@ const uiRoot = "internal/ui"
 // besides the older ones in rootExtras.
 var packaged = map[string]string{
 	"automations":  "the Automations adapter: the poll, the rail rows, the detail column, the log tab and the Debug Session intent",
-	"bots":         "the Bots adapter: the Profiles' fields in SettingSpecs, and later the area, the dialog and the spawn",
+	"bots":         "the Bots adapter: the Profiles' fields in SettingSpecs, the dialog, its save effect and the store it writes, and later the area and the spawn",
 	"composer":     "the prompt box adapter: which box a paste lands in, its painters and the pastes sweep",
 	"connections":  "the SSH connections adapter: the client, refreshes, remote rows, preview and routed actions, and their effects",
 	"dialogs":      "the confirm, rename, move, fork and New Group dialog adapters and their effects",

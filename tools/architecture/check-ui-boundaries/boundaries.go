@@ -49,7 +49,7 @@ var (
 	automationsBoundary        = boundary{"Automations", "/internal/ui/automations", true, []string{"/internal/atomicfile", "/internal/fractoryhome", "/internal/ui/automations"}}
 	automationsFormBoundary    = boundary{"Automations form", "/internal/ui/automations/form", false, []string{"/internal/atomicfile", "/internal/catalog/value", "/internal/fractoryhome", "/internal/ui/automations", "/internal/ui/automations/form", "/internal/ui/dialogs", "/internal/ui/pathcomplete", "/internal/ui/presentation", "/internal/ui/spawn", "/internal/ui/surface"}}
 	automationsPersistBoundary = boundary{"Automations persist", "/internal/ui/automations/persist", true, []string{"/internal/atomicfile", "/internal/config", "/internal/deps", "/internal/fractoryhome", "/internal/keybind", "/internal/proctree", "/internal/pwsh", "/internal/remote/value", "/internal/status", "/internal/store", "/internal/tmux", "/internal/ui/automations", "/internal/ui/automations/persist", "/internal/update", "/internal/wsl"}}
-	botsBoundary               = boundary{"Bots", "/internal/ui/bots", false, []string{"/internal/ui/bots"}}
+	botsBoundary               = boundary{"Bots", "/internal/ui/bots", false, []string{"/internal/catalog/value", "/internal/ui/bots", "/internal/ui/dialogs", "/internal/ui/pathcomplete", "/internal/ui/presentation", "/internal/ui/spawn", "/internal/ui/surface"}}
 	surfaceBoundary            = boundary{"Surface", "/internal/ui/surface", false, []string{"/internal/ui/surface"}}
 	diffBoundary               = boundary{"Diff model", "/internal/diff/model", false, []string{"/internal/diff/model", "/internal/git/value"}}
 	valueBoundary              = boundary{"Git values", "/internal/git/value", false, []string{"/internal/git/value"}}
