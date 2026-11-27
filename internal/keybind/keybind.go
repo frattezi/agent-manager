@@ -317,7 +317,7 @@ var listActions = []Action{
 	{RunNow, "Automation: run it now, outside its schedule", keys("!")},
 	{DebugSession, "Automation firing: open a Debug Session on it", keys("D")},
 	{Fork, "fork the session", keys("f")},
-	{Prompt, "quick prompt mode", keys("space")},
+	{Prompt, "quick prompt mode; needs-human Run: answer its question", keys("space")},
 	{CopyReply, "copy the session's newest reply to the clipboard", keys("y")},
 	{Review, "review the session's diff", keys("ctrl+r")},
 	{MarkIdle, "session: mark it idle when finished or waiting; Ticket: mark it solved / unmark it", keys(".")},

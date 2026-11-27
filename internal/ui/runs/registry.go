@@ -118,7 +118,7 @@ func Load(dir string) ([]Record, error) {
 	configs := map[string]*RepoConfig{}
 	for _, entry := range entries {
 		name := entry.Name()
-		if entry.IsDir() || !strings.HasSuffix(name, ".json") || strings.HasSuffix(name, commentsSuffix) || strings.HasSuffix(name, rerunSuffix) || strings.HasSuffix(name, solvedSuffix) {
+		if entry.IsDir() || !strings.HasSuffix(name, ".json") || strings.HasSuffix(name, commentsSuffix) || strings.HasSuffix(name, rerunSuffix) || strings.HasSuffix(name, solvedSuffix) || strings.HasSuffix(name, answerSuffix) {
 			continue
 		}
 		data, err := os.ReadFile(filepath.Join(dir, name))

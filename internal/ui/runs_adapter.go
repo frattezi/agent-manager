@@ -38,6 +38,9 @@ type runsState struct {
 	requested map[string]bool
 	// solved holds the ids of Runs whose Ticket the owner marked solved.
 	solved map[string]bool
+	// answers maps the ids of Runs with an answer waiting for the next tick
+	// to its text.
+	answers map[string]string
 	// host is Fractory's host.json, nil when absent or invalid.
 	host *runs.HostState
 	// showFinished lists the finished Tickets too; H toggles it.
@@ -49,6 +52,7 @@ type runsLoadedMsg struct {
 	list      []runs.Record
 	requested map[string]bool
 	solved    map[string]bool
+	answers   map[string]string
 	host      *runs.HostState
 }
 
@@ -63,14 +67,14 @@ func runsLoadCmd() tea.Cmd {
 		}
 		// An unreadable registry lists nothing; the next poll tries again.
 		list, _ := runs.Load(dir)
-		return runsLoadedMsg{dir: dir, list: list, requested: runs.Requested(dir), solved: runs.Solved(dir), host: runs.LoadHost(dir)}
+		return runsLoadedMsg{dir: dir, list: list, requested: runs.Requested(dir), solved: runs.Solved(dir), answers: runs.Answers(dir), host: runs.LoadHost(dir)}
 	}
 }
 
 func (m *Model) routeRunsMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	switch msg := msg.(type) {
 	case runsLoadedMsg:
-		next := runsState{dir: msg.dir, list: msg.list, requested: msg.requested, solved: msg.solved, host: msg.host, showFinished: m.workspace.runs.showFinished}
+		next := runsState{dir: msg.dir, list: msg.list, requested: msg.requested, solved: msg.solved, answers: msg.answers, host: msg.host, showFinished: m.workspace.runs.showFinished}
 		if !reflect.DeepEqual(m.workspace.runs, next) {
 			m.workspace.runs = next
 			m.rebuildRows()
@@ -78,6 +82,9 @@ func (m *Model) routeRunsMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		return routed(m, tea.Tick(runsPollInterval, func(time.Time) tea.Msg { return runsTickMsg{} }))
 	case runsTickMsg:
 		return routed(m, runsLoadCmd())
+	case runsAnswerSavedMsg:
+		m.answerSaved(msg)
+		return routed(m, nil)
 	}
 	return nil, nil, false
 }
@@ -92,6 +99,7 @@ func (m *Model) railRuns() ([]uirail.Run, int) {
 		out[i] = uirail.Run{
 			ID: run.ID, Ticket: run.TicketRef, Status: run.Status, Branch: run.Branch, Mode: run.EffectiveMode(),
 			Reruns: ticket.Reruns, RerunPending: ticket.Pending, CanRerun: run.CanRerun(), Solved: ticket.Solved,
+			CanAnswer: run.CanAnswer(), Answered: m.workspace.runs.answers[run.ID] != "",
 		}
 	}
 	return out, finished
@@ -205,7 +213,13 @@ func (m *Model) runIntent(intent uirail.Intent) (tea.Cmd, bool) {
 		return nil, false
 	}
 	switch intent.Kind {
-	case uirail.Quit, uirail.OpenSettings, uirail.Resize, uirail.OpenMessages, uirail.OpenHelp, uirail.Prompt, uirail.NewSession, uirail.NewGroup, uirail.NewConnection:
+	case uirail.Prompt:
+		if ticket, ok := m.selectedTicket(); ok && ticket.Latest().CanAnswer() {
+			m.openAnswer(ticket.Latest())
+			return nil, true
+		}
+		return nil, false
+	case uirail.Quit, uirail.OpenSettings, uirail.Resize, uirail.OpenMessages, uirail.OpenHelp, uirail.NewSession, uirail.NewGroup, uirail.NewConnection:
 		return nil, false
 	case uirail.Focus, uirail.Attach:
 		run, ok := m.selectedRun()
@@ -306,6 +320,9 @@ func (m *Model) runLegend() (legendSection, bool) {
 	if ticket, ok := m.selectedTicket(); ok && ticket.Latest().CanRerun() {
 		pairs = append(pairs, [2]string{m.listGlyph(keybind.Restart), "re-run"})
 	}
+	if ticket, ok := m.selectedTicket(); ok && ticket.Latest().CanAnswer() {
+		pairs = append(pairs, [2]string{m.listGlyph(keybind.Prompt), m.answerAction(ticket.Latest())})
+	}
 	if ticket, ok := m.selectedTicket(); ok {
 		pairs = append(pairs, [2]string{m.listGlyph(keybind.MarkIdle), solvedAction(ticket)})
 	}
@@ -375,6 +392,9 @@ func (m *Model) runContentLines(width int) ([]contentLine, bool) {
 		for _, line := range uitheme.SplitLines(ansi.Wrap(question, inner, "")) {
 			lines = append(lines, contentLine{Text: gutter + line})
 		}
+	}
+	if run.CanAnswer() {
+		lines = append(lines, m.answerLines(run, gutter, inner)...)
 	}
 	if ticket, ok := m.selectedTicket(); ok && len(ticket.Runs) > 1 {
 		lines = append(lines, contentLine{}, contentLine{Text: gutter + uitheme.LabelStyle().Render("Runs of this Ticket, newest first")})

@@ -30,6 +30,11 @@ type Run struct {
 	// Solved is true while the owner has marked the Ticket solved, so . on
 	// the row unmarks it.
 	Solved bool
+	// CanAnswer is true when the Run stopped with a question, so the prompt
+	// key opens the answer field.
+	CanAnswer bool
+	// Answered is true while an answer waits for Fractory's tick.
+	Answered bool
 }
 
 func (r treeRow) isRun() bool { return r.kind == RunRow || r.kind == RunsRow }
@@ -173,6 +178,13 @@ func (r renderer) renderRun(row treeRow, selected bool, width int, pad, guides, 
 
 func runMenuItems(run Run) []menuItem {
 	items := []menuItem{{label: "Open log", action: Attach}}
+	if run.CanAnswer {
+		answer := menuItem{label: "Answer", action: Prompt}
+		if run.Answered {
+			answer.label = "Edit answer"
+		}
+		items = append(items, answer)
+	}
 	if run.CanRerun {
 		items = append(items, menuItem{label: "Re-run", action: Restart})
 	}
