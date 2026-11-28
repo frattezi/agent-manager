@@ -338,9 +338,11 @@ func (r renderer) renderTreeRow(row treeRow, selected bool, width, index int, ba
 	if r.renaming(row) {
 		lead := r.palette.subtle.Render(r.groupGlyph(row))
 		if row.kind == SessionRow {
-			lead = r.sessionGlyph(row.sess)
+			lead = r.sessionLead(row.sess)
+		} else {
+			lead += " "
 		}
-		text := pad + guides + lead + " " + r.ctx.Rename.View
+		text := pad + guides + lead + r.ctx.Rename.View
 		line := paint(text, width, r.palette.selected())
 		for held := r.entryHeight(row); held > 1; held-- {
 			line += "\n" + paint(pad+trail, width, r.palette.selected())
@@ -441,6 +443,32 @@ func (r renderer) sessionGlyph(session Session) string {
 	return r.palette.sessionGlyph(r.glyphs(), session, r.ctx.StartupPhase)
 }
 
+// sessionLead is the row's mark and the gap after it, two cells together.
+// The babysit mark is an emoji two cells wide, so it takes the gap rather
+// than pushing the name out of line with its neighbours.
+func (r renderer) sessionLead(session Session) string {
+	if !showsBabysit(session) {
+		return r.sessionGlyph(session) + " "
+	}
+	glyph := r.glyphs().BabysitGlyph
+	mark := lipgloss.NewStyle().Foreground(r.palette.statusColor(session.Status)).Render(glyph)
+	return mark + strings.Repeat(" ", max(2-ansi.StringWidth(glyph), 0))
+}
+
+// showsBabysit is whether the babysit mark stands in for the status glyph:
+// not while the session waits on the owner, failed, or is gone, which the
+// owner has to see whatever runs in the background.
+func showsBabysit(session Session) bool {
+	if !session.Babysitting || session.IsShell {
+		return false
+	}
+	switch session.Status {
+	case "waiting", "errored", "dead":
+		return false
+	}
+	return true
+}
+
 // SessionGlyph is the status mark a session's row wears, for root views
 // that name the same session outside the rail.
 func SessionGlyph(theme Theme, mode presentation.GlyphMode, session Session, startupPhase int) string {
@@ -467,7 +495,7 @@ func (r renderer) renderSession(row treeRow, selected bool, width int, pad, guid
 	if selected {
 		nameStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(r.ctx.Theme.Bright)).Bold(true)
 	}
-	lead := pad + guides + r.sessionGlyph(session) + " "
+	lead := pad + guides + r.sessionLead(session)
 	handle := r.rowHandle(row, selected)
 	focus := ""
 	if selected && r.ctx.Focused {

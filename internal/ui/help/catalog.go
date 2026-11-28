@@ -119,6 +119,7 @@ func markHelpRows(list keybind.Table, glyphs Glyphs) [][2]string {
 		{g.GroupClosedGlyph + " / " + g.GroupOpenGlyph, "collapsed / expanded group"},
 		{glyphs.AfterTurnArchive + " / " + glyphs.AfterTurnKill, "the agent asked to be archived / killed once this turn ends"},
 		{g.AskingGlyph, "asking you something: a round it published waits for your answer"},
+		{g.BabysitGlyph, "babysitting: `fractory babysit` drives its Tickets to merged"},
 	}
 	if filter := list.Binding(keybind.Filter).Text(" / ", mode.Effective() == presentation.GlyphModeAdvanced); filter != "" {
 		rows = append(rows, [2]string{"", filter + " filters the list down to the marks that need you"})

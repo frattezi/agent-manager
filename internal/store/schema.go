@@ -211,6 +211,15 @@ CREATE TABLE IF NOT EXISTS settings (
 		// another agent's text.
 		`ALTER TABLE session_inbox ADD COLUMN surface_id TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE session_inbox ADD COLUMN surface_name TEXT NOT NULL DEFAULT ''`,
+		// A Session Mark lives while the process that set it does; the pid
+		// is how a reader drops one whose wrapper died without clearing it.
+		`CREATE TABLE IF NOT EXISTS session_marks (
+			session_id TEXT NOT NULL,
+			name       TEXT NOT NULL,
+			pid        INTEGER NOT NULL,
+			set_at     INTEGER NOT NULL,
+			PRIMARY KEY (session_id, name, pid)
+		)`,
 	}
 	for _, migration := range migrations {
 		if _, err := s.db.Exec(migration); err != nil {

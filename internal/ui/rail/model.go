@@ -47,6 +47,9 @@ type Session struct {
 	// has not answered; AskingGlyph is root's mark for it.
 	Asking      bool
 	AskingGlyph string
+	// Babysitting is whether the session runs `fractory babysit` under its
+	// babysit Session Mark.
+	Babysitting bool
 }
 
 // Snapshot is an immutable-by-convention inventory copied at the root
