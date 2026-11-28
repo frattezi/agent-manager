@@ -100,6 +100,9 @@ func (m *Model) botsLegend() (legendSection, bool) {
 	if selection.Kind == uirail.BotProfileRow {
 		pairs = append(pairs, [2]string{m.listGlyph(keybind.SpawnBot), "spawn a Bot"})
 	}
+	if selection.Kind == uirail.BotsRow && len(m.workspace.botProfiles) > 0 {
+		pairs = append(pairs, [2]string{m.listGlyph(keybind.OverviewUp, keybind.OverviewDown), "scroll"})
+	}
 	title := "Bots"
 	if selection.Kind == uirail.BotProfileRow {
 		title = "Bot Profile"
