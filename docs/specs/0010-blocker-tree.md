@@ -1,6 +1,7 @@
 # Spec 0010: A Blocker Tree in the Runs Overview
 
-Status: accepted (2026-11-28). Vocabulary: [GLOSSARY.md](../../GLOSSARY.md).
+Status: accepted (2026-11-28), amended 2026-11-28: the tree shows every unfinished Ticket, goes
+first, and shows a running Ticket's progress. Vocabulary: [GLOSSARY.md](../../GLOSSARY.md).
 
 ## Goal
 
@@ -22,9 +23,10 @@ one has got, and where the tree is stuck.
 
 ## Solution
 
-Each Project in the Runs Overview ([Spec 0009](0009-section-overviews.md)) gains a **Blocker
-Tree** block, below its summaries, whenever the Project has Tickets that have a blocker or are
-one. Tickets with neither are not in it; they are in the rail already.
+Each Project in the Runs Overview ([Spec 0009](0009-section-overviews.md)) opens with a
+**Blocker Tree** block, right under its header and In flight line and above the charts: live work
+first, history below. Every unfinished Ticket is in it. A Ticket with no blocker and nothing
+waiting on it is a root of its own, so every running, held or waiting Ticket is on screen.
 
 The tree reads top-down: a Ticket with no blocker is a root, and each Ticket sits under every
 Ticket it waits on. Lines are drawn with box-drawing characters (`├─`, `└─`, `│`), and with
@@ -35,6 +37,12 @@ Each node shows the status glyph and colour of its latest Run, its Run Title, an
 request or Ticket number as the Runs rows show them. A held Ticket also shows why each blocker
 holds it, in Fractory's words ("not done: its latest Run failed"). A blocker that has no Run and
 is not held is drawn dimmed, as its Ticket number with "no Run yet".
+
+A running Ticket carries two more lines: how long its Run has run against the Project's usual
+Run time, as a bar and in words ("13m of a usual 22m"), and the last line of the Run's log, as
+what it is doing now. The usual Run time is the median duration of the Project's finished Runs in
+the window; with none, the bar is left out and the time stands alone. A needs-human Ticket shows
+the first line of its question, dimmed.
 
 A tree stays in the Overview while any Ticket in it is unfinished. Once every Ticket in it is
 done, the time window decides, by its newest Run, as it does for everything else in the Runs
@@ -54,14 +62,20 @@ Overview.
    I find it from either side without counting it twice.
 6. As the owner, I want a blocker with no Run drawn dimmed with "no Run yet", so that a tree
    waiting on backlog work says so.
-7. As the owner, I want Tickets with no blocker and no dependents left out, so that the tree
-   shows only the structure.
+7. As the owner, I want every unfinished Ticket in the tree, a lone one as its own root, so
+   that every Run in progress is on screen and not only a count.
 8. As the owner, I want an unfinished tree kept whatever the window, so that live work never
    falls out of view.
 9. As the owner, I want the tree drawn in ASCII under the Compatible glyph mode, so that any
    terminal draws it.
 10. As the owner, I want the tree to scroll with the rest of the Overview, so that a deep tree is
     never cut off.
+11. As the owner, I want the tree first in each Project, above the charts, so that live work is
+    what I see before history.
+12. As the owner, I want a running Ticket to show its time against the usual Run time and its
+    log's last line, so that I know how far along it is and what it is doing.
+13. As the owner, I want a needs-human Ticket to show the first line of its question, so that I
+    see what it waits on without opening it.
 
 ## Implementation decisions
 
@@ -71,14 +85,21 @@ Optional, so `RecordVersion` does not move and older records parse with none. Th
 in `frattezi/fractory`, filed there; this Spec is blocked by it.
 
 **Edges.** A Ticket's blockers are its latest Run's `blockedBy`. While the Ticket is held, the
-blockers Fractory lists for it in its host state win, being newer. The manager starts decoding
-the held Tickets in the host state (repository, Ticket Ref, blockers, and why each holds).
+blockers Fractory lists for it in its host state win, being newer. The manager decodes the held
+Tickets in the host state exactly as Fractory's `src/contracts/host-state.ts` writes them: each
+has `repoPath`, `ticketRef`, `blockers` (refs) and optional `holds` (`blocker` and `reason`). The
+Project is matched by `repoPath`; a blocker with no `holds` entry has no reason drawn.
 
 **The tree is computed in the overview package.** A pure function over Run records, held
 Tickets, the window and the clock returns the trees per Project: roots, children in Ticket
 order, join markers, and the hold reasons. Blockers that form a cycle are drawn once, as roots,
 each marked as part of a cycle, since Fractory holds them all. A blocker known only by its Ref
 becomes a node with no Run.
+
+**Progress.** The log's last line is read only for running Runs: the last non-empty line of
+`logPath`, read from the end of the file on the poll that already reads the registry, never in
+`Update`, with escapes stripped and cut to one line. The usual Run time comes from the same
+records the Run time sparkline uses.
 
 **Drawing.** The tree is drawn by the overview package next to the other blocks, with the
 Project's colour on the roots and the theme's status colours on nodes. It reuses the Runs rows'

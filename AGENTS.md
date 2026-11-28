@@ -59,6 +59,41 @@ belongs to the CLI.
 - **Agent Surface, not Surface.** `internal/ui/surface` already owns the word for
   the cards on the stack. The two are never called the same thing.
 
+## Fractory
+
+The Runs section, the Overviews, Automations and a Run's answer path read
+files that Fractory writes. Fractory is its own repository,
+[frattezi/fractory](https://github.com/frattezi/fractory) (public,
+TypeScript). Its zod schemas in `src/contracts/` are the contract for every
+one of those files, so read the schema before you decode, draw or fake one.
+Never infer a field from a sample file, from a Spec's prose or from the name
+the manager would like it to have. If a Spec does not give a shape, the
+schema does; if the schema does not have it either, the change starts as a
+Ticket in `frattezi/fractory`, merged first.
+
+| The manager reads | Fractory writes it to | Schema in `frattezi/fractory` |
+| --- | --- | --- |
+| Run records | `$FRACTORY_HOME/runs/<id>.json` | `src/contracts/run.ts` |
+| Host state: the Held queue and held Tickets | `$FRACTORY_HOME/host.json` | `src/contracts/host-state.ts` |
+| Automations and their firings | `$FRACTORY_HOME/automations/` ([docs/automations.md](docs/automations.md)) | `src/contracts/automation.ts` |
+| Repository rules: Mode, Gates, base branch | `.fractory.json` in each repository | `src/contracts/repo-config.ts` |
+| Host Limits and the configured repositories | `$FRACTORY_HOME/config.json` | `src/contracts/factory-config.ts` |
+
+`$FRACTORY_HOME` is `~/.fractory` when unset. Read a schema at Fractory's
+`main` from a local checkout, or with
+`gh api repos/frattezi/fractory/contents/src/contracts/<file> -H "Accept: application/vnd.github.raw"`.
+Fractory's own vocabulary is its `GLOSSARY.md`; how a Run is built, stacked
+and held is in its `docs/flows.md`, `docs/runner.md` and `docs/adr/`.
+
+- **Optional stays optional.** Fractory adds fields without moving a
+  version, so a record without the new field still parses here.
+- **Test fixtures copy the schema's field names.** A fixture written from
+  the decoder's own struct tags passes whatever the real file holds. The
+  first held-Tickets decoder did exactly that and read nothing.
+- **A Run record is the source of truth for a Run.** `fractory status
+  --json` and `fractory runs` print the same data for a shell; the manager
+  reads the files, it never shells out to Fractory on a poll.
+
 ## What every change covers
 
 A feature, a tool, or a fix is done when it holds on the whole matrix. The
