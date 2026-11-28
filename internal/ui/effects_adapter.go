@@ -142,6 +142,11 @@ func (m *Model) handleEffectCompleted(msg uieffects.Completed) (tea.Model, tea.C
 	if request, ok := job.Request.(focusruntime.InputRequest); ok && request.Value.Kind != focusruntime.Prompt {
 		result, _ := msg.Result.(focusruntime.Result)
 		m.applyInputEffect(result, msg.Err)
+		// A delivered mouse report paints nothing until the pane's next frame,
+		// and a wheel burst lands one per notch.
+		if request.Value.Kind == focusruntime.Mouse && msg.Err == nil {
+			m.layout.keepFrame = true
+		}
 		return m, m.nextEffectCmd()
 	}
 	switch job.Request.(type) {

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -48,6 +49,30 @@ func TestKeysNeitherFenceListingsNorAskForAPoll(t *testing.T) {
 	m.handleEffectCompleted(uieffects.Completed{ID: id, Result: focusruntime.Result{}, FinishedAt: time.Now()})
 	if m.effects.latestObservation.IsZero() {
 		t.Fatal("a recorded prompt did not fence older listings")
+	}
+}
+
+// A wheel burst forwarded to a CLI that owns the mouse lands one write per
+// notch; none of them changes the frame, so none rebuilds it.
+func TestADeliveredMouseReportKeepsTheFrame(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		kind focusruntime.Kind
+		err  error
+		keep bool
+	}{
+		{focusruntime.Mouse, nil, true},
+		{focusruntime.Mouse, errors.New("pane gone"), false},
+		{focusruntime.Keys, nil, false},
+	} {
+		m := buildModel(t)
+		m.dispatchInput(focusruntime.Request{Kind: c.kind, Session: store.Session{ID: "s"}, Command: "x"})
+		m.nextEffectCmd()
+		m.layout.frame = "drawn"
+		m.Update(uieffects.Completed{ID: m.effects.Input.Active.ID, Result: focusruntime.Result{}, Err: c.err, FinishedAt: time.Now()})
+		if kept := m.layout.frame == "drawn"; kept != c.keep {
+			t.Errorf("kind %v err %v: frame kept = %v, want %v", c.kind, c.err, kept, c.keep)
+		}
 	}
 }
 
