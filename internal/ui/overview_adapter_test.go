@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
+	"github.com/YoanWai/agent-manager/internal/status"
+	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	"github.com/YoanWai/agent-manager/internal/ui/runs"
@@ -175,5 +177,98 @@ func TestEmptyOverviewSaysSoInOneLine(t *testing.T) {
 	}()})
 	if text := overviewText(m, 100, 30); !strings.Contains(text, "No Runs in the last 7d") {
 		t.Fatalf("empty window:\n%s", text)
+	}
+}
+
+func botsOverviewFixture(t *testing.T, m *Model, profiles int) {
+	t.Helper()
+	var ps []store.BotProfile
+	var sessions []store.Session
+	for i := range profiles {
+		id := fmt.Sprintf("p%d", i)
+		ps = append(ps, store.BotProfile{ID: id, Name: fmt.Sprintf("profile%d", i), Emoji: "🛠", Color: i, Tool: "claude", Dir: "/w"})
+		if i%2 == 0 {
+			sessions = append(sessions, store.Session{ID: "b" + id, Name: "bot-" + id, Tool: "claude", Cwd: "/w", Status: status.Working, BotProfile: id})
+		}
+	}
+	listBots(t, m, ps, sessions)
+	if !m.rail.Focus(uirail.Selection{Kind: uirail.BotsRow}) {
+		t.Fatal("no Bots header")
+	}
+}
+
+func TestBotsHeaderShowsTheOverviewAtNarrowAndWideWidths(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	botsOverviewFixture(t, m, 2)
+	for _, width := range []int{40, 110} {
+		text := strings.Join(strings.Fields(overviewText(m, width, 60)), " ")
+		for _, want := range []string{"Profiles 2", "Live Bots 1", "🛠 profile0", "bot-p0 working", "profile1", "no live Bots"} {
+			if !strings.Contains(text, want) {
+				t.Errorf("width %d lacks %q:\n%s", width, want, text)
+			}
+		}
+	}
+	if m.workspace.overview.windowRow != -1 {
+		t.Fatal("the Bots Overview has a window label")
+	}
+}
+
+func TestBotsOverviewWithNoProfilesKeepsTheHint(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	listBots(t, m, nil, nil)
+	m.rail.Focus(uirail.Selection{Kind: uirail.BotsRow})
+	if text := overviewText(m, 100, 40); !strings.Contains(text, "No Bot Profiles yet") {
+		t.Fatalf("hint lost:\n%s", text)
+	}
+}
+
+func TestProfileRowStillShowsItsOwnDetail(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	botsOverviewFixture(t, m, 2)
+	m.rail.Focus(uirail.Selection{Kind: uirail.BotProfileRow, Profile: "p0"})
+	text := overviewText(m, 100, 40)
+	if !strings.Contains(text, "Tool claude") || strings.Contains(text, "Live Bots 1") {
+		t.Fatalf("Profile detail lost:\n%s", text)
+	}
+}
+
+func TestTallBotsOverviewScrolls(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	botsOverviewFixture(t, m, 40)
+	y0, y1 := m.bodyYRange()
+	h := y1 - y0
+	if first := overviewText(m, 100, h); strings.Contains(first, "profile39") || !strings.Contains(first, "below") {
+		t.Fatalf("pane shows everything:\n%s", first)
+	}
+	var last string
+	for range 20 {
+		m.Update(tea.KeyMsg{Type: tea.KeyCtrlD})
+		last = overviewText(m, 100, h)
+	}
+	if !strings.Contains(last, "profile39") || !strings.Contains(last, "0 below") {
+		t.Fatalf("never reaches the end:\n%s", last)
+	}
+	for range 40 {
+		m.handleMouse(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelUp, X: m.layout.width - 3, Y: 5})
+		last = overviewText(m, 100, h)
+	}
+	if !strings.Contains(last, "0 above") {
+		t.Fatalf("wheel does not scroll back:\n%s", last)
+	}
+}
+
+func TestBotsOverviewDrawsNoBrailleUnderCompatibleGlyphs(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	botsOverviewFixture(t, m, 2)
+	m.prefs.glyphMode = presentation.GlyphModeBasic
+	for _, r := range overviewText(m, 100, 60) {
+		if r >= 0x2800 && r <= 0x28FF {
+			t.Fatal("Compatible glyph mode drew braille")
+		}
 	}
 }
