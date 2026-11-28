@@ -76,7 +76,9 @@ type MouseResult struct {
 	OpenURL    string
 	SendReport string
 	// Input marks a report that is the user's own input to the pane, so its
-	// echo is captured promptly; motion and the wheel are not.
+	// echo is captured promptly. The wheel counts: a CLI that owns the mouse
+	// scrolls by repainting, and paced like a stream it moves at the frame
+	// budget. Motion does not.
 	Input  bool
 	Copy   *CopyRequest
 	Region *RegionRequest
@@ -213,7 +215,7 @@ func (m *Model) wheel(up bool, x, y int, ctx MouseContext) MouseResult {
 		if !ok {
 			return MouseResult{}
 		}
-		return MouseResult{SendReport: report}
+		return MouseResult{SendReport: report, Input: true}
 	}
 	delta := 1
 	if up {
