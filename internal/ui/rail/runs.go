@@ -17,6 +17,9 @@ type Run struct {
 	// Status is the Run's own: queued, running, done, failed or needs-human.
 	Status string
 	Branch string
+	// Project, Title and Number are what the row shows in place of the Ticket
+	// Ref; Number reads "PR 293" or "#270".
+	Project, Title, Number string
 	// Mode is work or personal; empty when the Run does not say.
 	Mode string
 	// Reruns is how many Re-runs the Run's Ticket has needed; the row is the
@@ -68,7 +71,7 @@ func (m Model) listedRunRows() []treeRow {
 		if m.filter == statusFilterAttention && run.Status != "needs-human" && run.Status != "failed" {
 			continue
 		}
-		if query != "" && !strings.Contains(strings.ToLower(run.Ticket+" "+run.Branch+" "+run.Status), query) {
+		if query != "" && !strings.Contains(strings.ToLower(run.Ticket+" "+run.Branch+" "+run.Project+" "+run.Title+" "+run.Status), query) {
 			continue
 		}
 		rows = append(rows, treeRow{kind: RunRow, depth: 1, run: run})
@@ -165,15 +168,52 @@ func (r renderer) renderRun(row treeRow, selected bool, width int, pad, guides, 
 	if badge := modeBadge(row.run.Mode); badge != "" {
 		status = badge + " " + status
 	}
-	meta := lipgloss.NewStyle().Foreground(r.palette.statusColor(state)).Render(status)
 	lead := pad + guides + glyph + " "
-	room := width - railGutter - ansi.StringWidth(lead) - ansi.StringWidth(status) - 2
-	name := presentation.EscapeControlsInline(row.run.Ticket)
-	if ansi.StringWidth(name) > room {
-		name = ansi.Truncate(name, max(room, 0), "…")
+	// The Project goes first, then the number, then the Title truncates.
+	budget := width - railGutter - ansi.StringWidth(lead) - 2
+	title := presentation.EscapeControlsInline(row.run.name())
+	project := presentation.EscapeControlsInline(row.run.Project)
+	number := row.run.Number
+	room := func() int { return budget - ansi.StringWidth(status) - numberWidth(number) }
+	keep := min(ansi.StringWidth(title), titleFloor)
+	if project != "" && room()-ansi.StringWidth(project)-1 < keep {
+		project = ""
 	}
-	head := lead + r.palette.highlight(name, r.model.search, nameStyle)
-	return renderedTreeRow{text: paint(rowColumns(head, meta, width-railGutter), width, background), handleX: -1}
+	if number != "" && room() < keep {
+		number = ""
+	}
+	available := room()
+	name := ""
+	if project != "" {
+		available -= ansi.StringWidth(project) + 1
+		name = r.palette.highlight(project, r.model.search, r.palette.subtle) + " "
+	}
+	name += r.palette.highlight(ansi.Truncate(title, max(available, 0), "…"), r.model.search, nameStyle)
+	right := lipgloss.NewStyle().Foreground(r.palette.statusColor(state)).Render(status)
+	if number != "" {
+		right = r.palette.subtle.Render(number) + " " + right
+	}
+	return renderedTreeRow{text: paint(rowColumns(lead+name, right, width-railGutter), width, background), handleX: -1}
+}
+
+// titleFloor is the columns a Title keeps before the row gives up the Project,
+// and then the number, to make room for it.
+const titleFloor = 12
+
+// name is what a human reads for the Run: its Title, else its Ticket Ref.
+func (r Run) name() string {
+	if r.Title != "" {
+		return r.Title
+	}
+	return r.Ticket
+}
+
+// numberWidth is the columns a number takes on the right, with its space.
+func numberWidth(number string) int {
+	if number == "" {
+		return 0
+	}
+	return ansi.StringWidth(number) + 1
 }
 
 func runMenuItems(run Run) []menuItem {
