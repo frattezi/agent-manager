@@ -13,6 +13,9 @@ type FocusKeys struct {
 	Review      string
 	Editor      string
 	SavedPrompt string
+	// AgentSurface is the key that opens what the session asks, and is empty
+	// while the session asks nothing.
+	AgentSurface string
 }
 
 // Focus is a focused session's footer: whether its pane pages scrollback and
@@ -84,6 +87,9 @@ func (f Footer) Focused(focus Focus) Section {
 	}
 	back += " / mouse back"
 	pairs := [][2]string{{back, "back"}}
+	if focus.Keys.AgentSurface != "" {
+		pairs = append(pairs, [2]string{focus.Keys.AgentSurface, "open what it asks"})
+	}
 	if f.ArrowStep {
 		label := "prompt start: back"
 		if f.FullLayout && focus.PagesScrollback {
