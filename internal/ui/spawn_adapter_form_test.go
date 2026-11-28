@@ -121,7 +121,7 @@ func TestFormSettingsLoadAppliesSuccessfulReadsOnPartialFailure(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
 	reader := &settingsScriptWriter{
-		failGetOn: uisettings.QuickCloseSetting,
+		failGetOn: uisettings.ListDensitySetting,
 		values: map[string]string{
 			"default_tool":             "ready-tool",
 			uisettings.WorktreeSetting: "on",

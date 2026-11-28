@@ -48,6 +48,12 @@ owner should see or decide, and the manager draws it. It is never painted inside
 Pane, which belongs to that Session's CLI.
 _Avoid_: Surface, widget, card, A2UI surface, agent UI
 
+**Overview**:
+What the manager shows for a section of the rail as a whole, rather than for one of its rows: a
+read-only summary of that section's things, composed from what is already recorded. It is never
+written by an agent; what was done is told by the work that did it.
+_Avoid_: Dashboard, summary, report, stats page
+
 ## Automations
 
 **Automation**:
@@ -174,6 +180,15 @@ _Avoid_: Ticket cache, index, mirror, sync
 The identifier a ticket source gives a Ticket, carrying the forge, the owner, the Project and
 the number. It identifies a Ticket; it is not what a reader is shown.
 _Avoid_: Ticket id, ticket key, ticket name
+
+**Session Mark**:
+A named activity a Session's row shows for exactly as long as the command that set it still runs.
+_Avoid_: Tag, label, flag, badge
+
+**Babysitting**:
+A Session driving a Project's unfinished Tickets through to merged, one at a time, shown by its
+babysit Session Mark.
+_Avoid_: Watching, chasing, shepherding
 
 ## Bots
 

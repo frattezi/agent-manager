@@ -122,6 +122,9 @@ func (m Model) RowLegend(ctx LegendContext) Legend {
 	if session.Asking {
 		pairs = append(pairs, [2]string{k(keybind.AgentSurface), "open what it asks"})
 	}
+	if session.Babysitting {
+		pairs = append(pairs, [2]string{presentation.GlyphsFor(ctx.GlyphMode).BabysitGlyph, "babysitting Tickets to merged"})
+	}
 	if session.AfterTurn != "" {
 		pairs = append(pairs, [2]string{k(keybind.CancelEnd), "cancel " + session.AfterTurn})
 	}

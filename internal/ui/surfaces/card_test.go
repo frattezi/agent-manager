@@ -120,7 +120,7 @@ func TestKeysMoveBetweenQuestionsStepAChoiceAndTypeIntoAField(t *testing.T) {
 	if fields[2].Value != "keep al" {
 		t.Fatalf("field = %q", fields[2].Value)
 	}
-	if view := card.View(h, ""); !strings.Contains(view, "> keep al_") {
+	if view := card.View(h, ""); !strings.Contains(view, "> keep al"+presentation.ChromeFor(presentation.GlyphModeAdvanced).CaretGlyph) {
 		t.Fatalf("the caret is not drawn:\n%s", view)
 	}
 	if h.popped != 0 {

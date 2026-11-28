@@ -29,8 +29,8 @@ type Request struct {
 	Automation  json.RawMessage `json:"automation"`
 }
 
-// RequestsDir is where Fractory picks requests up: $FRACTORY_HOME/automations.
-func RequestsDir() string { return fractoryhome.Sub("automations") }
+// RequestsDir is where Fractory picks requests up: $FRACTORY_HOME/automations/requests.
+func RequestsDir() string { return fractoryhome.Sub("automations/requests") }
 
 // RequestName is the file a request for the Automation id at firedFor lives
 // in. The same id and instant always give the same name.

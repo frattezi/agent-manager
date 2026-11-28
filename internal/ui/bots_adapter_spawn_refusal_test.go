@@ -44,12 +44,13 @@ func noSpaces(s string) string { return strings.ReplaceAll(s, " ", "") }
 // Each way B on a Profile can refuse to start a Bot puts its reason on the
 // frame and keeps it there through the passes the live program polls while
 // the lane is busy: the poke a finished effect asks for, the surfaces read
-// and the ticker.
+// and the ticker, and through another effect finishing after the refusal.
 func TestARefusedBotSpawnShowsItsReasonOnTheFrame(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name    string
 		profile store.BotProfile
+		owned   bool
 		want    func(repo, home string) []string
 	}{
 		{
@@ -59,6 +60,23 @@ func TestARefusedBotSpawnShowsItsReasonOnTheFrame(t *testing.T) {
 				return []string{"broken", `"does-not-exist"`, ", " +
 					filepath.Join(repo, ".agents", "skills", "does-not-exist", "SKILL.md") + ", " +
 					filepath.Join(home, ".claude", "skills", "does-not-exist", "SKILL.md")}
+			},
+		},
+		{
+			name: "a Specialization with no skill file on a Profile with a memory project",
+			profile: store.BotProfile{ID: "p1", Name: "remembers", Tool: "claude",
+				Specialization: "does-not-exist", MemoryProject: "ops"},
+			want: func(string, string) []string {
+				return []string{"remembers", `"does-not-exist"`, "SKILL.md"}
+			},
+		},
+		{
+			name: "a Specialization with no skill file on a Profile with a memory project and no directory",
+			profile: store.BotProfile{ID: "p1", Name: "homeless", Tool: "claude",
+				Specialization: "does-not-exist", MemoryProject: "ops"},
+			owned: true,
+			want: func(string, string) []string {
+				return []string{"homeless", `"does-not-exist"`, "SKILL.md"}
 			},
 		},
 		{
@@ -76,7 +94,10 @@ func TestARefusedBotSpawnShowsItsReasonOnTheFrame(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			m, repo, home := specializingModel(t)
-			tc.profile.Dir = t.TempDir()
+			m.env.botsDir = filepath.Join(t.TempDir(), "Work", "Bots")
+			if !tc.owned {
+				tc.profile.Dir = t.TempDir()
+			}
 			if err := m.services.store.AddBotProfile(tc.profile, time.Now()); err != nil {
 				t.Fatal(err)
 			}
@@ -86,6 +107,8 @@ func TestARefusedBotSpawnShowsItsReasonOnTheFrame(t *testing.T) {
 			}
 			_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("B")})
 			m.applyCmd(t, cmd)
+			m.layout.panes.Persist(paneSizing{m}, 0.5)
+			m.drainEffects(t)
 			for range 4 {
 				m.applyCmd(t, m.refreshCmd())
 			}

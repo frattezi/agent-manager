@@ -1,9 +1,11 @@
 package ui
 
 import (
+	"errors"
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/store"
@@ -50,6 +52,30 @@ func TestKeysNeitherFenceListingsNorAskForAPoll(t *testing.T) {
 	}
 }
 
+// A wheel burst forwarded to a CLI that owns the mouse lands one write per
+// notch; none of them changes the frame, so none rebuilds it.
+func TestADeliveredMouseReportKeepsTheFrame(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		kind focusruntime.Kind
+		err  error
+		keep bool
+	}{
+		{focusruntime.Mouse, nil, true},
+		{focusruntime.Mouse, errors.New("pane gone"), false},
+		{focusruntime.Keys, nil, false},
+	} {
+		m := buildModel(t)
+		m.dispatchInput(focusruntime.Request{Kind: c.kind, Session: store.Session{ID: "s"}, Command: "x"})
+		m.nextEffectCmd()
+		m.layout.frame = "drawn"
+		m.Update(uieffects.Completed{ID: m.effects.Input.Active.ID, Result: focusruntime.Result{}, Err: c.err, FinishedAt: time.Now()})
+		if kept := m.layout.frame == "drawn"; kept != c.keep {
+			t.Errorf("kind %v err %v: frame kept = %v, want %v", c.kind, c.err, kept, c.keep)
+		}
+	}
+}
+
 func TestSecondQuitAbandonsAStuckDrain(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
@@ -68,14 +94,17 @@ func TestSecondQuitAbandonsAStuckDrain(t *testing.T) {
 	if len(m.effects.Main.Pending) != 0 {
 		t.Fatal("abandoned work stayed queued")
 	}
-	if !m.effects.Lifetime.Begin() {
-		t.Fatal("lifetime closed early")
-	}
-	started := time.Now()
-	m.StopEffects()
-	if time.Since(started) > time.Second {
-		t.Fatal("stop waited on work the user abandoned")
-	}
+	synctest.Test(t, func(t *testing.T) {
+		if !m.effects.Lifetime.Begin() {
+			t.Fatal("lifetime closed early")
+		}
+		defer m.effects.Lifetime.Done()
+		started := time.Now()
+		m.StopEffects()
+		if time.Since(started) != 0 {
+			t.Fatal("stop waited on work the user abandoned")
+		}
+	})
 }
 
 func TestStopEffectsGivesUpOnStuckWork(t *testing.T) {

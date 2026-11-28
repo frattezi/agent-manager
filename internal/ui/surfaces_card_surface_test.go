@@ -53,7 +53,7 @@ func TestKeysThroughTheRootStepTheRoundAndTypeIntoItsField(t *testing.T) {
 	if got := chosen(card, 2); got[0] != "all" {
 		t.Fatalf("q2 = %v", got)
 	}
-	if view := ansi.Strip(preparedView(m)); !strings.Contains(view, "> no_") {
+	if view := ansi.Strip(preparedView(m)); !strings.Contains(view, "> no▏") {
 		t.Fatalf("the typed answer is not drawn:\n%s", view)
 	}
 	if len(m.workspace.sessions) != 2 {

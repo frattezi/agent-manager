@@ -314,6 +314,9 @@ func TestMouseReportEncodingsAndFrameRowOffset(t *testing.T) {
 	if result.SendReport != "\x1b[<64;4;6M" {
 		t.Fatalf("cropped-frame wheel report = %q", result.SendReport)
 	}
+	if !result.Input {
+		t.Fatal("a forwarded wheel report must pace its repaint like input")
+	}
 }
 
 func TestTallPaneCropKeepsCaretOnPaintedRow(t *testing.T) {

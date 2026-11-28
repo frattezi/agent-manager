@@ -42,7 +42,7 @@ var ReadbackKeys = func() []string {
 // name follows in table order.
 var saveOrder = func() []Setting {
 	named := []string{
-		DefaultToolSetting, ThemeSetting, ThemeAutoSetting, DiffLayoutSetting, QuickCloseSetting,
+		DefaultToolSetting, ThemeSetting, ThemeAutoSetting, DiffLayoutSetting,
 		FocusKeySetting, ArrowStepSetting, ListDensitySetting, SessionLayoutSetting, HideHeaderSetting,
 		HideStatsSetting, BackgroundSetting, MouseSetting, WorktreeSetting, BaseFetchSetting,
 		CoordinationSetting, NotificationsSetting, NotifyFinishedSetting, EditorSetting, GlyphModeSetting,

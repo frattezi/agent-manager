@@ -40,6 +40,10 @@ type RenderedSurface struct {
 	Surface AgentSurface `json:"surface"`
 	Width   int          `json:"width"`
 	Text    string       `json:"text" jsonschema:"the surface drawn as plain text"`
+	// Document is the A2UI document exactly as it was published, for a host
+	// that lays the surface out itself. It is carried as a string so the
+	// bytes the session wrote come back unchanged, not re-encoded.
+	Document string `json:"document,omitempty" jsonschema:"the A2UI document as it was published, byte for byte, when it was asked for"`
 }
 
 // PublishSurface validates an A2UI document and stores it against the
@@ -99,8 +103,9 @@ func (s *Sessions) Surfaces(sessionID, targetID string) ([]AgentSurface, error) 
 }
 
 // ShowSurface draws one stored surface as text at width, or at
-// DefaultSurfaceWidth when width is zero.
-func (s *Sessions) ShowSurface(sessionID, id string, width int) (RenderedSurface, error) {
+// DefaultSurfaceWidth when width is zero, and carries the published document
+// beside the text when withDocument is set.
+func (s *Sessions) ShowSurface(sessionID, id string, width int, withDocument bool) (RenderedSurface, error) {
 	if width < 0 {
 		return RenderedSurface{}, fmt.Errorf("width %d is negative; omit it to draw at %d", width, DefaultSurfaceWidth)
 	}
@@ -115,14 +120,7 @@ func (s *Sessions) ShowSurface(sessionID, id string, width int) (RenderedSurface
 	if _, err := runtime.optionalCaller(sessionID); err != nil {
 		return RenderedSurface{}, err
 	}
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return RenderedSurface{}, fmt.Errorf("surface id is empty; call %s to get one", runtime.words.ListSurfaces)
-	}
-	stored, err := runtime.store.AgentSurface(id)
-	if errors.Is(err, store.ErrAgentSurfaceNotFound) {
-		return RenderedSurface{}, fmt.Errorf("surface %s does not exist; call %s for current ids", id, runtime.words.ListSurfaces)
-	}
+	stored, err := runtime.storedSurface(id)
 	if err != nil {
 		return RenderedSurface{}, err
 	}
@@ -136,11 +134,82 @@ func (s *Sessions) ShowSurface(sessionID, id string, width int) (RenderedSurface
 	if err != nil {
 		return RenderedSurface{}, fmt.Errorf("surface %s cannot be drawn by this build: %w", id, err)
 	}
-	return RenderedSurface{
+	shown := RenderedSurface{
 		Surface: surfaceRecord(stored, names[stored.SessionID], doc.SurfaceID),
 		Width:   width,
 		Text:    a2ui.Render(doc, width, presentation.ChromeFor(presentation.DefaultGlyphMode)),
-	}, nil
+	}
+	if withDocument {
+		shown.Document = stored.Document
+	}
+	return shown, nil
+}
+
+// AnswerSurface records an answer to a surface from outside the manager's
+// card, for a host that drew the round itself. It has the effect sending
+// from the card has: the round is marked answered and keeps its answer, and
+// the answer is queued on the asking session's inbox in the same message,
+// to be typed in once its pane is at rest. With delivered, the asking session
+// reports an answer it already received as a user turn: the round is recorded
+// the same way but nothing is queued, since the conversation has it.
+func (s *Sessions) AnswerSurface(sessionID, id, answer string, delivered bool) (AgentSurface, error) {
+	runtime, err := s.open()
+	if err != nil {
+		return AgentSurface{}, err
+	}
+	defer runtime.Close()
+	caller, err := runtime.optionalCaller(sessionID)
+	if err != nil {
+		return AgentSurface{}, err
+	}
+	if strings.TrimSpace(answer) == "" {
+		return AgentSurface{}, errors.New("the answer is empty; a round is answered with what the user chose, so pass it as text")
+	}
+	stored, err := runtime.storedSurface(id)
+	if err != nil {
+		return AgentSurface{}, err
+	}
+	if delivered && caller.ID != stored.SessionID {
+		return AgentSurface{}, fmt.Errorf("surface %s was asked by another session, so an answer cannot be marked delivered from here: it would never reach that conversation; answer without the delivered option to queue it", stored.ID)
+	}
+	if !delivered && caller.ID == stored.SessionID {
+		return AgentSurface{}, fmt.Errorf("surface %s is your own question to the user, so only the user answers it", stored.ID)
+	}
+	surfaceName := storedSurfaceID(stored)
+	at := time.Now()
+	msg := store.SurfaceAnswerMessage(stored.SessionID, stored.ID, surfaceName, answer, at)
+	if delivered {
+		err = runtime.store.RecordAgentSurfaceAnswer(stored.ID, answer, msg)
+	} else {
+		_, err = runtime.store.AnswerAgentSurface(stored.ID, answer, msg, store.DefaultInboxLimits)
+	}
+	switch {
+	case errors.Is(err, store.ErrAgentSurfaceAnswered):
+		return AgentSurface{}, fmt.Errorf("surface %s is already answered, and an answer reaches its session once, so this one was not recorded", stored.ID)
+	case errors.Is(err, store.ErrAgentSurfaceNotFound):
+		return AgentSurface{}, fmt.Errorf("surface %s does not exist; call %s for current ids", stored.ID, runtime.words.ListSurfaces)
+	case err != nil:
+		return AgentSurface{}, fmt.Errorf("surface %s was not answered: %w", stored.ID, err)
+	}
+	names, err := runtime.sessionNames()
+	if err != nil {
+		return AgentSurface{}, err
+	}
+	stored.AnsweredAt, stored.Answer = at, answer
+	return surfaceRecord(stored, names[stored.SessionID], surfaceName), nil
+}
+
+// storedSurface reads one surface by the id publish or list handed out.
+func (r *runtime) storedSurface(id string) (store.AgentSurface, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return store.AgentSurface{}, fmt.Errorf("surface id is empty; call %s to get one", r.words.ListSurfaces)
+	}
+	stored, err := r.store.AgentSurface(id)
+	if errors.Is(err, store.ErrAgentSurfaceNotFound) {
+		return store.AgentSurface{}, fmt.Errorf("surface %s does not exist; call %s for current ids", id, r.words.ListSurfaces)
+	}
+	return stored, err
 }
 
 // surfaceOwner is the session whose surfaces a read lists. An outside
@@ -199,6 +268,20 @@ func FormatSurface(surface AgentSurface) string {
 
 func FormatSurfacePublished(surface AgentSurface) string {
 	return "published " + FormatSurface(surface) + " for " + surface.SessionName
+}
+
+// FormatSurfaceShown is what both fronts print for surface show: the drawn
+// text, then the published document as written when it was asked for.
+func FormatSurfaceShown(shown RenderedSurface) string {
+	text := strings.TrimRight(shown.Text, "\n")
+	if shown.Document == "" {
+		return text
+	}
+	return text + "\n\n" + shown.Document
+}
+
+func FormatSurfaceAnswered(surface AgentSurface) string {
+	return "answered " + FormatSurface(surface) + "; the answer is queued for " + surface.SessionName + " and typed in once it is at rest, unless it was recorded as delivered"
 }
 
 func FormatSurfaceList(surfaces []AgentSurface) string {

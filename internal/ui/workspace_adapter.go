@@ -31,6 +31,8 @@ type workspace struct {
 	automations automationsState
 	// surfaces is which sessions are asking the owner something.
 	surfaces surfacesState
+	// marks is each session's live Session Marks.
+	marks marksState
 	// tmuxSocket is the server the last poll read panes from; rows stamped
 	// with another server belong to a manager running against it, and rows
 	// stamped by none belong to whichever manager holds the store.

@@ -22,6 +22,7 @@ type fakeKeyHost struct {
 	resize   bool
 	review   string
 	saved    bool
+	surface  bool
 	openURL  string
 }
 
@@ -60,6 +61,11 @@ func (h *fakeKeyHost) Review(id string) (tea.Model, tea.Cmd) {
 
 func (h *fakeKeyHost) Saved() tea.Cmd {
 	h.saved = true
+	return nil
+}
+
+func (h *fakeKeyHost) Surface() tea.Cmd {
+	h.surface = true
 	return nil
 }
 
@@ -108,6 +114,7 @@ func TestKeyTakesTheManagersKeys(t *testing.T) {
 		"editor": func(h *fakeKeyHost) { h.keys.Editor = true },
 		"review": func(h *fakeKeyHost) { h.keys.Review = true },
 		"saved":  func(h *fakeKeyHost) { h.keys.Saved = true },
+		"asking": func(h *fakeKeyHost) { h.keys.Surface = true },
 	}
 	for name, set := range cases {
 		host := &fakeKeyHost{id: "s1", selected: true}

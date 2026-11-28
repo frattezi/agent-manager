@@ -30,6 +30,7 @@ func TestLegendKeyPressesTheFirstKeyItNames(t *testing.T) {
 		"ctrl+f / /":                           "ctrl+f",
 		"ctrl+f//":                             "ctrl+f",
 		"alt+/":                                "alt+/",
+		"alt+↵":                                "alt+enter",
 	} {
 		key, ok := LegendKey(label)
 		if !ok || key.String() != want {

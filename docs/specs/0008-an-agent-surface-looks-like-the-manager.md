@@ -182,8 +182,11 @@ right keys as focus moves, which is a test, not a note.
 
 ## Open questions
 
-- Whether a focused `TextField` should show a cursor within its input, or keep the current
-  underscore run. Visual polish, decidable once the roles land.
+Settled: a focused `TextField` shows an insertion point after what is typed, the chrome
+set's `CaretGlyph` in the focused role (ASCII `|` in Compatible mode). A form keeps the
+input's last cell free whether or not the field is focused, so the caret moves nothing, and
+`surface show` draws no caret.
+
 - Whether `surface show` should gain an opt-in flag to emit styled output for a terminal
   that wants it. Nothing needs it today, and plain text is the right default.
 - Whether a very long round should gain a per-question jump, rather than only `tab`. Only

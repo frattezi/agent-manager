@@ -39,7 +39,6 @@ type Styles struct {
 	Subtle  lipgloss.Style
 	Value   lipgloss.Style
 	Match   lipgloss.Style
-	Cursor  lipgloss.Style
 }
 
 func CurrentStyles() Styles {
@@ -51,7 +50,6 @@ func CurrentStyles() Styles {
 		Subtle:  uitheme.SubtleStyle(),
 		Value:   uitheme.ValueStyle(),
 		Match:   lipgloss.NewStyle().Foreground(uitheme.ColorBright()).Bold(true),
-		Cursor:  lipgloss.NewStyle().Foreground(uitheme.ColorAccent()),
 	}
 }
 
@@ -126,7 +124,11 @@ func helpBodyLines(sections []helpSection, ctx Context, query string) []string {
 					ctx.Styles.Subtle.Render(ansi.Truncate(row[1], max(ctx.Width-keyColumn, 1), "…")))
 				continue
 			}
-			key := presentation.PadRight(ctx.Styles.Key.Render(row[0]), keyColumn)
+			key := ctx.Styles.Key.Render(row[0])
+			if mark, label, ok := strings.Cut(row[0], " "); ok && label == "errored" {
+				key = lipgloss.NewStyle().Foreground(uitheme.ColorErrored()).Render(mark) + ctx.Styles.Key.Render(" "+label)
+			}
+			key = presentation.PadRight(key, keyColumn)
 			lines = append(lines, key+highlightMatch(row[1], query, ctx.Width-keyColumn, ctx.Styles))
 		}
 	}
@@ -185,7 +187,7 @@ func (s State) Content(ctx Context) Content {
 func (s State) searchLine(sections []helpSection, ctx Context) string {
 	line := ctx.Styles.Key.Render("search ") + ctx.Styles.Value.Render(s.query)
 	if s.searching {
-		line += ctx.CursorMarker + ctx.Styles.Cursor.Render(presentation.ChromeFor(ctx.Glyphs.Mode).CursorGlyph)
+		line += ctx.CursorMarker + " "
 	}
 	count := helpRowCount(sections)
 	label := " keys"

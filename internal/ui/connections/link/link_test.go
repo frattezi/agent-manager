@@ -93,7 +93,6 @@ type recorder struct {
 	answered []bool
 	closed   []Asker
 	renamed  []string
-	cleared  int
 	restored []spawn.Submission
 	errs     []string
 	done     []string
@@ -110,8 +109,6 @@ func (r *recorder) AnswerSave(gen uint64, failed bool) { r.answered = append(r.a
 func (r *recorder) CloseAsker(gen int, asker Asker) { r.closed = append(r.closed, asker) }
 
 func (r *recorder) CloseRename(gen int, name string) { r.renamed = append(r.renamed, name) }
-
-func (r *recorder) SettleAccepted(int, uint64, bool) { r.cleared++ }
 
 func (r *recorder) RestoreRefused(_ int, submission spawn.Submission) {
 	r.restored = append(r.restored, submission)

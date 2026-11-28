@@ -13,6 +13,9 @@ type FocusKeys struct {
 	Review      string
 	Editor      string
 	SavedPrompt string
+	// AgentSurface is the key that opens what the session asks, and is empty
+	// while the session asks nothing.
+	AgentSurface string
 }
 
 // Focus is a focused session's footer: whether its pane pages scrollback and
@@ -34,8 +37,10 @@ type Footer struct {
 	List        []Section
 	Measurement Measurement
 	Width       int
-	FullLayout  bool
-	ArrowStep   bool
+	// ListHeight is lazy: resting and full-layout footers need no padding.
+	ListHeight func() int
+	FullLayout bool
+	ArrowStep  bool
 }
 
 func (f Footer) Layout() (LegendMode, int) { return f.Measurement.Mode, f.Measurement.Rows }
@@ -69,7 +74,7 @@ func (f Footer) Transient(tier Section) Legend {
 	if f.FullLayout {
 		return painted
 	}
-	painted.Text = presentation.PadToHeight(painted.Text, lipgloss.Height(f.ListLegend().Text))
+	painted.Text = presentation.PadToHeight(painted.Text, f.ListHeight())
 	return painted
 }
 
@@ -84,6 +89,9 @@ func (f Footer) Focused(focus Focus) Section {
 	}
 	back += " / mouse back"
 	pairs := [][2]string{{back, "back"}}
+	if focus.Keys.AgentSurface != "" {
+		pairs = append(pairs, [2]string{focus.Keys.AgentSurface, "open what it asks"})
+	}
 	if f.ArrowStep {
 		label := "prompt start: back"
 		if f.FullLayout && focus.PagesScrollback {

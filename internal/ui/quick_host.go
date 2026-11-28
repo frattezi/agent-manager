@@ -5,7 +5,6 @@ import (
 	uiconnections "github.com/YoanWai/agent-manager/internal/ui/connections"
 	uiquick "github.com/YoanWai/agent-manager/internal/ui/quick"
 	uiquicksend "github.com/YoanWai/agent-manager/internal/ui/quick/send"
-	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	uipersist "github.com/YoanWai/agent-manager/internal/ui/settings/persist"
 	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	tea "github.com/charmbracelet/bubbletea"
@@ -67,12 +66,6 @@ func (m *Model) quickTool() string { return m.quick().Tool() }
 
 func (m *Model) quickSpawning() bool { return m.quick().Spawning(m.quickBarHost()) }
 
-// closeAfterSend is the bar's stored setting: a confirmed send takes it
-// down.
-func (m *Model) closeAfterSend() bool {
-	return spawn.CloseAfterSend(m.settings.Cache.Value(uisettings.QuickCloseSetting))
-}
-
 func (m *Model) quickBarHost() quickBarHost { return quickBarHost{spawnHost{m: m}} }
 
 // The bar's effects: what a key or click asks of the root once the package
@@ -99,10 +92,9 @@ func (h quickBarHost) Send(text string) tea.Cmd {
 	entry, _ := h.m.selectedRow()
 	q := h.m.quick()
 	h.m.dispatchQuickSend(uiquicksend.SendRequest{
-		Session:        entry.sess,
-		ComposerGen:    q.Gen,
-		Text:           text,
-		CloseAfterSend: q.CloseAfterSend,
+		Session:     entry.sess,
+		ComposerGen: q.Gen,
+		Text:        text,
 	})
 	h.m.clearErr()
 	return h.m.nextEffectCmd()

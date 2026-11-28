@@ -98,6 +98,7 @@ func (m *Model) railRuns() ([]uirail.Run, int) {
 		run := ticket.Latest()
 		out[i] = uirail.Run{
 			ID: run.ID, Ticket: run.TicketRef, Status: run.Status, Branch: run.Branch, Mode: run.EffectiveMode(),
+			Project: run.Project(), Title: run.RunTitle(), Number: run.Number().String(),
 			Reruns: ticket.Reruns, RerunPending: ticket.Pending, CanRerun: run.CanRerun(), Solved: ticket.Solved,
 			CanAnswer: run.CanAnswer(), Answered: m.workspace.runs.answers[run.ID] != "",
 		}
@@ -366,6 +367,8 @@ func (m *Model) runContentLines(width int) ([]contentLine, bool) {
 		}
 	}
 	add("Ticket", run.TicketRef)
+	add("Project", run.Project())
+	add("Title", run.RunTitle())
 	add("Status", run.Status)
 	add("Branch", run.Branch)
 	add("PR", run.PRURL)

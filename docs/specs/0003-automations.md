@@ -153,12 +153,13 @@ written, and a document carrying any other name is refused.
 
 **Request contract, version 1.** `version`, `requestedAt`, `firedFor`, and the configuration
 verbatim under `automation`. Written atomically through `internal/atomicfile` into
-`$FRACTORY_HOME/automations/`, one file per instant, named so that the same instant produces
+`$FRACTORY_HOME/automations/requests/`, one file per instant, named so that the same instant produces
 the same filename and a repeat write is a no-op — the idempotency mechanism `.rerun.json`
 already uses. Fractory never reads `state.db`; the manager stays the only writer of its own
 store.
 
-**Record contract, version 1.** Read-only, from `$FRACTORY_HOME/automation-runs/`:
+**Record contract, version 1.** Read-only, from `$FRACTORY_HOME/automations/<automationId>/<runId>.json` (the
+`requests/` and `refused/` siblings are not records):
 `version`, `id`, `automationId`, `firedFor`, `status`, `startedAt`, `updatedAt`, `logPath`,
 `outputPath` (the firing's output directory), and `result`. Parsing refuses any other version and ignores unknown fields,
 so Fractory can extend the contract — the rule `internal/ui/runs` already follows for a Run

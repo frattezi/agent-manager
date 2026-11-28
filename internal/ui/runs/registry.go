@@ -50,6 +50,8 @@ type Record struct {
 	Mode   string   `json:"mode"`
 	Flow   string   `json:"flow"`
 	Agents []string `json:"agents"`
+	// Title is the Run Title Fractory recorded; empty on older records.
+	Title string `json:"ticketTitle"`
 	// CleanedAt is when Fractory's cleanup removed the Run's worktree after
 	// its PR merged; zero while it has not.
 	CleanedAt time.Time `json:"cleanedAt"`

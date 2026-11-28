@@ -22,6 +22,7 @@ import (
 	focuswatch "github.com/YoanWai/agent-manager/internal/ui/focus/watch"
 	uigeometrypanes "github.com/YoanWai/agent-manager/internal/ui/geometry/panes"
 	uiinstall "github.com/YoanWai/agent-manager/internal/ui/launchhint/install"
+	uimarks "github.com/YoanWai/agent-manager/internal/ui/marks"
 	uinotices "github.com/YoanWai/agent-manager/internal/ui/notices"
 	onboardingruntime "github.com/YoanWai/agent-manager/internal/ui/onboarding/runtime"
 	uiquicksend "github.com/YoanWai/agent-manager/internal/ui/quick/send"
@@ -79,6 +80,7 @@ func (m *Model) bindEffect(request uieffects.Request) func() (uieffects.Result, 
 		uieffects.Binder(func() automations.Services { return capture().automationServices() }),
 		uieffects.Binder(func() uibots.Services { return capture().botServices() }),
 		uieffects.Binder(func() uisurfaces.Services { return capture().surfacesServices() }),
+		uieffects.Binder(func() uimarks.Services { return capture().marksServices() }),
 	}
 	for _, bind := range binders {
 		if work, ok := bind(request); ok {
@@ -162,6 +164,7 @@ func (m *Model) applyEffect(job *uieffects.Job, result uieffects.Result, err err
 	case uitheme.PaneRequest:
 		return uitheme.ApplyPane(themeHost{m}, err)
 	case uilifecycle.Request:
+		m.ledger.lifecycle.ClearPending(request.Target)
 		return m.applyLifecycleEffect(request, as[uilifecycle.Result](result), err)
 	case uilifecycle.AfterTurnRequest:
 		return m.applyAfterTurn(request, as[uilifecycle.AfterTurnResult](result), err)
@@ -194,6 +197,8 @@ func (m *Model) applyEffect(job *uieffects.Job, result uieffects.Result, err err
 		return m.applySurfacesRead(as[uisurfaces.Inbox](result), err)
 	case uisurfaces.AnswerRequest:
 		return m.applySurfacesAnswer(request, as[uisurfaces.Inbox](result), err)
+	case uimarks.ReadRequest:
+		return m.applyMarksRead(as[uimarks.Set](result), err)
 	}
 	if err != nil {
 		m.reportErr(err.Error())
@@ -233,14 +238,6 @@ func (m *Model) captureServices() effectServices {
 		services.lifecycle = m.services.lifecycle.Capture(cfg, m.services.setSnapshot)
 	}
 	return services
-}
-
-func (s effectServices) reflow(ids []string, work func()) error {
-	if s.runner == nil {
-		work()
-		return nil
-	}
-	return s.runner.ReflowSessions(ids, work)
 }
 
 // focusRuntime is the store, tmux server, watcher, engine and paste transport

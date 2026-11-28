@@ -341,6 +341,46 @@ func TestTheTwoFrontsShareOneSurfaceStore(t *testing.T) {
 		t.Fatalf("the fronts draw one surface differently:\ncli: %q\nmcp: %q", drawnCLI, drawnMCP)
 	}
 
+	cliShown := cliText(t, func(out *bytes.Buffer) error {
+		return runSurfaceShow(out, surfaces, []string{id, "--document"}, w.lead.ID)
+	})
+	mcpShown, isError := w.mcpText(t, w.lead.ID, "surface", map[string]any{"action": "show", "surface_id": id, "include_document": true})
+	if isError || strings.TrimSpace(cliShown) != strings.TrimSpace(mcpShown) || !strings.HasSuffix(strings.TrimSpace(mcpShown), strings.TrimSpace(string(doc))) {
+		t.Fatalf("the fronts return the document differently:\ncli: %q\nmcp: %q", cliShown, mcpShown)
+	}
+	encoded, err = json.Marshal(w.mcpCall(t, w.lead.ID, "surface", map[string]any{"action": "show", "surface_id": id, "include_document": true}).StructuredContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mcpRendered struct {
+		Rendered sessioncmd.RenderedSurface `json:"rendered"`
+	}
+	if err := json.Unmarshal(encoded, &mcpRendered); err != nil || mcpRendered.Rendered.Document != string(doc) {
+		t.Fatalf("MCP document = %q (%v), want it as published", mcpRendered.Rendered.Document, err)
+	}
+
+	// The worker answers from MCP; the CLI is refused the second answer in
+	// the words MCP uses, and both read the answer back.
+	answered, isError := w.mcpText(t, w.worker.ID, "surface", map[string]any{"action": "answer", "surface_id": id, "answer": "keep the cap"})
+	if isError || !strings.HasPrefix(answered, "answered round-1 ("+id+") [answered]") {
+		t.Fatalf("MCP answer = %q, isError=%v", answered, isError)
+	}
+	cliAgain := runSurfaceAnswer(&bytes.Buffer{}, strings.NewReader("again"), surfaces, []string{id}, w.worker.ID)
+	mcpAgain, isError := w.mcpText(t, w.worker.ID, "surface", map[string]any{"action": "answer", "surface_id": id, "answer": "again"})
+	if cliAgain == nil || !isError || cliAgain.Error() != mcpAgain || !strings.Contains(mcpAgain, "already answered") {
+		t.Fatalf("the fronts refuse a second answer differently:\ncli: %v\nmcp: %q", cliAgain, mcpAgain)
+	}
+	cliUnknown := runSurfaceAnswer(&bytes.Buffer{}, strings.NewReader("yes"), surfaces, []string{"nosuch12"}, w.worker.ID)
+	mcpUnknown, isError := w.mcpText(t, w.worker.ID, "surface", map[string]any{"action": "answer", "surface_id": "nosuch12", "answer": "yes"})
+	if cliUnknown == nil || !isError || !strings.Contains(mcpUnknown, "does not exist") || !strings.Contains(cliUnknown.Error(), "does not exist") {
+		t.Fatalf("the fronts refuse an unknown surface differently:\ncli: %v\nmcp: %q", cliUnknown, mcpUnknown)
+	}
+	fromCLI = cliText(t, func(out *bytes.Buffer) error { return runSurfaceList(out, surfaces, nil, w.lead.ID) })
+	fromMCP, isError = w.mcpText(t, w.lead.ID, "surface", map[string]any{"action": "list"})
+	if isError || strings.TrimSpace(fromCLI) != strings.TrimSpace(fromMCP) || !strings.Contains(fromCLI, "  keep the cap") {
+		t.Fatalf("the fronts read the answer back differently:\ncli: %q\nmcp: %q", fromCLI, fromMCP)
+	}
+
 	bad := `[{"version":"v0.8","createSurface":{"surfaceId":"r"}}]`
 	cliRefusal := runSurfacePublish(&bytes.Buffer{}, strings.NewReader(bad), surfaces, nil, w.lead.ID)
 	mcpRefusal, isError := w.mcpText(t, w.lead.ID, "surface", map[string]any{"action": "publish", "document": bad})

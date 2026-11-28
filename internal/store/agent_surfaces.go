@@ -118,23 +118,8 @@ func (s *Store) AnswerAgentSurface(id, answer string, msg InboxMessage, limits I
 		return 0, err
 	}
 	defer tx.Rollback()
-	res, err := tx.Exec(`UPDATE agent_surfaces SET answered_at = ?, answer = ? WHERE id = ? AND session_id = ? AND answered_at = 0`,
-		encodeTime(msg.SentAt), answer, id, msg.SessionID)
-	if err != nil {
+	if err := markAgentSurfaceAnswered(tx, id, answer, msg); err != nil {
 		return 0, err
-	}
-	if affected, err := res.RowsAffected(); err != nil {
-		return 0, err
-	} else if affected == 0 {
-		var answered int64
-		err := tx.QueryRow(`SELECT answered_at FROM agent_surfaces WHERE id = ? AND session_id = ?`, id, msg.SessionID).Scan(&answered)
-		if errors.Is(err, sql.ErrNoRows) {
-			return 0, ErrAgentSurfaceNotFound
-		}
-		if err != nil {
-			return 0, err
-		}
-		return 0, ErrAgentSurfaceAnswered
 	}
 	msg.SurfaceID = id
 	queued, err := s.enqueue(tx, msg, limits)
@@ -142,6 +127,58 @@ func (s *Store) AnswerAgentSurface(id, answer string, msg InboxMessage, limits I
 		return 0, err
 	}
 	return queued, tx.Commit()
+}
+
+// RecordAgentSurfaceAnswer marks a surface answered and keeps the answer
+// without queuing anything, for an answer the asking session already holds.
+// msg only names the session and the time.
+func (s *Store) RecordAgentSurfaceAnswer(id, answer string, msg InboxMessage) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := markAgentSurfaceAnswered(tx, id, answer, msg); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func markAgentSurfaceAnswered(tx *sql.Tx, id, answer string, msg InboxMessage) error {
+	res, err := tx.Exec(`UPDATE agent_surfaces SET answered_at = ?, answer = ? WHERE id = ? AND session_id = ? AND answered_at = 0`,
+		encodeTime(msg.SentAt), answer, id, msg.SessionID)
+	if err != nil {
+		return err
+	}
+	if affected, err := res.RowsAffected(); err != nil {
+		return err
+	} else if affected == 0 {
+		var answered int64
+		err := tx.QueryRow(`SELECT answered_at FROM agent_surfaces WHERE id = ? AND session_id = ?`, id, msg.SessionID).Scan(&answered)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrAgentSurfaceNotFound
+		}
+		if err != nil {
+			return err
+		}
+		return ErrAgentSurfaceAnswered
+	}
+	return nil
+}
+
+// SurfaceAnswerMessage is the inbox message that carries the owner's answer
+// to a surface into the session that asked. The card and an outside host
+// both build it here, so the session reads an answer the same way whichever
+// of them collected it.
+func SurfaceAnswerMessage(sessionID, surfaceID, surfaceName, answer string, at time.Time) InboxMessage {
+	return InboxMessage{
+		SessionID:   sessionID,
+		SenderName:  "the user",
+		Body:        answer,
+		Fingerprint: "surface:" + surfaceID,
+		SentAt:      at,
+		SurfaceName: surfaceName,
+	}
 }
 
 // ReopenAgentSurface puts a surface whose answer never reached its session

@@ -486,7 +486,7 @@ func (m *Model) applySpawn(request uilaunch.Request, result uilaunch.Result, err
 	request.Dir = result.Dir
 	request.Worktree = result.Worktree
 	if request.Kind == uilaunch.Shell {
-		m.ledger.lifecycle.TerminalKeyAt = time.Now()
+		m.ledger.lifecycle.TerminalKeyAt = m.services.now()
 		m.reportErr(err.Error())
 		return nil
 	}
@@ -543,10 +543,6 @@ func (m *Model) commitSpawn(request uilaunch.Request, sess store.Session) {
 			m.closeForm()
 			reveal = true
 		}
-	case uilaunch.Quick:
-		if q, ok := m.quickFor(request.ComposerGen); ok {
-			m.settleAccepted(request.ComposerGen, request.Submission.ID, q.CloseAfterSend)
-		}
 	case uilaunch.Import, uilaunch.Debug, uilaunch.Bot:
 		reveal = m.base == baseList && !m.focused() && !m.cardOpen()
 	}
@@ -558,7 +554,7 @@ func (m *Model) commitSpawn(request uilaunch.Request, sess store.Session) {
 		m.focusSession(sess.ID)
 	}
 	if request.Kind == uilaunch.Shell {
-		m.ledger.lifecycle.TerminalKeyAt = time.Now()
+		m.ledger.lifecycle.TerminalKeyAt = m.services.now()
 	}
 }
 
