@@ -27,11 +27,15 @@ type Command func(args []string, caller func() string, configDir string) error
 var ErrUsageShown = errors.New("usage shown")
 
 // ExitCode is the status a failed subcommand exits with: 1, or
-// sessioncmd.ExitMayHaveReached for a prompt that may sit in the pane.
+// sessioncmd.ExitMayHaveReached for a prompt that may sit in the pane, or
+// the status of the command `mark` wrapped.
 func ExitCode(err error) int {
 	var uncertain *sessioncmd.MayHaveReachedError
 	if errors.As(err, &uncertain) {
 		return sessioncmd.ExitMayHaveReached
+	}
+	if code, ok := commandExitCode(err); ok {
+		return code
 	}
 	return 1
 }
@@ -60,6 +64,7 @@ func sections(version string, specs settingSpecs) []section {
 		taskSection(),
 		fileSection(),
 		surfaceSection(),
+		markSection(),
 		terminalSection(),
 		reviewSection(),
 		reportSection(version),
@@ -101,6 +106,7 @@ func CommandsWithBackend(version string, specs settingSpecs, backend *sessioncmd
 		groupSection("Shared task list", "task", "the work list every session in this manager claims from", taskVerbsWith(func(string) taskCommands { return sessions })),
 		fileSectionWith(func(string) fileCommands { return sessions }),
 		groupSection("Agent Surfaces", "surface", surfaceAbout, surfaceVerbsWith(func(string) surfaceCommands { return sessions }, os.Stdin)),
+		markSectionWith(func(string) markCommands { return sessions }),
 		groupSection("Managed terminals", "terminal", "shells the user watches beside the agents, for work they should be able to watch, attach to or take over", terminalVerbsWith(func(string) terminalCommands { return terminals })),
 		reviewSectionWith(func(string) mailboxCommands { return backend }), reportSection(version), settingsSection(specs.settingsTable()), hooksSection(), runsSection(), automationsSection(), botsSection(specs), transferSection(specs.settingsTable()), updateSection(version), rebuildSection(version),
 	})
