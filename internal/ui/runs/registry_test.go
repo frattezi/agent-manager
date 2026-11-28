@@ -3,6 +3,7 @@ package runs
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 )
@@ -143,5 +144,15 @@ func TestParseReadsCleanedAtAndLeavesItZeroWhenAbsentOrNull(t *testing.T) {
 		if err != nil || !open.CleanedAt.IsZero() {
 			t.Fatalf("extra %q: cleanedAt = %v, err %v; want zero", extra, open.CleanedAt, err)
 		}
+	}
+}
+
+func TestRepositoriesAreEachRunsCheckoutOnceSorted(t *testing.T) {
+	list := []Record{{RepoPath: "/z"}, {RepoPath: ""}, {RepoPath: "/a"}, {RepoPath: "/z"}}
+	if got := Repositories(list); !slices.Equal(got, []string{"/a", "/z"}) {
+		t.Fatalf("Repositories = %q", got)
+	}
+	if got := Repositories(nil); len(got) != 0 {
+		t.Fatalf("Repositories of no Runs = %q", got)
 	}
 }

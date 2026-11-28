@@ -87,6 +87,19 @@ func (r Record) Question() string {
 // Dir is the registry directory: $FRACTORY_HOME/runs, else ~/.fractory/runs.
 func Dir() string { return fractoryhome.Sub("runs") }
 
+// Repositories is every checkout the Runs in list were made in, once each and
+// sorted, so a lookup across them does not depend on which Run moved last.
+func Repositories(list []Record) []string {
+	var repos []string
+	for _, record := range list {
+		if record.RepoPath != "" && !slices.Contains(repos, record.RepoPath) {
+			repos = append(repos, record.RepoPath)
+		}
+	}
+	slices.Sort(repos)
+	return repos
+}
+
 // Parse decodes one record. It refuses another version, and a record missing
 // what a row needs, so a half-understood file never reaches the list.
 func Parse(data []byte) (Record, error) {
