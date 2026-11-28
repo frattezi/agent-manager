@@ -9,6 +9,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/ui/automations"
 	"github.com/YoanWai/agent-manager/internal/ui/bots"
 	uieffects "github.com/YoanWai/agent-manager/internal/ui/effects"
+	"github.com/YoanWai/agent-manager/internal/ui/runs"
 	uilaunch "github.com/YoanWai/agent-manager/internal/ui/spawn/launch"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -35,7 +36,7 @@ func (m *Model) spawnBot(profile bots.Profile) tea.Cmd {
 	}
 	if profile.Specialization != "" && tool.AppendSystemPromptFlag != "" {
 		request.Specialize = true
-		request.Roots = bots.SkillRoots(m.env.factoryDir, m.env.homeDir)
+		request.Roots = bots.SkillRoots(runs.Repositories(m.workspace.runs.list), m.env.homeDir)
 	}
 	m.enqueueEffect(request, 0, false)
 	return m.nextEffectCmd()

@@ -3,18 +3,19 @@ package bots
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
 
-func TestSkillRootsSearchTheFactoryBeforeTheGlobalSkills(t *testing.T) {
-	got := SkillRoots("/f", "/h")
-	want := []string{filepath.Join("/f", ".agents", "skills"), filepath.Join("/h", ".claude", "skills")}
-	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
+func TestSkillRootsSearchEveryRepositoryBeforeTheGlobalSkills(t *testing.T) {
+	got := SkillRoots([]string{"/a", "", "/b"}, "/h")
+	want := []string{filepath.Join("/a", ".agents", "skills"), filepath.Join("/b", ".agents", "skills"), filepath.Join("/h", ".claude", "skills")}
+	if !slices.Equal(got, want) {
 		t.Fatalf("roots = %q; want %q", got, want)
 	}
-	if only := SkillRoots("", "/h"); len(only) != 1 || only[0] != want[1] {
-		t.Fatalf("roots with no factory = %q", only)
+	if only := SkillRoots(nil, "/h"); !slices.Equal(only, want[2:]) {
+		t.Fatalf("roots with no repository = %q", only)
 	}
 }
 

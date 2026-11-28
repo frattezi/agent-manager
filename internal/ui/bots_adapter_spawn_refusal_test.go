@@ -51,14 +51,14 @@ func TestARefusedBotSpawnShowsItsReasonOnTheFrame(t *testing.T) {
 		name    string
 		profile store.BotProfile
 		owned   bool
-		want    func(factory, home string) []string
+		want    func(repo, home string) []string
 	}{
 		{
 			name:    "a Specialization with no skill file",
 			profile: store.BotProfile{ID: "p1", Name: "broken", Tool: "claude", Specialization: "does-not-exist"},
-			want: func(factory, home string) []string {
-				return []string{"broken", `"does-not-exist"`, "looked for " +
-					filepath.Join(factory, ".agents", "skills", "does-not-exist", "SKILL.md") + ", " +
+			want: func(repo, home string) []string {
+				return []string{"broken", `"does-not-exist"`, ", " +
+					filepath.Join(repo, ".agents", "skills", "does-not-exist", "SKILL.md") + ", " +
 					filepath.Join(home, ".claude", "skills", "does-not-exist", "SKILL.md")}
 			},
 		},
@@ -93,7 +93,7 @@ func TestARefusedBotSpawnShowsItsReasonOnTheFrame(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			m, factory, home := specializingModel(t)
+			m, repo, home := specializingModel(t)
 			m.env.botsDir = filepath.Join(t.TempDir(), "Work", "Bots")
 			if !tc.owned {
 				tc.profile.Dir = t.TempDir()
@@ -116,7 +116,7 @@ func TestARefusedBotSpawnShowsItsReasonOnTheFrame(t *testing.T) {
 				t.Fatalf("a refused Profile started %+v", spawned)
 			}
 			toast := toastText(m.View())
-			for _, want := range tc.want(factory, home) {
+			for _, want := range tc.want(repo, home) {
 				if !strings.Contains(noSpaces(toast), noSpaces(want)) {
 					t.Fatalf("the frame reads %q; want %q on it:\n%s", toast, want, ansi.Strip(m.View()))
 				}

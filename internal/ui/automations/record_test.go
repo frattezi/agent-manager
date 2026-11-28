@@ -23,12 +23,37 @@ func recordJSON(id, firedFor, updatedAt string) string {
 		`"result":{"outcome":"done","summary":"ok"},"outputPath":"/out/` + id + `"}`
 }
 
+func automationDir(t *testing.T) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "weekly-1")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func TestLoadRecordsLeavesRequestsAndRefusedAlone(t *testing.T) {
+	dir := automationDir(t)
+	root := filepath.Dir(dir)
+	writeFile(t, dir, "a.json", recordJSON("a", "2026-11-26T07:00:00Z", "2026-11-26T07:05:00Z"))
+	for _, name := range []string{"requests", "refused"} {
+		if err := os.Mkdir(filepath.Join(root, name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(root, name), "x.json", `not a record`)
+	}
+	got, skips, err := LoadRecords(root)
+	if err != nil || len(skips) != 0 || len(got) != 1 {
+		t.Fatalf("LoadRecords = %+v, %+v, %v", got, skips, err)
+	}
+}
+
 func TestLoadRecordsReturnsEveryValidRecordNewestFirst(t *testing.T) {
-	dir := t.TempDir()
+	dir := automationDir(t)
 	writeFile(t, dir, "a.json", recordJSON("a", "2026-11-24T07:00:00Z", "2026-11-24T07:05:00Z"))
 	writeFile(t, dir, "c.json", recordJSON("c", "2026-11-26T07:00:00Z", "2026-11-26T07:05:00Z"))
 	writeFile(t, dir, "b.json", recordJSON("b", "2026-11-25T07:00:00Z", "2026-11-27T00:00:00Z"))
-	got, skips, err := LoadRecords(dir)
+	got, skips, err := LoadRecords(filepath.Dir(dir))
 	if err != nil || len(skips) != 0 {
 		t.Fatalf("LoadRecords = %v, %v", skips, err)
 	}
@@ -47,10 +72,10 @@ func TestLoadRecordsReturnsEveryValidRecordNewestFirst(t *testing.T) {
 }
 
 func TestLoadRecordsSkipsAnotherVersionWithAReason(t *testing.T) {
-	dir := t.TempDir()
+	dir := automationDir(t)
 	writeFile(t, dir, "ok.json", recordJSON("ok", "2026-11-26T07:00:00Z", "2026-11-26T07:05:00Z"))
 	writeFile(t, dir, "v2.json", strings.Replace(recordJSON("v2", "2026-11-26T07:00:00Z", "2026-11-26T07:05:00Z"), `"version":1`, `"version":2`, 1))
-	got, skips, err := LoadRecords(dir)
+	got, skips, err := LoadRecords(filepath.Dir(dir))
 	if err != nil || len(got) != 1 || got[0].ID != "ok" {
 		t.Fatalf("LoadRecords = %+v, %v", got, err)
 	}
@@ -60,16 +85,16 @@ func TestLoadRecordsSkipsAnotherVersionWithAReason(t *testing.T) {
 }
 
 func TestLoadRecordsIgnoresAnUnknownField(t *testing.T) {
-	dir := t.TempDir()
+	dir := automationDir(t)
 	writeFile(t, dir, "a.json", strings.Replace(recordJSON("a", "2026-11-26T07:00:00Z", "2026-11-26T07:05:00Z"), `{"version":1`, `{"version":1,"costUsd":0.42,"extra":{"x":[1]}`, 1))
-	got, skips, err := LoadRecords(dir)
+	got, skips, err := LoadRecords(filepath.Dir(dir))
 	if err != nil || len(skips) != 0 || len(got) != 1 || got[0].ID != "a" {
 		t.Fatalf("LoadRecords = %+v, %+v, %v", got, skips, err)
 	}
 }
 
 func TestLoadRecordsSkipsAFileItCannotUse(t *testing.T) {
-	dir := t.TempDir()
+	dir := automationDir(t)
 	writeFile(t, dir, "ok.json", recordJSON("ok", "2026-11-26T07:00:00Z", "2026-11-26T07:05:00Z"))
 	writeFile(t, dir, "malformed.json", `{"version":1,`)
 	writeFile(t, dir, "missing.json", `{"version":1,"id":"m"}`)
@@ -86,7 +111,7 @@ func TestLoadRecordsSkipsAFileItCannotUse(t *testing.T) {
 		}
 		want++
 	}
-	got, skips, err := LoadRecords(dir)
+	got, skips, err := LoadRecords(filepath.Dir(dir))
 	if err != nil || len(got) != 1 || got[0].ID != "ok" {
 		t.Fatalf("LoadRecords = %+v, %v", got, err)
 	}
@@ -110,7 +135,7 @@ func TestAnAbsentRecordsDirectoryIsNoRecords(t *testing.T) {
 func TestDirectoriesResolveBesideTheRunsRegistry(t *testing.T) {
 	t.Setenv("FRACTORY_HOME", "/srv/fractory")
 	home := filepath.Dir(runs.Dir())
-	if RequestsDir() != filepath.Join(home, "automations") || RecordsDir() != filepath.Join(home, "automation-runs") {
+	if RequestsDir() != filepath.Join(home, "automations", "requests") || RecordsDir() != filepath.Join(home, "automations") {
 		t.Fatalf("dirs = %q, %q beside %q", RequestsDir(), RecordsDir(), home)
 	}
 	fallback := t.TempDir()
@@ -118,7 +143,7 @@ func TestDirectoriesResolveBesideTheRunsRegistry(t *testing.T) {
 	t.Setenv("HOME", fallback)
 	t.Setenv("USERPROFILE", fallback)
 	home = filepath.Dir(runs.Dir())
-	if home != filepath.Join(fallback, ".fractory") || RecordsDir() != filepath.Join(home, "automation-runs") || RequestsDir() != filepath.Join(home, "automations") {
+	if home != filepath.Join(fallback, ".fractory") || RecordsDir() != filepath.Join(home, "automations") || RequestsDir() != filepath.Join(home, "automations", "requests") {
 		t.Fatalf("fallback dirs = %q, %q beside %q", RequestsDir(), RecordsDir(), home)
 	}
 }

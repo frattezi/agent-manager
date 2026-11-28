@@ -12,6 +12,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	"github.com/YoanWai/agent-manager/internal/ui/bots"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
+	"github.com/YoanWai/agent-manager/internal/ui/runs"
 	uilaunch "github.com/YoanWai/agent-manager/internal/ui/spawn/launch"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -125,15 +126,20 @@ func TestSpawnBotInARepositoryWritesNoMarker(t *testing.T) {
 }
 
 // specializingModel is a Model whose claude appends a file to its system
-// prompt, with the Fractory home and the owner's home in temp directories.
-func specializingModel(t *testing.T) (m *Model, factory, home string) {
+// prompt, with the owner's home in a temp directory and a Run registry that
+// names two repository checkouts. repo is the second of them, so a skill
+// found there was looked for past one that holds none.
+func specializingModel(t *testing.T) (m *Model, repo, home string) {
 	t.Helper()
 	m = buildModel(t)
 	tool := m.services.cfg.Tools["claude"]
 	tool.AppendSystemPromptFlag = "--append-system-prompt-file"
 	m.services.cfg.Tools["claude"] = tool
-	m.env.factoryDir, m.env.homeDir = t.TempDir(), t.TempDir()
-	return m, m.env.factoryDir, m.env.homeDir
+	parent := t.TempDir()
+	other, repo := filepath.Join(parent, "a-other"), filepath.Join(parent, "b-fractory")
+	m.workspace.runs.list = []runs.Record{{ID: "r1", RepoPath: repo}, {ID: "r2", RepoPath: other}, {ID: "r3", RepoPath: repo}}
+	m.env.homeDir = t.TempDir()
+	return m, repo, m.env.homeDir
 }
 
 func writeSkill(t *testing.T, root, name string) string {
@@ -148,11 +154,13 @@ func writeSkill(t *testing.T, root, name string) string {
 	return path
 }
 
+// A skill committed in a repository checkout the Run registry names wins over
+// the owner's global skill of the same name.
 func TestSpawnBotPassesItsSpecializationAsASystemPromptFile(t *testing.T) {
 	t.Parallel()
-	m, factory, home := specializingModel(t)
+	m, repo, home := specializingModel(t)
 	writeSkill(t, filepath.Join(home, ".claude", "skills"), "fractory-operator")
-	want := writeSkill(t, filepath.Join(factory, ".agents", "skills"), "fractory-operator")
+	want := writeSkill(t, filepath.Join(repo, ".agents", "skills"), "fractory-operator")
 	m.applyCmd(t, m.spawnBot(testBotProfile(t.TempDir())))
 	m.drainEffects(t)
 	spawned := liveBots(t, m, "p1")
@@ -161,7 +169,7 @@ func TestSpawnBotPassesItsSpecializationAsASystemPromptFile(t *testing.T) {
 	}
 	flags := "-u --append-system-prompt-file " + tmux.ShellQuote(want)
 	if got := spawned[0].Choice.Flags; got != flags {
-		t.Fatalf("launch flags = %q; want %q, the Fractory skill ahead of the global one", got, flags)
+		t.Fatalf("launch flags = %q; want %q, the repository skill ahead of the global one", got, flags)
 	}
 	if !botPaneRuns(t, m, spawned[0].ID) {
 		t.Fatalf("no pane runs the Bot %s", spawned[0].ID)
@@ -198,8 +206,8 @@ func TestSpawnBotRefusesASpecializationWithNoSkillFile(t *testing.T) {
 
 func TestSpawnBotAddsNoFlagWithoutASpecializationOrTheCapability(t *testing.T) {
 	t.Parallel()
-	m, factory, _ := specializingModel(t)
-	writeSkill(t, filepath.Join(factory, ".agents", "skills"), "fractory-operator")
+	m, repo, _ := specializingModel(t)
+	writeSkill(t, filepath.Join(repo, ".agents", "skills"), "fractory-operator")
 	plain := testBotProfile(t.TempDir())
 	plain.Specialization = ""
 	m.applyCmd(t, m.spawnBot(plain))

@@ -3,6 +3,7 @@ package runs
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 )
@@ -161,5 +162,15 @@ func TestParseDecodesSummaryPRStateFinishedAtAndAgents(t *testing.T) {
 	}
 	if old.PRState != "" || !old.FinishedAt.IsZero() || old.Result != nil || old.Agents != nil {
 		t.Errorf("old record = %+v; want the four fields absent", old)
+	}
+}
+
+func TestRepositoriesAreEachRunsCheckoutOnceSorted(t *testing.T) {
+	list := []Record{{RepoPath: "/z"}, {RepoPath: ""}, {RepoPath: "/a"}, {RepoPath: "/z"}}
+	if got := Repositories(list); !slices.Equal(got, []string{"/a", "/z"}) {
+		t.Fatalf("Repositories = %q", got)
+	}
+	if got := Repositories(nil); len(got) != 0 {
+		t.Fatalf("Repositories of no Runs = %q", got)
 	}
 }

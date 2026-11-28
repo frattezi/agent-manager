@@ -31,7 +31,7 @@ func addViewAutomation(t *testing.T, m *Model, id, name, mode string, enabled bo
 
 func writeFiringRecord(t *testing.T, home, id, automation, status, outcome string, firedFor, started, updated time.Time, logPath string) {
 	t.Helper()
-	dir := filepath.Join(home, "automation-runs")
+	dir := filepath.Join(home, "automations", automation)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +199,7 @@ func TestAutomationsWithoutRecordsShowAnEmptySection(t *testing.T) {
 		t.Fatalf("no Automations listed %+v", rows)
 	}
 	addViewAutomation(t, m, "report", "weekly report", "work", true, time.Now().Add(-time.Hour))
-	if err := os.MkdirAll(filepath.Join(home, "automation-runs"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(home, "automations"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	checkAutomations(t, m)
@@ -212,7 +212,7 @@ func TestAutomationsWithoutRecordsShowAnEmptySection(t *testing.T) {
 	if m.errBar.text != "" {
 		t.Fatalf("an empty records directory reported %q", m.errBar.text)
 	}
-	if err := os.RemoveAll(filepath.Join(home, "automation-runs")); err != nil {
+	if err := os.RemoveAll(filepath.Join(home, "automations")); err != nil {
 		t.Fatal(err)
 	}
 	checkAutomations(t, m)

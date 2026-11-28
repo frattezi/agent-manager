@@ -33,7 +33,7 @@ func TestAutomationsTickFiresADueAutomationOffTheUpdatePath(t *testing.T) {
 	home := fractoryHome(t)
 	m := buildModel(t)
 	addTestAutomation(t, m, "nightly", true)
-	requests := filepath.Join(home, "automations")
+	requests := filepath.Join(home, "automations", "requests")
 
 	m.applyTestMsg(t, automationsCheckNow())
 	if entries, _ := os.ReadDir(requests); len(entries) != 0 {
@@ -66,7 +66,7 @@ func TestAutomationsTickLeavesADisabledAutomation(t *testing.T) {
 	addTestAutomation(t, m, "nightly", false)
 	m.applyTestMsg(t, automationsCheckNow())
 	m.drainEffects(t)
-	if entries, _ := os.ReadDir(filepath.Join(home, "automations")); len(entries) != 0 {
+	if entries, _ := os.ReadDir(filepath.Join(home, "automations", "requests")); len(entries) != 0 {
 		t.Fatalf("a disabled Automation fired: %v", entries)
 	}
 }

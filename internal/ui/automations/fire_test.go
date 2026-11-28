@@ -67,7 +67,7 @@ func newFixture(t *testing.T, row Row) (*fakeStore, Services) {
 	}
 	store := &fakeStore{rows: map[string]Row{row.ID: row}}
 	root := t.TempDir()
-	return store, Services{Store: store, RequestsDir: filepath.Join(root, "automations"), RecordsDir: filepath.Join(root, "automation-runs")}
+	return store, Services{Store: store, RequestsDir: filepath.Join(root, "automations", "requests"), RecordsDir: filepath.Join(root, "automations")}
 }
 
 func requestFiles(t *testing.T, dir string) []string {
@@ -88,6 +88,7 @@ func requestFiles(t *testing.T, dir string) []string {
 
 func writeRecord(t *testing.T, dir, status string, firedFor time.Time) {
 	t.Helper()
+	dir = filepath.Join(dir, "daily")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
