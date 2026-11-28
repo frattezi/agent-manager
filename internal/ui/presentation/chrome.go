@@ -13,6 +13,9 @@ type ChromeSet struct {
 	// Marks are an answer's state as a form draws it: a choice of one and a
 	// box of many, each on or off. A mode's pair shares a width.
 	ChoiceOnMark, ChoiceOffMark, CheckOnMark, CheckOffMark string
+	// CaretGlyph is where typing lands in a focused text field, one cell
+	// wide in every mode.
+	CaretGlyph string
 }
 
 func ChromeFor(mode GlyphMode) ChromeSet {
@@ -23,6 +26,7 @@ func ChromeFor(mode GlyphMode) ChromeSet {
 			ReviewSelectionGlyph: "▎", QuickEdgeGlyph: "▌", ResizeGlyph: "║",
 			EdgeGlyph: "─", SideGlyph: "│",
 			ChoiceOnMark: "(*)", ChoiceOffMark: "( )", CheckOnMark: "[x]", CheckOffMark: "[ ]",
+			CaretGlyph: "▏",
 		}
 	}
 	return ChromeSet{
@@ -31,5 +35,6 @@ func ChromeFor(mode GlyphMode) ChromeSet {
 		ReviewSelectionGlyph: "│", QuickEdgeGlyph: "│", ResizeGlyph: "│",
 		EdgeGlyph: "-", SideGlyph: "|",
 		ChoiceOnMark: "(*)", ChoiceOffMark: "( )", CheckOnMark: "[x]", CheckOffMark: "[ ]",
+		CaretGlyph: "|",
 	}
 }

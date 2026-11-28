@@ -90,7 +90,7 @@ func TestRenderFormGivesARoundItsRoles(t *testing.T) {
 		`rule"│ " body"    ( ) A Settings row` + pad(34) + `" rule" │"`,
 		`rule"│ ` + strings.Repeat("─", 56) + ` │"`,
 		`rule"│ " *body"  " *label"Anything the choices do not cover" *body"` + pad(21) + `" rule" │"`,
-		`rule"│ " *body"  " *muted"> " *focused"_" *body"` + pad(51) + `" rule" │"`,
+		`rule"│ " *body"  " *muted"> " *focused"▏" *muted"` + strings.Repeat("_", 23) + `" *body"` + pad(28) + `" rule" │"`,
 		`rule"│ " accent"[ Send answers ]" body"` + pad(40) + `" rule" │"`,
 		`rule"╰` + rule + `╯"`,
 	})
@@ -101,7 +101,7 @@ func TestAFocusedValueCarriesItsCaret(t *testing.T) {
 	lines, _ := RenderForm(doc, 30, Focus{Field: 1}, advanced)
 	assertLines(t, lines, []string{
 		`*body"  " *label"Name" *body"` + pad(24) + `"`,
-		`*body"  " *muted"> " *value"Ada" *focused"_" *body"` + pad(22) + `"`,
+		`*body"  " *muted"> " *value"Ada" *focused"▏" *body"` + pad(22) + `"`,
 	})
 	lines, _ = RenderForm(doc, 30, Focus{}, advanced)
 	assertLines(t, lines, []string{

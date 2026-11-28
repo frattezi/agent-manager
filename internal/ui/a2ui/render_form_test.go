@@ -3,6 +3,9 @@ package a2ui
 import (
 	"strings"
 	"testing"
+
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestFieldsNumberTheAnsweredComponentsInDocumentOrder(t *testing.T) {
@@ -40,7 +43,7 @@ func TestRenderFormMarksTheFocusAndTargetsEachLine(t *testing.T) {
 │     ( ) A Settings row                                   │
 │ ──────────────────────────────────────────────────────── │
 │   Anything the choices do not cover                      │
-│   > _                                                    │
+│   > ▏_______________________                             │
 │ [ Send answers ]                                         │
 ╰──────────────────────────────────────────────────────────╯`, "\n")
 	if got := strings.Join(Texts(lines), "\n"); got != want {
@@ -74,5 +77,83 @@ func TestRenderFormPutsTheCursorOnAMultipleChoice(t *testing.T) {
 func TestRenderDrawsNoGutter(t *testing.T) {
 	if got := Render(fixture(t, "round"), 80, advanced); strings.Contains(got, "› ") || strings.Contains(got, "│   1. Which") {
 		t.Fatalf("plain render carries a form gutter:\n%s", got)
+	}
+}
+
+func TestAnEmptyFocusedFieldShowsWhereTypingLands(t *testing.T) {
+	doc := parse(t, `{"id":"root","component":"TextField","label":"Name"}`)
+	lines, _ := RenderForm(doc, 12, Focus{Field: 1}, advanced)
+	assertLines(t, lines, []string{
+		`*body"  " *label"Name" *body"` + pad(6) + `"`,
+		`*body"  " *muted"> " *focused"▏" *muted"_______"`,
+	})
+	lines, _ = RenderForm(doc, 12, Focus{}, advanced)
+	assertLines(t, lines, []string{
+		`body"  " label"Name"`,
+		`body"  " muted"> ________"`,
+	})
+}
+
+func TestCompatibleModeDrawsTheCaretInASCII(t *testing.T) {
+	for _, value := range []string{"", "Ada"} {
+		doc := parse(t, `{"id":"root","component":"TextField","label":"Name","value":"`+value+`"}`)
+		lines, _ := RenderForm(doc, 30, Focus{Field: 1}, compatible)
+		var caret []string
+		for _, s := range lines[len(lines)-1] {
+			if s.Role == RoleFocused {
+				caret = append(caret, s.Text)
+			}
+		}
+		if len(caret) != 1 || caret[0] != "|" {
+			t.Errorf("value %q: focused text = %q, want one ASCII caret", value, caret)
+		}
+	}
+}
+
+// Focus arriving on a field fills it and adds its caret, and nothing else:
+// the input keeps its width and its lines, so what follows stays put.
+func TestFocusMovesNothingInOrAroundAField(t *testing.T) {
+	for _, value := range []string{"", "Ada", "abcdefgh", "a value that wraps past the end"} {
+		doc := parse(t, `{"id":"root","component":"Column","children":["q","after"]},
+			{"id":"q","component":"TextField","label":"Name","value":"`+value+`"},
+			{"id":"after","component":"Text","text":"below"}`)
+		for _, chrome := range []presentation.ChromeSet{advanced, compatible} {
+			focused, _ := RenderForm(doc, 12, Focus{Field: 1}, chrome)
+			unfocused, _ := RenderForm(doc, 12, Focus{}, chrome)
+			if len(focused) != len(unfocused) {
+				t.Fatalf("value %q: %d lines focused, %d unfocused", value, len(focused), len(unfocused))
+			}
+			input := len(focused) - 2
+			caret := ansi.StringWidth(chrome.CaretGlyph)
+			if f, u := strings.TrimRight(focused[input].Text(), " "), unfocused[input].Text(); value == "" && ansi.StringWidth(f) != ansi.StringWidth(u) {
+				t.Errorf("value %q: empty input is %d wide focused, %d unfocused", value, ansi.StringWidth(f), ansi.StringWidth(u))
+			} else if value != "" && f != u+chrome.CaretGlyph {
+				t.Errorf("value %q: focused input %q is not %q with a caret of %d", value, f, u, caret)
+			}
+			for i, l := range focused {
+				if w := l.Width(); w > 12 {
+					t.Errorf("value %q: line %d is %d wide", value, i, w)
+				}
+			}
+			if focused[len(focused)-1].Text() != unfocused[len(unfocused)-1].Text() {
+				t.Errorf("value %q: the line below moved", value)
+			}
+		}
+	}
+}
+
+func TestPlainRenderingHasNoCaret(t *testing.T) {
+	for _, chrome := range []presentation.ChromeSet{advanced, compatible} {
+		for _, doc := range []string{
+			`{"id":"root","component":"TextField","label":"Name"}`,
+			`{"id":"root","component":"TextField","label":"Name","value":"Ada"}`,
+		} {
+			if got := Render(parse(t, doc), 30, chrome); strings.Contains(got, chrome.CaretGlyph) {
+				t.Errorf("plain output carries a caret: %q", got)
+			}
+		}
+	}
+	if got, want := Render(parse(t, `{"id":"root","component":"TextField","label":"Name"}`), 30, advanced), "Name\n> "+strings.Repeat("_", 24); got != want {
+		t.Fatalf("got %q, want %q", got, want)
 	}
 }
