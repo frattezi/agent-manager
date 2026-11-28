@@ -110,3 +110,37 @@ func TestMergeFoldsLongWindowsIntoWeeks(t *testing.T) {
 		t.Errorf("hours: factor %d, %d buckets", factor, len(got))
 	}
 }
+
+func TestDrawCapsALongSummaryToItsFirstParagraph(t *testing.T) {
+	long := strings.Repeat("Every gate passed and the change merged cleanly. ", 12) + "\n\nSecond paragraph that must not show."
+	o := Compute([]runs.Record{run("1", "o/api#1", "api", runs.StatusDone, time.Hour, func(r *runs.Record) {
+		r.FinishedAt = now.Add(-time.Hour)
+		r.Title = "Long summary"
+		r.Result = &runs.Result{Summary: long}
+	})}, WindowAll, now)
+	for _, width := range []int{34, 80} {
+		text := plain(Draw(o, width, "W", presentation.GlyphModeAdvanced, testPalette))
+		if strings.Contains(text, "Second paragraph") {
+			t.Errorf("width %d: a later paragraph is drawn:\n%s", width, text)
+		}
+		after := text[strings.Index(text, "Long summary"):]
+		lines := strings.Split(after, "\n")
+		n := 0
+		for _, line := range lines[1:] {
+			if !strings.Contains(line, "Every gate") && !strings.Contains(line, "merged cleanly") && !strings.Contains(line, "…") {
+				break
+			}
+			n++
+		}
+		if n != excerptLines || !strings.HasSuffix(strings.TrimRight(lines[n], " "), "…") {
+			t.Errorf("width %d: summary drew %d lines, want %d ending in …:\n%s", width, n, excerptLines, after)
+		}
+	}
+}
+
+func TestDrawKeepsAShortSummaryWhole(t *testing.T) {
+	text := plain(Draw(sample(), 80, "W", presentation.GlyphModeAdvanced, testPalette))
+	if strings.Contains(text, "rows. …") || !strings.Contains(text, "Cursor pagination with a default page of fifty rows.") {
+		t.Errorf("a one-line summary was cut:\n%s", text)
+	}
+}

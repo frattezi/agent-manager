@@ -60,13 +60,7 @@ func (p painter) automation(a Automation, window Window, width int) []string {
 	rows = append(rows, p.timeline(a, width))
 	rows = append(rows, p.firings(a, window, width))
 	if a.HasLatest {
-		summary := a.LatestSummary
-		if summary == "" {
-			summary = "no summary recorded"
-		}
-		for _, line := range wrap(dim.Render(summary), width-2) {
-			rows = append(rows, "  "+line)
-		}
+		rows = append(rows, p.excerpt(a.LatestSummary, width)...)
 	}
 	return rows
 }

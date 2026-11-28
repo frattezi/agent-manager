@@ -140,6 +140,31 @@ func wrap(s string, width int) []string {
 	return strings.Split(ansi.Wrap(s, width, ""), "\n")
 }
 
+// excerptLines caps a summary so one long Run cannot fill the Overview; the
+// whole text stays in the Run's own detail.
+const excerptLines = 3
+
+// excerpt is a summary's first paragraph, indented and wrapped to at most
+// excerptLines, the last one ending in … when anything was cut.
+func (p painter) excerpt(summary string, width int) []string {
+	summary = strings.TrimSpace(summary)
+	if summary == "" {
+		summary = "no summary recorded"
+	}
+	paragraph, rest, _ := strings.Cut(strings.ReplaceAll(summary, "\r\n", "\n"), "\n\n")
+	lines := wrap(strings.Join(strings.Fields(paragraph), " "), width-2)
+	if len(lines) > excerptLines || strings.TrimSpace(rest) != "" {
+		cut := min(len(lines), excerptLines)
+		lines = lines[:cut]
+		lines[cut-1] = ansi.Truncate(lines[cut-1]+" …", width-2, "…")
+	}
+	rows := make([]string, len(lines))
+	for i, line := range lines {
+		rows[i] = "  " + p.fg(p.palette.Dim).Render(line)
+	}
+	return rows
+}
+
 func (p painter) label(s string) string { return p.fg(p.palette.Dim).Render(s) }
 
 func (p painter) cell() string {
@@ -299,13 +324,7 @@ func (p painter) latest(list []Finished, width int) []string {
 	rows := []string{p.label("Latest finished")}
 	for _, f := range list {
 		rows = append(rows, wrap(p.fg(p.status(f.Status)).Render(p.cell())+" "+p.fg(p.palette.Bright).Render(f.Title), width)...)
-		summary := f.Summary
-		if summary == "" {
-			summary = "no summary recorded"
-		}
-		for _, line := range wrap(p.fg(p.palette.Dim).Render(summary), width-2) {
-			rows = append(rows, "  "+line)
-		}
+		rows = append(rows, p.excerpt(f.Summary, width)...)
 	}
 	return rows
 }
