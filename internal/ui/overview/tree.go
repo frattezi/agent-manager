@@ -22,15 +22,17 @@ type Node struct {
 	// drawn without its dependents, which sit under the first appearance.
 	Join bool
 	// Cycle marks a Ticket whose blockers lead back to it.
-	Cycle    bool
+	Cycle bool
+	// Elapsed is how long a running Ticket's Run has run.
+	Elapsed  time.Duration
 	Children []*Node
 }
 
 // edge is a Ticket's wait on one blocker; reason is Fractory's, when held.
 type edge struct{ reason string }
 
-// blockerTree is the Project's Blocker Tree: the Tickets that have a blocker or
-// are one, each under every Ticket it waits on. Blockers that form a cycle are
+// blockerTree is the Project's Blocker Tree: every unfinished Ticket and every
+// Ticket that has a blocker or is one, a lone one a root of its own, each under every Ticket it waits on. Blockers that form a cycle are
 // drawn once, as roots. A top-level tree is kept while any Ticket in it is
 // unfinished, else while its newest Run is inside the window.
 func blockerTree(project string, all []runs.Record, held []runs.HeldTicket, window Window, now time.Time) []*Node {
@@ -61,6 +63,18 @@ func blockerTree(project string, all []runs.Record, held []runs.HeldTicket, wind
 	}
 	dependents := map[string][]string{}
 	inTree := map[string]bool{}
+	for ref, run := range latest {
+		if run.Status != runs.StatusDone {
+			inTree[ref] = true
+		}
+	}
+	newNode := func(ref, reason string) *Node {
+		node := &Node{Ref: ref, Run: latest[ref], Reason: reason}
+		if node.Run != nil && node.Run.Status == runs.StatusRunning {
+			node.Elapsed = max(now.Sub(created(*node.Run)), 0)
+		}
+		return node
+	}
 	for ref, set := range blockers {
 		inTree[ref] = true
 		for b := range set {
@@ -82,7 +96,7 @@ func blockerTree(project string, all []runs.Record, held []runs.HeldTicket, wind
 	drawn := map[string]bool{}
 	var grow func(ref, reason string, skip map[string]bool) *Node
 	grow = func(ref, reason string, skip map[string]bool) *Node {
-		node := &Node{Ref: ref, Run: latest[ref], Reason: reason}
+		node := newNode(ref, reason)
 		if drawn[ref] {
 			node.Join = true
 			return node
@@ -115,7 +129,8 @@ func blockerTree(project string, all []runs.Record, held []runs.HeldTicket, wind
 		drawn[ref] = true
 	}
 	for _, ref := range cyclic {
-		node := &Node{Ref: ref, Run: latest[ref], Cycle: true}
+		node := newNode(ref, "")
+		node.Cycle = true
 		for _, child := range dependents[ref] {
 			if !members[child] {
 				node.Children = append(node.Children, grow(child, blockers[child][ref].reason, members))

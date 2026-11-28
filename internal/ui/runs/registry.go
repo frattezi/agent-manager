@@ -62,6 +62,9 @@ type Record struct {
 	// CleanedAt is when Fractory's cleanup removed the Run's worktree after
 	// its PR merged; zero while it has not.
 	CleanedAt time.Time `json:"cleanedAt"`
+	// LogTail is the last non-empty line of the Run's log while it runs; Load
+	// reads it, empty otherwise.
+	LogTail string `json:"-"`
 	// Config is the repo's `.fractory.json`; Load reads it, nil when unreadable.
 	Config *RepoConfig `json:"-"`
 	// Base is the branch the Run is reviewed against; Load reads it from the
@@ -156,6 +159,9 @@ func Load(dir string) ([]Record, error) {
 			}
 			record.Config = configs[record.RepoPath]
 			record.Base = bases[record.RepoPath]
+			if record.Status == StatusRunning {
+				record.LogTail = LogTail(record.LogPath)
+			}
 			records = append(records, record)
 		}
 	}
