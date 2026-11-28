@@ -443,16 +443,16 @@ func (r renderer) sessionGlyph(session Session) string {
 	return r.palette.sessionGlyph(r.glyphs(), session, r.ctx.StartupPhase)
 }
 
-// sessionLead is the row's mark and the gap after it, two cells together.
-// The babysit mark is an emoji two cells wide, so it takes the gap rather
-// than pushing the name out of line with its neighbours.
+// sessionLead is the row's mark and the gap after it. The babysit mark is
+// an emoji two cells wide; it keeps its gap, since one that took the gap
+// touched the reorder grip, and its row's name sits a cell further right.
 func (r renderer) sessionLead(session Session) string {
 	if !showsBabysit(session) {
 		return r.sessionGlyph(session) + " "
 	}
 	glyph := r.glyphs().BabysitGlyph
 	mark := lipgloss.NewStyle().Foreground(r.palette.statusColor(session.Status)).Render(glyph)
-	return mark + strings.Repeat(" ", max(2-ansi.StringWidth(glyph), 0))
+	return mark + " "
 }
 
 // showsBabysit is whether the babysit mark stands in for the status glyph:
