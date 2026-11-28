@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"maps"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
@@ -43,6 +46,8 @@ type overviewCacheKey struct {
 	key    string
 	// automations is the header the drawing is for.
 	automations bool
+	// solved is the Solved marks the drawing was computed with.
+	solved string
 }
 
 type overviewCache struct {
@@ -163,7 +168,7 @@ func (m *Model) overviewDrawing(width int, now time.Time) uioverview.Drawing {
 	state := &m.workspace.overview
 	theme := uitheme.Current()
 	basic := m.prefs.glyphMode.Effective() != presentation.GlyphModeAdvanced
-	key := overviewCacheKey{window: state.window, width: width, minute: now.Truncate(time.Minute), theme: theme.Name, basic: basic, key: m.listGlyph(keybind.OverviewWindow), automations: !m.runsHeaderSelected()}
+	key := overviewCacheKey{window: state.window, width: width, minute: now.Truncate(time.Minute), theme: theme.Name, basic: basic, key: m.listGlyph(keybind.OverviewWindow), automations: !m.runsHeaderSelected(), solved: solvedKey(m.workspace.runs.solved)}
 	if state.cache.valid && state.cache.key == key {
 		return state.cache.drawing
 	}
@@ -173,7 +178,7 @@ func (m *Model) overviewDrawing(width int, now time.Time) uioverview.Drawing {
 		computed := uioverview.ComputeAutomations(m.workspace.automations.entries, state.window, now)
 		drawing = uioverview.DrawAutomations(computed, width, key.key, m.prefs.glyphMode.Effective(), palette)
 	} else {
-		computed := uioverview.Compute(m.workspace.runs.list, state.window, now, m.heldTickets())
+		computed := uioverview.Compute(m.workspace.runs.list, state.window, now, m.heldTickets(), m.workspace.runs.solved)
 		drawing = uioverview.Draw(computed, width, key.key, m.prefs.glyphMode.Effective(), palette)
 	}
 	state.cache = overviewCache{valid: true, key: key, drawing: drawing}
@@ -248,4 +253,8 @@ func (m *Model) heldTickets() []runs.HeldTicket {
 		return nil
 	}
 	return m.workspace.runs.host.HeldTickets
+}
+
+func solvedKey(solved map[string]bool) string {
+	return strings.Join(slices.Sorted(maps.Keys(solved)), ",")
 }

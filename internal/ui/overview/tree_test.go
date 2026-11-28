@@ -37,7 +37,7 @@ func shape(nodes []*Node) string {
 
 func tree(t *testing.T, list []runs.Record, held []runs.HeldTicket, window Window) []*Node {
 	t.Helper()
-	o := Compute(list, window, now, held)
+	o := Compute(list, window, now, held, nil)
 	if len(o.Projects) == 0 {
 		return nil
 	}
@@ -114,7 +114,7 @@ func treeSample() Runs {
 	}
 	held := []runs.HeldTicket{{RepoPath: "/src/api", TicketRef: "o/api#3", Blockers: []string{"o/api#1", "o/api#2"},
 		Holds: []runs.Hold{{Blocker: "o/api#2", Reason: "not done: its latest Run failed"}}}}
-	return Compute(list, WindowAll, now, held)
+	return Compute(list, WindowAll, now, held, nil)
 }
 
 func TestDrawBlockerTreeAtNarrowAndWideWidths(t *testing.T) {
@@ -173,7 +173,7 @@ func progressSample() Runs {
 			r.Title, r.Result = "Pick a store", &runs.Result{Question: "Postgres or SQLite?\nThe spec says both."}
 		}),
 	}
-	return Compute(list, WindowAll, now, nil)
+	return Compute(list, WindowAll, now, nil, nil)
 }
 
 func TestUsualRunTimeIsTheMedianOfFinishedRuns(t *testing.T) {
@@ -214,7 +214,7 @@ func TestDrawRunningTicketShowsProgressAndLogLine(t *testing.T) {
 
 func TestDrawRunningTicketWithNoFinishedRunsShowsOnlyItsTime(t *testing.T) {
 	list := []runs.Record{run("3", "o/api#3", "api", runs.StatusRunning, time.Minute, func(r *runs.Record) { r.CreatedAt = now.Add(-13 * time.Minute) })}
-	text := ansi.Strip(strings.Join(Draw(Compute(list, WindowAll, now, nil), 100, "W", presentation.GlyphModeAdvanced, testPalette).Lines, "\n"))
+	text := ansi.Strip(strings.Join(Draw(Compute(list, WindowAll, now, nil, nil), 100, "W", presentation.GlyphModeAdvanced, testPalette).Lines, "\n"))
 	if !strings.Contains(text, "13m") || strings.Contains(text, "usual") {
 		t.Errorf("want the elapsed time alone:\n%s", text)
 	}

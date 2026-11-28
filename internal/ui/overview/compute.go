@@ -78,9 +78,10 @@ const NoProject = "(no project)"
 // Compute builds the Runs Overview at now. A Project is listed when it has a
 // Run updated inside the window; its in-flight counts ignore the window. A Run
 // without finishedAt is in no bucket and has no duration, and a Ticket without
-// prState reaches no funnel stage past its pull request URL. A Project with an
+// prState reaches no funnel stage past its pull request URL. A Ticket whose latest Run is done or marked solved is
+// finished. A Project with an
 // unfinished Blocker Tree is listed whatever the window.
-func Compute(list []runs.Record, window Window, now time.Time, held []runs.HeldTicket) Runs {
+func Compute(list []runs.Record, window Window, now time.Time, held []runs.HeldTicket, solved map[string]bool) Runs {
 	byProject := map[string][]runs.Record{}
 	var names []string
 	for _, run := range list {
@@ -92,7 +93,7 @@ func Compute(list []runs.Record, window Window, now time.Time, held []runs.HeldT
 	}
 	out := Runs{Window: window}
 	for _, name := range names {
-		if project, ok := computeProject(name, byProject[name], window, now, held); ok {
+		if project, ok := computeProject(name, byProject[name], window, now, held, solved); ok {
 			out.Projects = append(out.Projects, project)
 		}
 	}
@@ -105,7 +106,7 @@ func Compute(list []runs.Record, window Window, now time.Time, held []runs.HeldT
 	return out
 }
 
-func computeProject(name string, all []runs.Record, window Window, now time.Time, held []runs.HeldTicket) (Project, bool) {
+func computeProject(name string, all []runs.Record, window Window, now time.Time, held []runs.HeldTicket, solved map[string]bool) (Project, bool) {
 	project := Project{Name: name, Hourly: window == Window24h}
 	var inside []runs.Record
 	var baseAt time.Time
@@ -117,6 +118,14 @@ func computeProject(name string, all []runs.Record, window Window, now time.Time
 		if run.UpdatedAt.After(newest.UpdatedAt) {
 			newest = run
 		}
+		if window.Contains(run.UpdatedAt, now) {
+			inside = append(inside, run)
+		}
+	}
+	for _, run := range latestRuns(all) {
+		if solved[run.ID] {
+			continue
+		}
 		switch run.Status {
 		case runs.StatusQueued:
 			project.Queued++
@@ -125,11 +134,8 @@ func computeProject(name string, all []runs.Record, window Window, now time.Time
 		case runs.StatusNeedsHuman:
 			project.NeedsHuman++
 		}
-		if window.Contains(run.UpdatedAt, now) {
-			inside = append(inside, run)
-		}
 	}
-	project.Tree = blockerTree(name, all, held, window, now)
+	project.Tree = blockerTree(name, all, held, window, now, solved)
 	if len(inside) == 0 && len(project.Tree) == 0 {
 		return Project{}, false
 	}
@@ -203,6 +209,18 @@ func funnel(inside []runs.Record) Funnel {
 		}
 	}
 	return out
+}
+
+// latestRuns is each Ticket's latest Run.
+func latestRuns(all []runs.Record) map[string]*runs.Record {
+	latest := map[string]*runs.Record{}
+	for i := range all {
+		run := &all[i]
+		if cur, ok := latest[run.TicketRef]; !ok || created(*run).After(created(*cur)) {
+			latest[run.TicketRef] = run
+		}
+	}
+	return latest
 }
 
 func created(r runs.Record) time.Time {
