@@ -315,6 +315,9 @@ func (m *Model) runLegend() (legendSection, bool) {
 		if !m.prefs.mouseDisabled {
 			pairs = append(pairs, [2]string{"click " + mark, fold})
 		}
+		pairs = append(pairs,
+			[2]string{m.listGlyph(keybind.OverviewWindow), "window " + m.workspace.overview.window.Next().Label()},
+			[2]string{m.listGlyph(keybind.OverviewUp, keybind.OverviewDown), "scroll"})
 		return legendSection{Title: "Runs", Pairs: append(pairs, finished...)}, true
 	}
 	pairs := [][2]string{{m.listGlyph(keybind.Open, keybind.Attach), "open log"}}
@@ -349,9 +352,6 @@ func (m *Model) runContentLines(width int) ([]contentLine, bool) {
 			lines = append(lines, contentLine{Text: gutter + uitheme.WarnStyle().Render(line)})
 		}
 		lines = append(lines, contentLine{})
-	}
-	if selection, ok := m.rail.Selected(); ok && selection.Kind == uirail.RunsRow && len(lines) > 0 {
-		return lines, true
 	}
 	run, ok := m.selectedRun()
 	if !ok {

@@ -147,6 +147,24 @@ func TestParseReadsCleanedAtAndLeavesItZeroWhenAbsentOrNull(t *testing.T) {
 	}
 }
 
+func TestParseDecodesSummaryPRStateFinishedAtAndAgents(t *testing.T) {
+	full, err := Parse([]byte(record("a", "done", "2026-01-02T00:00:00Z",
+		`,"prState":"MERGED","finishedAt":"2026-01-02T00:30:00Z","agents":["claude@work"],"result":{"outcome":"done","summary":"Added the thing."}`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if full.PRState != "MERGED" || full.FinishedAt.Format(time.RFC3339) != "2026-01-02T00:30:00Z" || full.Result.Summary != "Added the thing." || len(full.Agents) != 1 {
+		t.Errorf("record = %+v", full)
+	}
+	old, err := Parse([]byte(record("b", "done", "2026-01-02T00:00:00Z", "")))
+	if err != nil {
+		t.Fatalf("an older record without the four fields does not parse: %v", err)
+	}
+	if old.PRState != "" || !old.FinishedAt.IsZero() || old.Result != nil || old.Agents != nil {
+		t.Errorf("old record = %+v; want the four fields absent", old)
+	}
+}
+
 func TestRepositoriesAreEachRunsCheckoutOnceSorted(t *testing.T) {
 	list := []Record{{RepoPath: "/z"}, {RepoPath: ""}, {RepoPath: "/a"}, {RepoPath: "/z"}}
 	if got := Repositories(list); !slices.Equal(got, []string{"/a", "/z"}) {
