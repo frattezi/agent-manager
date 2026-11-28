@@ -188,9 +188,10 @@ func TestSpawnBotRefusesASpecializationWithNoSkillFile(t *testing.T) {
 	if spawned := liveBots(t, m, "p1"); len(spawned) != 0 {
 		t.Fatalf("a Specialization with no skill started %+v", spawned)
 	}
+	toast := toastText(m.View())
 	for _, want := range []string{"Operator", "fractory-operator", "SKILL.md"} {
-		if !strings.Contains(m.errBar.text, want) {
-			t.Fatalf("status = %q; want %q named", m.errBar.text, want)
+		if !strings.Contains(noSpaces(toast), noSpaces(want)) {
+			t.Fatalf("the frame reads %q; want %q named", toast, want)
 		}
 	}
 }
