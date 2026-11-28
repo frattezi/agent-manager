@@ -149,8 +149,10 @@ func (s *Sessions) ShowSurface(sessionID, id string, width int, withDocument boo
 // card, for a host that drew the round itself. It has the effect sending
 // from the card has: the round is marked answered and keeps its answer, and
 // the answer is queued on the asking session's inbox in the same message,
-// to be typed in once its pane is at rest.
-func (s *Sessions) AnswerSurface(sessionID, id, answer string) (AgentSurface, error) {
+// to be typed in once its pane is at rest. With delivered, the asking session
+// reports an answer it already received as a user turn: the round is recorded
+// the same way but nothing is queued, since the conversation has it.
+func (s *Sessions) AnswerSurface(sessionID, id, answer string, delivered bool) (AgentSurface, error) {
 	runtime, err := s.open()
 	if err != nil {
 		return AgentSurface{}, err
@@ -167,13 +169,20 @@ func (s *Sessions) AnswerSurface(sessionID, id, answer string) (AgentSurface, er
 	if err != nil {
 		return AgentSurface{}, err
 	}
-	if caller.ID == stored.SessionID {
+	if delivered && caller.ID != stored.SessionID {
+		return AgentSurface{}, fmt.Errorf("surface %s was asked by another session, so an answer cannot be marked delivered from here: it would never reach that conversation; answer without the delivered option to queue it", stored.ID)
+	}
+	if !delivered && caller.ID == stored.SessionID {
 		return AgentSurface{}, fmt.Errorf("surface %s is your own question to the user, so only the user answers it", stored.ID)
 	}
 	surfaceName := storedSurfaceID(stored)
 	at := time.Now()
 	msg := store.SurfaceAnswerMessage(stored.SessionID, stored.ID, surfaceName, answer, at)
-	_, err = runtime.store.AnswerAgentSurface(stored.ID, answer, msg, store.DefaultInboxLimits)
+	if delivered {
+		err = runtime.store.RecordAgentSurfaceAnswer(stored.ID, answer, msg)
+	} else {
+		_, err = runtime.store.AnswerAgentSurface(stored.ID, answer, msg, store.DefaultInboxLimits)
+	}
 	switch {
 	case errors.Is(err, store.ErrAgentSurfaceAnswered):
 		return AgentSurface{}, fmt.Errorf("surface %s is already answered, and an answer reaches its session once, so this one was not recorded", stored.ID)
@@ -272,7 +281,7 @@ func FormatSurfaceShown(shown RenderedSurface) string {
 }
 
 func FormatSurfaceAnswered(surface AgentSurface) string {
-	return "answered " + FormatSurface(surface) + "; the answer is queued for " + surface.SessionName + " and typed in once it is at rest"
+	return "answered " + FormatSurface(surface) + "; the answer is queued for " + surface.SessionName + " and typed in once it is at rest, unless it was recorded as delivered"
 }
 
 func FormatSurfaceList(surfaces []AgentSurface) string {
