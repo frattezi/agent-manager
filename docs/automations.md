@@ -14,9 +14,9 @@ in, whether the work is an agent prompt or a committed script, which CLI runs it
 the launch flags and how many firings to keep. The manager owns that configuration in
 `state.db`, holds the clock while it is open, and shows what came back. **It never executes
 an Automation.** When an instant comes due it writes the whole configuration as a versioned
-JSON request under `$FRACTORY_HOME/automations/`, and Fractory picks it up on its next tick
+JSON request under `$FRACTORY_HOME/automations/requests/`, and Fractory picks it up on its next tick
 and runs it through Sandcastle in a worktree and a container. Fractory writes a record under
-`$FRACTORY_HOME/automation-runs/`, which the manager reads on its next poll.
+`$FRACTORY_HOME/automations/<automationId>/`, which the manager reads on its next poll.
 
 Three consequences are worth knowing before you create one:
 
@@ -211,8 +211,8 @@ Fractory never reads `state.db`, so the manager stays the only writer of its own
 
 | Directory | Written by | Holds |
 |---|---|---|
-| `$FRACTORY_HOME/automations/` | the manager | One request per instant, `<id>@<YYYYMMDDTHHMMSSZ>.json`: `version`, `requestedAt`, `firedFor` and the configuration verbatim under `automation`. Written atomically, so Fractory never reads half a file |
-| `$FRACTORY_HOME/automation-runs/` | Fractory | One record per firing: `version`, `id`, `automationId`, `firedFor`, `status`, `startedAt`, `updatedAt`, `logPath`, `outputPath` and `result` (`outcome`, `summary`) |
+| `$FRACTORY_HOME/automations/requests/` | the manager | One request per instant, `<id>@<YYYYMMDDTHHMMSSZ>.json`: `version`, `requestedAt`, `firedFor` and the configuration verbatim under `automation`. Written atomically, so Fractory never reads half a file |
+| `$FRACTORY_HOME/automations/<automationId>/` | Fractory | One record per firing: `version`, `id`, `automationId`, `firedFor`, `status`, `startedAt`, `updatedAt`, `logPath`, `outputPath` and `result` (`outcome`, `summary`) |
 
 A record whose version is not 1, or which is missing `id`, `automationId`, `firedFor` or
 `status`, is skipped rather than shown wrong; unknown fields are ignored, so Fractory can
@@ -226,7 +226,7 @@ Fractory's home at a throwaway directory and nothing of yours is touched:
 
 ```bash
 make build
-dir=/tmp/am-automations && mkdir -p "$dir/cfg" "$dir/sock" "$dir/home/automation-runs"
+dir=/tmp/am-automations && mkdir -p "$dir/cfg" "$dir/sock" "$dir/home/automations/requests"
 env -u TMUX -u AGENT_MANAGER_SESSION_ID \
     AGENT_MANAGER_CONFIG_DIR="$dir/cfg" TMUX_TMPDIR="$dir/sock" FRACTORY_HOME="$dir/home" \
     ./agent-manager

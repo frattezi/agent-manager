@@ -27,10 +27,8 @@ Overview is written by an agent or by the view: what was done is told by the Run
 - Tickets that have never had a Run ([Spec 0006](0006-tickets-visible-before-their-first-run.md)).
 - The Run row itself: how a Run row names its Project and Run Title is draft Spec 0004 (Runs
   rail rows read as work), which lands first and whose derivations this Spec reuses.
-- Fixing where the manager reads and writes Automation records. The manager reads
-  `automation-runs/` and writes requests to `automations/`, while Fractory writes
-  `automations/<id>/` and reads `automations/requests/`; that is a separate fix that lands
-  before the Automations slice, because the Automations Overview has nothing to draw without it.
+- Where the manager reads and writes Automation records: it reads `automations/<id>/` and
+  writes requests to `automations/requests/`, the layout Fractory uses (Spec 0003).
 
 ## Solution
 

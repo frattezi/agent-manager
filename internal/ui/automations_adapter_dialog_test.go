@@ -264,11 +264,11 @@ func TestAutomationRunNowRequestsTheCurrentInstantAndSkipsWhileBusy(t *testing.T
 	before := time.Now().Truncate(time.Second)
 	m.applyTestMsg(t, runeKey("!"))
 	m.drainEffects(t)
-	entries, _ := os.ReadDir(filepath.Join(home, "automations"))
+	entries, _ := os.ReadDir(filepath.Join(home, "automations", "requests"))
 	if len(entries) != 1 || !strings.HasPrefix(entries[0].Name(), "fresh@") {
 		t.Fatalf("run now wrote %v", entries)
 	}
-	data, _ := os.ReadFile(filepath.Join(home, "automations", entries[0].Name()))
+	data, _ := os.ReadFile(filepath.Join(home, "automations", "requests", entries[0].Name()))
 	var request automations.Request
 	if err := json.Unmarshal(data, &request); err != nil || request.FiredFor.Before(before) || request.FiredFor.After(time.Now()) {
 		t.Fatalf("request %s: %v", data, err)
@@ -282,7 +282,7 @@ func TestAutomationRunNowRequestsTheCurrentInstantAndSkipsWhileBusy(t *testing.T
 
 	m.applyTestMsg(t, runeKey("!"))
 	m.drainEffects(t)
-	if entries, _ := os.ReadDir(filepath.Join(home, "automations")); len(entries) != 1 {
+	if entries, _ := os.ReadDir(filepath.Join(home, "automations", "requests")); len(entries) != 1 {
 		t.Fatalf("a run now while the first is queued wrote %d requests", len(entries))
 	}
 	if !strings.Contains(m.errBar.text, "skipped") {
