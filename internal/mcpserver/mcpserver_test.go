@@ -105,6 +105,9 @@ type fakeSessionCommands struct {
 	surfacesOf        string
 	shownSurface      string
 	shownWidth        int
+	shownDocument     bool
+	answeredSurface   string
+	surfaceAnswer     string
 	publishedDocument string
 	revivedID         string
 	killedID          string
@@ -268,9 +271,18 @@ func (f *fakeSessionCommands) Surfaces(_, targetID string) ([]sessioncmd.AgentSu
 	return f.surfaces, f.err
 }
 
-func (f *fakeSessionCommands) ShowSurface(_, id string, width int) (sessioncmd.RenderedSurface, error) {
-	f.shownSurface, f.shownWidth = id, width
-	return sessioncmd.RenderedSurface{Width: width, Text: "drawn\n"}, f.err
+func (f *fakeSessionCommands) ShowSurface(_, id string, width int, withDocument bool) (sessioncmd.RenderedSurface, error) {
+	f.shownSurface, f.shownWidth, f.shownDocument = id, width, withDocument
+	shown := sessioncmd.RenderedSurface{Width: width, Text: "drawn\n"}
+	if withDocument {
+		shown.Document = `[{"version":"v0.9"}]`
+	}
+	return shown, f.err
+}
+
+func (f *fakeSessionCommands) AnswerSurface(_, id, answer string) (sessioncmd.AgentSurface, error) {
+	f.answeredSurface, f.surfaceAnswer = id, answer
+	return sessioncmd.AgentSurface{ID: id, SurfaceID: "round-1", SessionName: "asker", Answered: true, Answer: answer}, f.err
 }
 
 func (f *fakeSessionCommands) Groups(string) ([]sessioncmd.Group, error) {

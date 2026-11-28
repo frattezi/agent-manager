@@ -243,3 +243,56 @@ func TestDeletingASessionRemovesItsSurfaces(t *testing.T) {
 		t.Fatalf("surfaces outlived their session: %+v", got)
 	}
 }
+
+// A host that draws the surface itself needs what the session wrote, not
+// the manager's reading of it, so the document comes back byte for byte,
+// spacing and key order included.
+func TestShowingWithTheDocumentReturnsItAsPublished(t *testing.T) {
+	w := newSurfaceWorkspace(t)
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, surfaceRound(t)); err != nil {
+		t.Fatal(err)
+	}
+	doc := append([]byte("  \n"), compact.Bytes()...)
+	doc = append(doc, "\n\n"...)
+	published := w.publish(t, doc)
+
+	var record bytes.Buffer
+	if err := runSurfaceShow(&record, w.surfaces, []string{published.ID, "--document", "--json"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	var shown sessioncmd.RenderedSurface
+	if err := json.Unmarshal(record.Bytes(), &shown); err != nil {
+		t.Fatalf("show --document --json %q: %v", record.String(), err)
+	}
+	if shown.Document != string(doc) {
+		t.Fatalf("document = %q, want %q", shown.Document, doc)
+	}
+	if !strings.Contains(shown.Text, "Grilling round 1 of 3") {
+		t.Fatalf("the drawn text went missing: %+v", shown)
+	}
+
+	var plain, withDocument bytes.Buffer
+	if err := runSurfaceShow(&plain, w.surfaces, []string{published.ID}, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := runSurfaceShow(&withDocument, w.surfaces, []string{published.ID, "--document"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	if want := strings.TrimRight(plain.String(), "\n") + "\n\n" + string(doc); strings.TrimRight(withDocument.String(), "\n") != strings.TrimRight(want, "\n") {
+		t.Fatalf("show --document =\n%q\nwant\n%q", withDocument.String(), want)
+	}
+
+	// A reader that does not ask gets the record it got before.
+	var without bytes.Buffer
+	if err := runSurfaceShow(&without, w.surfaces, []string{published.ID, "--json"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	var keys map[string]json.RawMessage
+	if err := json.Unmarshal(without.Bytes(), &keys); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := keys["document"]; ok || len(keys) != 3 {
+		t.Fatalf("show --json without --document = %s", without.String())
+	}
+}

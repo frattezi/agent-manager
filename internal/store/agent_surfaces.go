@@ -144,6 +144,21 @@ func (s *Store) AnswerAgentSurface(id, answer string, msg InboxMessage, limits I
 	return queued, tx.Commit()
 }
 
+// SurfaceAnswerMessage is the inbox message that carries the owner's answer
+// to a surface into the session that asked. The card and an outside host
+// both build it here, so the session reads an answer the same way whichever
+// of them collected it.
+func SurfaceAnswerMessage(sessionID, surfaceID, surfaceName, answer string, at time.Time) InboxMessage {
+	return InboxMessage{
+		SessionID:   sessionID,
+		SenderName:  "the user",
+		Body:        answer,
+		Fingerprint: "surface:" + surfaceID,
+		SentAt:      at,
+		SurfaceName: surfaceName,
+	}
+}
+
 // ReopenAgentSurface puts a surface whose answer never reached its session
 // back in front of the owner, so a dropped answer asks again instead of
 // passing for a delivered one.
