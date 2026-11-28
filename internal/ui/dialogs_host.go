@@ -145,7 +145,7 @@ func (m *Model) runConfirmed(target confirmTarget) tea.Cmd {
 	case target.automation != "":
 		m.enqueueEffect(automations.RemoveRequest{ID: target.automation}, 0, false)
 	default:
-		m.queueLifecycle(target.lifecycle, false, "")
+		return tea.Batch(m.queueLifecycle(target.lifecycle, false, ""), m.nextEffectCmd())
 	}
 	return m.nextEffectCmd()
 }

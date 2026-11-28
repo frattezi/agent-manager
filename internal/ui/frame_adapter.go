@@ -29,7 +29,10 @@ func (m *Model) View() string {
 	if m.layout.frame == "" {
 		return "loading..."
 	}
-	return m.layout.frame
+	if m.focus.imeCursor == nil {
+		return m.layout.frame
+	}
+	return m.focus.imeCursor.Stamp() + m.layout.frame
 }
 
 func (m *Model) prepareFrame() {
@@ -321,12 +324,12 @@ func (m *Model) footer() legend {
 	if m.focused() {
 		return footer.Transient(footer.Focused(m.focusFooter()))
 	}
-	return m.listLegend()
+	return footer.ListLegend()
 }
 
 // footerOf is the footer's height rule, over the base screen's tiers.
 func (m *Model) footerOf() uiframe.Footer {
-	return uiframe.Footer{
+	footer := uiframe.Footer{
 		Mode:        m.prefs.glyphMode,
 		List:        m.listTiers(),
 		Measurement: m.layout.footer.Measure(m.legendReference(), m.layout.width, max(uiframe.MaxRows, (m.layout.height-m.listChromeRows()-1)/2), m.prefs.glyphMode),
@@ -334,6 +337,8 @@ func (m *Model) footerOf() uiframe.Footer {
 		FullLayout:  m.prefs.fullLayout,
 		ArrowStep:   m.prefs.arrowStep,
 	}
+	footer.ListHeight = func() int { return m.layout.footer.ListHeight(footer) }
+	return footer
 }
 
 // listTiers is the base screen's tiers: the cursor's row, then the keys that
@@ -446,7 +451,7 @@ func (m *Model) viewListFrame() string {
 	}
 	leftWidth, rightWidth := m.splitWidths()
 	footer := m.footer()
-	bodyHeight := m.listBodyHeight()
+	bodyHeight := m.listBodyHeightForFooter(footer.Text)
 	contentWidth := rightWidth - 1
 
 	frame := []string{}
@@ -492,7 +497,7 @@ func (m *Model) fullRows() bool { return m.prefs.fullLayout && !m.focused() }
 
 func (m *Model) viewFullListFrame() string {
 	footer := m.footer()
-	bodyHeight := m.listBodyHeight()
+	bodyHeight := m.listBodyHeightForFooter(footer.Text)
 	railWidth := m.layout.width - 1
 
 	frame := []string{}

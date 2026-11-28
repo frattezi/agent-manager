@@ -120,18 +120,25 @@ func (c *Client) Type(ctx context.Context, ref Ref, prompt string) (sessioncmd.S
 		return typed, typeLost(err)
 	}
 	typed, err := cleanSession(typed)
-	return typed, unreadable(ref.Host, "type", err)
+	return typed, typeLost(unreadable(ref.Host, "type", err))
 }
 
-// typeLost marks a type cut off after agent-manager started on the host,
-// by the deadline or a dropped connection, as one that may have reached the
-// agent: the paste may have run before the answer was lost.
+// typeLost marks a type or spawn cut off after agent-manager started on the host,
+// by the deadline, a cancel, a dropped connection or a signal, as one that may have
+// reached the agent: the paste may have run before the answer was lost.
 func typeLost(err error) error {
 	var failed *Error
-	if !errors.As(err, &failed) || failed.mayHaveReached || !failed.ran {
+	if !errors.As(err, &failed) || failed.mayHaveReached {
 		return err
 	}
-	if errors.Is(failed.Err, context.DeadlineExceeded) || failed.trouble == TroubleUnreachable {
+	if failed.answered {
+		return &Error{Host: failed.Host, Err: failed.Err, ran: true, mayHaveReached: true}
+	}
+	if !failed.ran {
+		return err
+	}
+	stopped := failed.trouble == TroubleFailed && failed.exit > 128
+	if stopped || errors.Is(failed.Err, context.DeadlineExceeded) || errors.Is(failed.Err, context.Canceled) || failed.trouble == TroubleUnreachable {
 		return &Error{Host: failed.Host, Err: fmt.Errorf("prompt may have reached the agent and was not sent again: %w", failed.Err), trouble: failed.trouble, ran: true, mayHaveReached: true}
 	}
 	return err
@@ -161,10 +168,10 @@ func (c *Client) Spawn(ctx context.Context, host string, opts sessioncmd.CreateS
 	}
 	var created sessioncmd.Session
 	if err := c.decode(ctx, host, createTimeout, &created, args...); err != nil {
-		return created, err
+		return created, typeLost(err)
 	}
 	created, err := cleanSession(created)
-	return created, unreadable(host, "spawn", err)
+	return created, typeLost(unreadable(host, "spawn", err))
 }
 
 func (c *Client) CreateTerminal(ctx context.Context, host string, opts sessioncmd.CreateTerminalOptions) (sessioncmd.Terminal, error) {

@@ -29,12 +29,11 @@ const (
 // SendRequest freezes the selected pane and the prompt that Enter accepted.
 // The worker may finish after the cursor or composer has moved.
 type SendRequest struct {
-	Session        store.Session
-	ComposerGen    int
-	Submission     spawn.Submission
-	Text           string
-	CloseAfterSend bool
-	Images         []composer.Attachment
+	Session     store.Session
+	ComposerGen int
+	Submission  spawn.Submission
+	Text        string
+	Images      []composer.Attachment
 }
 
 func (SendRequest) EffectName() string { return "quick send" }
@@ -108,11 +107,9 @@ func SameTarget(current, captured store.Session) bool {
 		current.TmuxSocket == captured.TmuxSocket
 }
 
-// Root is what a finished send asks of the manager: the bar a delivered
-// send may close, the bar a refused one goes back to, and the status bar it
-// reports on.
+// Root is what a finished send asks of the manager: the bar a refused send
+// goes back to, and the status bar it reports on.
 type Root interface {
-	SettleAccepted(request SendRequest)
 	ReturnRefused(request SendRequest) tea.Cmd
 	ReportErr(text string)
 	ClearErr()
@@ -132,7 +129,6 @@ func Apply(root Root, request SendRequest, result SendResult, err error) tea.Cmd
 		return cleanup
 	}
 
-	root.SettleAccepted(request)
 	// Once paste may have started, the pane may still need image paths from
 	// the accepted text. They remain owned by that delivery, never by a retry.
 	if result.Outcome == SendUncertain {

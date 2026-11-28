@@ -17,6 +17,7 @@ import (
 	uiframe "github.com/YoanWai/agent-manager/internal/ui/frame"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	uirailpersist "github.com/YoanWai/agent-manager/internal/ui/rail/persist"
+	uilifecycle "github.com/YoanWai/agent-manager/internal/ui/session/lifecycle"
 	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -55,6 +56,13 @@ func (m *Model) railSnapshot() uirail.Snapshot {
 	snapshot.RunsShowFinished = m.workspace.runs.showFinished
 	snapshot.Automations = m.workspace.automations.shown
 	snapshot.Bots = railBotProfiles(m.workspace.botProfiles)
+	for _, host := range snapshot.Hosts {
+		for i, session := range host.Sessions {
+			if action, busy := m.remoteLifecycleInFlight(host.Name, session.ID); busy {
+				host.Sessions[i].Pending = uilifecycle.PendingWord(action)
+			}
+		}
+	}
 	for path, archived := range m.workspace.archivedGroups {
 		snapshot.ArchivedGroups[path] = archived
 	}
@@ -92,6 +100,7 @@ func (m *Model) railSnapshot() uirail.Snapshot {
 			BotProfile:     session.BotProfile,
 			Asking:         m.workspace.surfaces.inbox.Asking(session.ID),
 			AskingGlyph:    m.glyphs().AskingGlyph,
+			Pending:        uilifecycle.PendingWord(m.ledger.lifecycle.Pending[session.ID]),
 			Babysitting:    m.babysitting(session.ID),
 		})
 	}

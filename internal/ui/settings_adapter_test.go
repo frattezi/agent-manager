@@ -31,26 +31,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-func TestSettingsTogglesQuickClose(t *testing.T) {
-	m := buildModel(t)
-	m.openSettings()
-	if m.settingsCard().State().QuickCloseSend {
-		t.Fatal("settings should open on stay-open by default")
-	}
-	for i := 0; i < uisettings.FieldQuickClose; i++ {
-		m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
-	}
-	if m.settingsCard().State().Field != uisettings.FieldQuickClose {
-		t.Fatalf("stepping down should reach the quick send field, got %d", m.settingsCard().State().Field)
-	}
-	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
-	_, cmd := m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
-	m.applyCmd(t, cmd)
-	if chosen, err := m.services.store.Setting(uisettings.QuickCloseSetting); err != nil || chosen != "close" {
-		t.Fatalf("close choice = %q err %v, want persisted close", chosen, err)
-	}
-}
-
 func TestSettingsTogglesReviewLayout(t *testing.T) {
 	m := buildModel(t)
 	m.openSettings()

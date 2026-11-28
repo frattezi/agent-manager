@@ -123,7 +123,7 @@ func (m *Model) reviewNeedsLoader() bool {
 }
 
 func (m *Model) needsLoaderTick() bool {
-	return m.startup.Booting || m.rail.HasStatus(status.Starting) || m.reviewNeedsLoader() || m.rail.HasWorkingLoader()
+	return m.startup.Booting || m.rail.HasStatus(status.Starting) || m.reviewNeedsLoader() || m.rail.HasWorkingLoader() || len(m.ledger.lifecycle.Pending) > 0 || len(m.remoteLifecycleJobs()) > 0
 }
 
 func (m *Model) routePreviewMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
@@ -231,6 +231,7 @@ func (m *Model) previewLines(width, height int, gutter string, frameOrigin ...in
 			CaretRow:       m.paneCaretRow(),
 			CursorStyle:    lipgloss.NewStyle().Foreground(uitheme.ColorBg()).Background(uitheme.ColorAccent()),
 			SelectionStyle: lipgloss.NewStyle().Foreground(uitheme.ColorBg()).Background(uitheme.ColorAccent2()),
+			HostCursor:     m.agentOwnsKeyboard() && m.focus.imeCursor != nil,
 		})
 		if !rendered.HasPane {
 			return m.emptyPreview(width, gutter, loader)

@@ -49,6 +49,8 @@ type Request struct {
 	Send  bool
 	Text  string
 	Spawn *spawn.Request
+	// Keep leaves the sent prompt in the bar for the next target.
+	Keep bool
 	// LoadSaved asks for the catalog the saved prompts list opened on;
 	// InsertSaved puts the picked one at the caret as a chip.
 	LoadSaved   bool
@@ -206,6 +208,10 @@ func (q *Bar) HandleKey(h Host, msg tea.KeyMsg) (tea.Cmd, Request) {
 		return nil, Request{LoadSaved: true}
 	case "enter":
 		return nil, q.Submit(h)
+	case "alt+enter":
+		request := q.Submit(h)
+		request.Keep = true
+		return nil, request
 	}
 	if cmd, handled := prompt.ChipKey(msg); handled {
 		return cmd, Request{}
@@ -526,7 +532,7 @@ func (q *Bar) Legend(h Host, mode presentation.GlyphMode) [][2]string {
 	if q.savedList.Open() {
 		return q.savedList.Hint("insert", "back to the prompt", mode)
 	}
-	pairs := [][2]string{{"↵", "send"}, {presentation.NavigationLabel(mode, "↑↓"), "target or caret"}, {"tab", "tool"}}
+	pairs := [][2]string{{"↵", "send"}, {"alt+↵", "send, keep text"}, {presentation.NavigationLabel(mode, "↑↓"), "target or caret"}, {"tab", "tool"}}
 	if len(q.toolNames) > 1 {
 		pairs = append(pairs, [2]string{"shift+tab", "previous tool"})
 	}

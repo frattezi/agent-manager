@@ -158,8 +158,23 @@ func TestSlowLifecycleDoesNotBlockWindowUpdateAndKeepsSnapshotWriter(t *testing.
 	m.archiveSelected()
 	_, command := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 	m.services.setSnapshot = func(string, string) error { return fmt.Errorf("replacement writer must not run") }
-	completed := make(chan tea.Msg, 1)
-	go func() { completed <- command() }()
+	// The confirm batches the archive with the pending row's spinner unless
+	// a spinner is already ticking; each message is applied once the
+	// archive finishes.
+	completed := make(chan []tea.Msg, 1)
+	go func() {
+		first := command()
+		batch, isBatch := first.(tea.BatchMsg)
+		if !isBatch {
+			completed <- []tea.Msg{first}
+			return
+		}
+		var msgs []tea.Msg
+		for _, each := range batch {
+			msgs = append(msgs, each())
+		}
+		completed <- msgs
+	}()
 	select {
 	case <-started:
 	case <-time.After(10 * time.Second):
@@ -175,8 +190,9 @@ func TestSlowLifecycleDoesNotBlockWindowUpdateAndKeepsSnapshotWriter(t *testing.
 		t.Fatal("window update waited on running lifecycle")
 	}
 	close(release)
-	msg := <-completed
-	m.applyTestMsg(t, msg)
+	for _, msg := range <-completed {
+		m.applyTestMsg(t, msg)
+	}
 	m.drainEffects(t)
 	if m.errBar.text != "" {
 		t.Fatalf("captured writer lost: %s", m.errBar.text)
