@@ -281,7 +281,7 @@ func clampOffset(offset, count, rows int) int {
 // its body shows.
 func (c *Card) size(h surface.Host) (width, inner, rows int) {
 	cols, height := h.Size()
-	width = uiframe.CardWidthFor(cols)
+	width = uiframe.WideCardWidthFor(cols)
 	return width, uiframe.CardInnerWidth(width), max(height-c.root.ChromeRows(c.hints()), 1)
 }
 
