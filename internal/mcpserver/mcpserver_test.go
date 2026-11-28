@@ -280,7 +280,7 @@ func (f *fakeSessionCommands) ShowSurface(_, id string, width int, withDocument 
 	return shown, f.err
 }
 
-func (f *fakeSessionCommands) AnswerSurface(_, id, answer string) (sessioncmd.AgentSurface, error) {
+func (f *fakeSessionCommands) AnswerSurface(_, id, answer string, _ bool) (sessioncmd.AgentSurface, error) {
 	f.answeredSurface, f.surfaceAnswer = id, answer
 	return sessioncmd.AgentSurface{ID: id, SurfaceID: "round-1", SessionName: "asker", Answered: true, Answer: answer}, f.err
 }
