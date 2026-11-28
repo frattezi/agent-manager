@@ -51,12 +51,12 @@ func blockerTree(project string, all []runs.Record, held []runs.HeldTicket, wind
 		}
 	}
 	for _, h := range held {
-		if len(h.BlockedBy) == 0 || filepath.Base(h.Repo) != project {
+		if len(h.Blockers) == 0 || filepath.Base(h.RepoPath) != project {
 			continue
 		}
 		blockers[h.TicketRef] = map[string]edge{}
-		for _, b := range h.BlockedBy {
-			blockers[h.TicketRef][b.Ref] = edge{b.Reason}
+		for _, b := range h.Blockers {
+			blockers[h.TicketRef][b] = edge{h.Reason(b)}
 		}
 	}
 	dependents := map[string][]string{}

@@ -72,11 +72,11 @@ func TestBlockerTreeShapes(t *testing.T) {
 			run1("o/api#1", runs.StatusRunning, nil),
 			run1("o/api#4", runs.StatusRunning, nil),
 			run1("o/api#2", runs.StatusQueued, blocked("o/api#1")),
-		}, []runs.HeldTicket{{Repo: "/src/api", TicketRef: "o/api#2", BlockedBy: []runs.Blocker{{Ref: "o/api#4", Reason: "not done"}}}},
+		}, []runs.HeldTicket{{RepoPath: "/src/api", TicketRef: "o/api#2", Blockers: []string{"o/api#4"}, Holds: []runs.Hold{{Blocker: "o/api#4", Reason: "not done"}}}},
 			"o/api#4(o/api#2)"},
 		{"a held Ticket of another Project is ignored", []runs.Record{
 			run1("o/api#2", runs.StatusQueued, nil),
-		}, []runs.HeldTicket{{Repo: "/src/web", TicketRef: "o/api#2", BlockedBy: []runs.Blocker{{Ref: "o/api#4"}}}}, ""},
+		}, []runs.HeldTicket{{RepoPath: "/src/web", TicketRef: "o/api#2", Blockers: []string{"o/api#4"}}}, ""},
 		{"a cycle is drawn once, as roots", []runs.Record{
 			run1("o/api#1", runs.StatusQueued, blocked("o/api#2")),
 			run1("o/api#2", runs.StatusQueued, blocked("o/api#1")),
@@ -111,8 +111,8 @@ func treeSample() Runs {
 		run("5", "o/api#5", "api", runs.StatusRunning, time.Hour, func(r *runs.Record) { r.Title = "Seed the data"; r.BlockedBy = []string{"o/api#1"} }),
 		run("4", "o/api#4", "api", runs.StatusQueued, time.Hour, func(r *runs.Record) { r.Title = "Document it"; r.BlockedBy = []string{"o/api#9"} }),
 	}
-	held := []runs.HeldTicket{{Repo: "/src/api", TicketRef: "o/api#3", BlockedBy: []runs.Blocker{
-		{Ref: "o/api#1"}, {Ref: "o/api#2", Reason: "not done: its latest Run failed"}}}}
+	held := []runs.HeldTicket{{RepoPath: "/src/api", TicketRef: "o/api#3", Blockers: []string{"o/api#1", "o/api#2"},
+		Holds: []runs.Hold{{Blocker: "o/api#2", Reason: "not done: its latest Run failed"}}}}
 	return Compute(list, WindowAll, now, held)
 }
 
