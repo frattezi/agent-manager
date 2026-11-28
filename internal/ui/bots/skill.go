@@ -11,12 +11,15 @@ import (
 const SkillFile = "SKILL.md"
 
 // SkillRoots are the directories a Specialization is looked up in, first
-// match wins: the Fractory repository's own skills, then the owner's global
-// ones. A root whose base did not resolve is left out.
-func SkillRoots(factory, home string) []string {
+// match wins: each Fractory-managed repository's committed skills, in the
+// order given, then the owner's global ones. A root whose base did not
+// resolve is left out.
+func SkillRoots(repos []string, home string) []string {
 	var roots []string
-	if factory != "" {
-		roots = append(roots, filepath.Join(factory, ".agents", "skills"))
+	for _, repo := range repos {
+		if repo != "" {
+			roots = append(roots, filepath.Join(repo, ".agents", "skills"))
+		}
 	}
 	if home != "" {
 		roots = append(roots, filepath.Join(home, ".claude", "skills"))

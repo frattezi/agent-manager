@@ -8,7 +8,6 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/execution"
-	"github.com/YoanWai/agent-manager/internal/fractoryhome"
 	"github.com/YoanWai/agent-manager/internal/git"
 	"github.com/YoanWai/agent-manager/internal/hooks"
 	"github.com/YoanWai/agent-manager/internal/lifecyclehook"
@@ -123,9 +122,6 @@ type mouseCapture struct {
 type environment struct {
 	workDir string
 	homeDir string
-	// factoryDir is the Fractory home, where a Bot's Specialization is
-	// looked up before the owner's global skills.
-	factoryDir string
 	// botsDir holds the directory of each Bot Profile that names none of its
 	// own.
 	botsDir string
@@ -209,10 +205,9 @@ func newView(deps Dependencies, version string) (*Model, error) {
 		poller:  &poller{runner: deps.Execution},
 		layout:  layoutState{split: uigeometry.Gesture{Ratio: uigeometrypanes.Load(st)}},
 		env: environment{
-			workDir:    uilaunch.InitialWorkingDir(),
-			homeDir:    uilaunch.InitialHomeDir(),
-			factoryDir: fractoryhome.Dir(),
-			botsDir:    botsRoot(uilaunch.InitialHomeDir()),
+			workDir: uilaunch.InitialWorkingDir(),
+			homeDir: uilaunch.InitialHomeDir(),
+			botsDir: botsRoot(uilaunch.InitialHomeDir()),
 		},
 		release: uirelease.New(st, version),
 		services: services{
