@@ -312,6 +312,28 @@ func (w *Watcher) Query(command string) (string, bool) {
 	return out, true
 }
 
+// Window captures the rows rows that end offset rows above the bottom of
+// id's pane, over the serving control client. Capturing only that window
+// keeps a deep scroll as cheap as a shallow one; History's capture grows
+// with the offset. Not ok when no client is up.
+func (w *Watcher) Window(id string, offset, rows int) (string, bool) {
+	target := tmux.PaneTarget(id)
+	reply, ok := w.Query(`display-message -p -t ` + target + ` "#{pane_height}"`)
+	if !ok {
+		return "", false
+	}
+	height, err := strconv.Atoi(strings.TrimSpace(reply))
+	if err != nil {
+		return "", false
+	}
+	// -S and -E count from the top of the visible pane, history negative.
+	out, ok := w.Query(fmt.Sprintf(`capture-pane -p -e -t %s -S %d -E %d`, target, height-offset-rows, height-1-offset))
+	if !ok {
+		return "", false
+	}
+	return MatchExecShape(out), true
+}
+
 // History captures the pane of id with lines rows of history above the
 // visible ones, in the exec capture's shape: over the serving control
 // client, or by a forked capture of the same rows when there is none.

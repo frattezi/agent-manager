@@ -75,6 +75,10 @@ func Scroll(watch *watch.Watcher, sessionID string, offset, rows int) ScrollMsg 
 	if watch == nil {
 		return msg
 	}
+	if window, ok := watch.Window(sessionID, offset, rows); ok {
+		msg.Preview, msg.OK = window, true
+		return msg
+	}
 	out, ok := watch.History(sessionID, offset+rows)
 	msg.Preview, msg.OK = focus.BottomWindow(out, rows, offset), ok
 	return msg
