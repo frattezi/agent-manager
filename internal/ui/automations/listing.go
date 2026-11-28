@@ -63,6 +63,22 @@ func (e Entry) Next(now time.Time) (time.Time, bool) {
 	return schedule.Next(now)
 }
 
+// Upcoming is every instant after now, up to and including now+within, the
+// Automation fires for; none when it is disabled or its schedule cannot be
+// read. A schedule with limit or more instants in the span is cut there.
+func (e Entry) Upcoming(now time.Time, within time.Duration, limit int) []time.Time {
+	var out []time.Time
+	for at := now; len(out) < limit; {
+		next, ok := e.Next(at)
+		if !ok || next.After(now.Add(within)) {
+			break
+		}
+		out = append(out, next)
+		at = next
+	}
+	return out
+}
+
 // Outcome is the firing's status, or the outcome its result names when that
 // says more.
 func (r Record) Outcome() string {

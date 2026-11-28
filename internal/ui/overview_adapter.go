@@ -28,7 +28,10 @@ type overviewState struct {
 	windowRow int
 	// pageRows is the rows a page key scrolls.
 	pageRows int
-	cache    overviewCache
+	// shown is the header whose Overview was last painted, so the scroll
+	// starts at the top when the selection moves to the other one.
+	shown uirail.RowKind
+	cache overviewCache
 }
 
 type overviewCacheKey struct {
@@ -38,6 +41,8 @@ type overviewCacheKey struct {
 	theme  string
 	basic  bool
 	key    string
+	// automations is the header the drawing is for.
+	automations bool
 }
 
 type overviewCache struct {
@@ -51,9 +56,22 @@ func (m *Model) runsHeaderSelected() bool {
 	return ok && selection.Kind == uirail.RunsRow
 }
 
+// overviewHeaderSelected is true on the header of a section whose Overview
+// takes the shared window and scroll.
+func (m *Model) overviewHeaderSelected() bool {
+	selection, ok := m.rail.Selected()
+	return ok && (selection.Kind == uirail.RunsRow || selection.Kind == uirail.AutomationsRow)
+}
+
 func (m *Model) botsHeaderSelected() bool {
 	selection, ok := m.rail.Selected()
 	return ok && selection.Kind == uirail.BotsRow
+}
+
+// overviewScrollable is true on the header of any section with an Overview:
+// the ones that take the window, and Bots, which is live and has none.
+func (m *Model) overviewScrollable() bool {
+	return m.overviewHeaderSelected() || m.botsHeaderSelected()
 }
 
 // botsOverviewLines is the Bots Overview, live state only; nil when no Profile
@@ -79,36 +97,37 @@ func overviewPalette(theme uitheme.Theme) uioverview.Palette {
 	}
 }
 
-// overviewContentLines fills the content column for the Runs or Bots header:
-// for Runs the held line when the queue is Held, then the Overview, scrolled to
-// fit the pane.
+// overviewContentLines fills the content column for a section header with an
+// Overview: for Runs the held line when the queue is Held, then the Overview,
+// scrolled to fit the pane.
 func (m *Model) overviewContentLines(width, height int) ([]contentLine, bool) {
 	state := &m.workspace.overview
-	runsHeader := m.runsHeaderSelected()
+	windowed := m.overviewHeaderSelected()
 	var botLines []string
 	if m.botsHeaderSelected() {
 		botLines = m.botsOverviewLines(width - 4)
 	}
-	if !runsHeader && botLines == nil {
+	if !windowed && botLines == nil {
 		state.scroll, state.windowRow = 0, -1
 		return nil, false
+	}
+	if state.shown != m.selectedOverview() {
+		state.shown, state.scroll = m.selectedOverview(), 0
 	}
 	const gutter = "  "
 	now := time.Now()
 	var lines []contentLine
-	if !runsHeader {
-		for _, line := range botLines {
-			lines = append(lines, contentLine{Text: gutter + line})
-		}
+	for _, line := range botLines {
+		lines = append(lines, contentLine{Text: gutter + line})
 	}
-	if held := runs.HeldLine(m.workspace.runs.host, now); runsHeader && held != "" {
+	if held := runs.HeldLine(m.workspace.runs.host, now); held != "" && m.runsHeaderSelected() {
 		for _, line := range uitheme.SplitLines(ansi.Wrap(held, max(width-len(gutter)*2, 10), "")) {
 			lines = append(lines, contentLine{Text: gutter + uitheme.WarnStyle().Render(line)})
 		}
 		lines = append(lines, contentLine{})
 	}
 	windowRow := -1
-	if runsHeader {
+	if windowed {
 		drawing := m.overviewDrawing(width-len(gutter)*2, now)
 		for _, line := range drawing.Lines {
 			lines = append(lines, contentLine{Text: gutter + line})
@@ -135,31 +154,43 @@ func (m *Model) overviewContentLines(width, height int) ([]contentLine, bool) {
 	return lines, true
 }
 
+func (m *Model) selectedOverview() uirail.RowKind {
+	selection, _ := m.rail.Selected()
+	return selection.Kind
+}
+
 func (m *Model) overviewDrawing(width int, now time.Time) uioverview.Drawing {
 	state := &m.workspace.overview
 	theme := uitheme.Current()
 	basic := m.prefs.glyphMode.Effective() != presentation.GlyphModeAdvanced
-	key := overviewCacheKey{window: state.window, width: width, minute: now.Truncate(time.Minute), theme: theme.Name, basic: basic, key: m.listGlyph(keybind.OverviewWindow)}
+	key := overviewCacheKey{window: state.window, width: width, minute: now.Truncate(time.Minute), theme: theme.Name, basic: basic, key: m.listGlyph(keybind.OverviewWindow), automations: !m.runsHeaderSelected()}
 	if state.cache.valid && state.cache.key == key {
 		return state.cache.drawing
 	}
 	palette := overviewPalette(theme)
-	computed := uioverview.Compute(m.workspace.runs.list, state.window, now)
-	drawing := uioverview.Draw(computed, width, key.key, m.prefs.glyphMode.Effective(), palette)
+	var drawing uioverview.Drawing
+	if key.automations {
+		computed := uioverview.ComputeAutomations(m.workspace.automations.entries, state.window, now)
+		drawing = uioverview.DrawAutomations(computed, width, key.key, m.prefs.glyphMode.Effective(), palette)
+	} else {
+		computed := uioverview.Compute(m.workspace.runs.list, state.window, now)
+		drawing = uioverview.Draw(computed, width, key.key, m.prefs.glyphMode.Effective(), palette)
+	}
 	state.cache = overviewCache{valid: true, key: key, drawing: drawing}
 	return drawing
 }
 
-// overviewKey runs the Overview's keys while the Runs header is selected and
-// the list is not taking text: the window step and the page scroll.
+// overviewKey runs the Overview's keys while a header with an Overview is
+// selected and the list is not taking text: the window step on the headers
+// that take the window, and the page scroll on all of them.
 func (m *Model) overviewKey(msg tea.KeyMsg) (tea.Cmd, bool) {
-	if !(m.runsHeaderSelected() || m.botsHeaderSelected()) || m.rail.InputMode() != uirail.BrowseMode {
+	if !m.overviewScrollable() || m.rail.InputMode() != uirail.BrowseMode {
 		return nil, false
 	}
 	action, _ := m.services.listKeys.ActionFor(keybind.Normalize(msg.String()))
 	switch action {
 	case keybind.OverviewWindow:
-		if !m.runsHeaderSelected() {
+		if !m.overviewHeaderSelected() {
 			return nil, false
 		}
 		m.stepOverviewWindow()
@@ -185,7 +216,7 @@ func (m *Model) scrollOverview(delta int) {
 
 // overviewWheel scrolls the Overview for a wheel over the content column.
 func (m *Model) overviewWheel(msg tea.MouseMsg) bool {
-	if !(m.runsHeaderSelected() || m.botsHeaderSelected()) || !m.onContentColumn(msg.X, msg.Y) {
+	if !m.overviewScrollable() || !m.onContentColumn(msg.X, msg.Y) {
 		return false
 	}
 	switch msg.Button {
@@ -201,7 +232,7 @@ func (m *Model) overviewWheel(msg tea.MouseMsg) bool {
 
 // overviewClick steps the window when a press lands on its label.
 func (m *Model) overviewClick(msg tea.MouseMsg) bool {
-	if !m.runsHeaderSelected() || m.workspace.overview.windowRow < 0 {
+	if !m.overviewHeaderSelected() || m.workspace.overview.windowRow < 0 {
 		return false
 	}
 	y0, _ := m.bodyYRange()

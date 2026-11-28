@@ -180,7 +180,9 @@ func (m *Model) automationLegend() (legendSection, bool) {
 	}
 	switch selection.Kind {
 	case uirail.AutomationsRow:
-		pairs := append(foldPairs("fold", "unfold"), [2]string{m.listGlyph(keybind.NewAutomation), "new Automation"})
+		pairs := append(foldPairs("fold", "unfold"), [2]string{m.listGlyph(keybind.NewAutomation), "new Automation"},
+			[2]string{m.listGlyph(keybind.OverviewWindow), "window " + m.workspace.overview.window.Next().Label()},
+			[2]string{m.listGlyph(keybind.OverviewUp, keybind.OverviewDown), "scroll"})
 		return legendSection{Title: "Automations", Pairs: pairs}, true
 	case uirail.AutomationRow:
 		pairs := foldPairs("hide firings", "show firings")
@@ -233,9 +235,6 @@ func (m *Model) automationContentLines(width int) ([]contentLine, bool) {
 		lines = append(lines, contentLine{})
 	}
 	switch selection.Kind {
-	case uirail.AutomationsRow:
-		wrap(uitheme.LabelStyle().Render("Automations fire on their schedule while the manager is open"))
-		return lines, true
 	case uirail.FiringRow:
 		entry, _ := m.selectedAutomation()
 		record, ok := m.selectedFiring()
