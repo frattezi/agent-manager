@@ -181,6 +181,21 @@ The identifier a ticket source gives a Ticket, carrying the forge, the owner, th
 the number. It identifies a Ticket; it is not what a reader is shown.
 _Avoid_: Ticket id, ticket key, ticket name
 
+**Blocker**:
+A Ticket another Ticket declares it waits on. Until its blockers are done, the factory holds the
+Ticket, or starts it on top of its one blocker's unmerged work.
+_Avoid_: Dependency, parent, prerequisite
+
+**Stack**:
+A Ticket's work started on top of its blocker's unmerged work rather than the Project's base, so
+it can never land before its blocker.
+_Avoid_: Chain, stacked diff
+
+**Blocker Tree**:
+The Tickets of one Project that have a blocker or are one, drawn with each Ticket under the
+Tickets it waits on. A Ticket waiting on two blockers appears under both.
+_Avoid_: Dependency tree, dependency graph, chain
+
 **Session Mark**:
 A named activity a Session's row shows for exactly as long as the command that set it still runs.
 _Avoid_: Tag, label, flag, badge
