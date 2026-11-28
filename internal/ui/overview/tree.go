@@ -35,14 +35,8 @@ type edge struct{ reason string }
 // Ticket that has a blocker or is one, a lone one a root of its own, each under every Ticket it waits on. Blockers that form a cycle are
 // drawn once, as roots. A top-level tree is kept while any Ticket in it is
 // unfinished, else while its newest Run is inside the window.
-func blockerTree(project string, all []runs.Record, held []runs.HeldTicket, window Window, now time.Time) []*Node {
-	latest := map[string]*runs.Record{}
-	for i := range all {
-		run := &all[i]
-		if cur, ok := latest[run.TicketRef]; !ok || created(*run).After(created(*cur)) {
-			latest[run.TicketRef] = run
-		}
-	}
+func blockerTree(project string, all []runs.Record, held []runs.HeldTicket, window Window, now time.Time, solved map[string]bool) []*Node {
+	latest := latestRuns(all)
 	blockers := map[string]map[string]edge{} // ticket -> blocker -> edge
 	for ref, run := range latest {
 		for _, b := range run.BlockedBy {
@@ -64,7 +58,7 @@ func blockerTree(project string, all []runs.Record, held []runs.HeldTicket, wind
 	dependents := map[string][]string{}
 	inTree := map[string]bool{}
 	for ref, run := range latest {
-		if run.Status != runs.StatusDone {
+		if !finished(run, solved) {
 			inTree[ref] = true
 		}
 	}
@@ -141,7 +135,7 @@ func blockerTree(project string, all []runs.Record, held []runs.HeldTicket, wind
 
 	var kept []*Node
 	for _, tree := range trees {
-		if keepTree(tree, window, now) {
+		if keepTree(tree, window, now, solved) {
 			kept = append(kept, tree)
 		}
 	}
@@ -164,12 +158,17 @@ func reaches(from, to string, blockers map[string]map[string]edge, seen map[stri
 	return false
 }
 
-func keepTree(root *Node, window Window, now time.Time) bool {
+// finished is a Ticket whose latest Run is done or marked solved.
+func finished(run *runs.Record, solved map[string]bool) bool {
+	return run.Status == runs.StatusDone || solved[run.ID]
+}
+
+func keepTree(root *Node, window Window, now time.Time, solved map[string]bool) bool {
 	var newest time.Time
 	unfinished := false
 	var walk func(n *Node)
 	walk = func(n *Node) {
-		if n.Run == nil || n.Run.Status != runs.StatusDone {
+		if n.Run == nil || !finished(n.Run, solved) {
 			unfinished = true
 		} else if n.Run.UpdatedAt.After(newest) {
 			newest = n.Run.UpdatedAt

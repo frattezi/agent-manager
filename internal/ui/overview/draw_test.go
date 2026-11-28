@@ -30,7 +30,7 @@ func sample() Runs {
 		run("3", "o/api#3", "api", runs.StatusRunning, time.Minute, nil),
 		run("4", "o/web#1", "web", runs.StatusNeedsHuman, 2*time.Hour, func(r *runs.Record) { r.Mode = "personal" }),
 	}
-	return Compute(list, WindowAll, now, nil)
+	return Compute(list, WindowAll, now, nil, nil)
 }
 
 func plain(d Drawing) string {
@@ -117,7 +117,7 @@ func TestDrawCapsALongSummaryToItsFirstParagraph(t *testing.T) {
 		r.FinishedAt = now.Add(-time.Hour)
 		r.Title = "Long summary"
 		r.Result = &runs.Result{Summary: long}
-	})}, WindowAll, now, nil)
+	})}, WindowAll, now, nil, nil)
 	for _, width := range []int{34, 80} {
 		text := plain(Draw(o, width, "W", presentation.GlyphModeAdvanced, testPalette))
 		if strings.Contains(text, "Second paragraph") {
