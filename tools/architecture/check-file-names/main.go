@@ -40,6 +40,7 @@ var packaged = map[string]string{
 	"geometry":     "pane sizing, layout widths and the split ratio: the adapter, its effects and the resize surface",
 	"help":         "the Help adapter: the context and root reads the key map paints from",
 	"launchhint":   "the launch fix adapter, its copy and the CLI install effect",
+	"marks":        "the Session Marks poll: which named activity, such as babysit, each session's row wears",
 	"notices":      "the notices adapter",
 	"onboarding":   "the first-run setup adapter, live preview and import effects",
 	"pathcomplete": "the directory completer's adapter: which field a read lands on",

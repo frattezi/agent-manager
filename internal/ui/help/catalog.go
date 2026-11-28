@@ -120,6 +120,7 @@ func markHelpRows(list keybind.Table, glyphs Glyphs) [][2]string {
 		{g.GroupClosedGlyph + " / " + g.GroupOpenGlyph, "collapsed / expanded group"},
 		{glyphs.AfterTurnArchive + " / " + glyphs.AfterTurnKill, "the agent asked to be archived / killed once this turn ends"},
 		{g.AskingGlyph, "asking you something: a round it published waits for your answer"},
+		{g.BabysitGlyph, "babysitting: `fractory babysit` drives its Tickets to merged"},
 	}
 	if filter := list.Binding(keybind.Filter).Text(" / ", mode.Effective() == presentation.GlyphModeAdvanced); filter != "" {
 		rows = append(rows, [2]string{"", filter + " filters the list down to the marks that need you"})
@@ -329,6 +330,9 @@ func sessionHelpRows(keys keybind.Table, arrowStep, attachedBack bool, mouseRows
 	}
 	if label := keys.Binding(keybind.SavedPrompt).Label(); label != "" {
 		rows = append(rows, [2]string{label, "focused: open saved prompts and paste the pick"})
+	}
+	if label := keys.Binding(keybind.AgentSurface).Label(); label != "" {
+		rows = append(rows, [2]string{label, "focused: open what the session asks, over the conversation"})
 	}
 	if label := keys.Binding(keybind.TmuxPrefix).Label(); label != "" {
 		rows = append(rows, [2]string{label, "attached: tmux's prefix, in place of yours"})

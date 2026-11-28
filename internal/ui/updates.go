@@ -51,6 +51,7 @@ var messageRoutes = []func(*Model, tea.Msg) (tea.Model, tea.Cmd, bool){
 	(*Model).routeRunsMsg,
 	(*Model).routeAutomationsMsg,
 	(*Model).routeSurfacesMsg,
+	(*Model).routeMarksMsg,
 }
 
 func (m *Model) handleMsg(msg tea.Msg) (tea.Model, tea.Cmd) {

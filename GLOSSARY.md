@@ -181,6 +181,15 @@ The identifier a ticket source gives a Ticket, carrying the forge, the owner, th
 the number. It identifies a Ticket; it is not what a reader is shown.
 _Avoid_: Ticket id, ticket key, ticket name
 
+**Session Mark**:
+A named activity a Session's row shows for exactly as long as the command that set it still runs.
+_Avoid_: Tag, label, flag, badge
+
+**Babysitting**:
+A Session driving a Project's unfinished Tickets through to merged, one at a time, shown by its
+babysit Session Mark.
+_Avoid_: Watching, chasing, shepherding
+
 ## Bots
 
 **Bot Profile**:
