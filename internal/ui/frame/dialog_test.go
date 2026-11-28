@@ -31,6 +31,18 @@ func TestCardWidthForKeepsRoomAtBothEdges(t *testing.T) {
 	}
 }
 
+func TestWideCardWidthForGrowsToItsCapAndStillFits(t *testing.T) {
+	if got := WideCardWidthFor(200); got != 128 {
+		t.Fatalf("wide terminal form card width = %d, want 128", got)
+	}
+	if got := WideCardWidthFor(80); got != 76 {
+		t.Fatalf("an 80-column terminal form card width = %d, want 76", got)
+	}
+	if got := WideCardWidthFor(80); got <= CardWidthFor(80) {
+		t.Fatalf("a form card (%d) should be wider than a dialog (%d) where the screen has room", got, CardWidthFor(80))
+	}
+}
+
 func TestCardInnerWidthDropsChromeAndPadding(t *testing.T) {
 	if got := CardInnerWidth(64); got != 56 {
 		t.Fatalf("inner width = %d, want 56", got)

@@ -19,8 +19,14 @@ const (
 
 type Fill func(s string, width int, bg string) string
 
-func CardWidthFor(cols int) int {
-	width := 64
+func CardWidthFor(cols int) int { return cardWidthUpTo(64, cols) }
+
+// WideCardWidthFor is the width of a card whose body is a form the owner
+// reads through, such as an Agent Surface: wider than a dialog, so a question
+// and its choices rarely wrap, and still inside the screen.
+func WideCardWidthFor(cols int) int { return cardWidthUpTo(128, cols) }
+
+func cardWidthUpTo(width, cols int) int {
 	if cols >= 28 && width > cols-4 {
 		width = cols - 4
 	}
