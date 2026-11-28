@@ -367,6 +367,9 @@ func (m *Model) focusFooter() uiframe.Focus {
 	if top, ok := m.top(); ok {
 		if _, bare := top.(*uifocus.Surface); bare {
 			focus.Bare = true
+			if sess, selected := m.selected(); selected && m.workspace.surfaces.inbox.Asking(sess.ID) {
+				focus.Keys.AgentSurface = m.services.keys.Binding(keybind.AgentSurface).Label()
+			}
 		} else {
 			focus.Surface = top.Footer()
 		}

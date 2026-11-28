@@ -298,6 +298,7 @@ var sessionActions = []Action{
 	{Editor, "open its directory", keys("f3")},
 	{TmuxPrefix, "replaces your tmux prefix while attached", Binding{}},
 	{SavedPrompt, "open saved prompts", keys("f4")},
+	{AgentSurface, "focused session asking: open what it asks over the conversation", keys("f2")},
 	{Resize, "resize the split", keys("ctrl+]")},
 }
 

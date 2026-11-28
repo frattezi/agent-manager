@@ -21,7 +21,7 @@ func (m *Model) openMenu(selection Selection, x, y int, held bool) Decision {
 	case ConnectionRow:
 		title = row.host
 	case RunRow:
-		title = row.run.Ticket
+		title = row.run.name()
 	case RunsRow:
 		title = "Runs"
 	case AutomationsRow:

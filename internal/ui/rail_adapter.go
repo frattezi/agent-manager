@@ -101,6 +101,7 @@ func (m *Model) railSnapshot() uirail.Snapshot {
 			Asking:         m.workspace.surfaces.inbox.Asking(session.ID),
 			AskingGlyph:    m.glyphs().AskingGlyph,
 			Pending:        uilifecycle.PendingWord(m.ledger.lifecycle.Pending[session.ID]),
+			Babysitting:    m.babysitting(session.ID),
 		})
 	}
 	return snapshot
@@ -300,7 +301,7 @@ func (m *Model) rowLegend() legendSection {
 			ctx.Session = uirail.Session{
 				ID: row.sess.ID, Group: row.sess.Group, Tool: row.sess.Tool, Status: row.sess.Status,
 				Archived: row.sess.Archived, AfterTurn: row.sess.AfterTurn, IsShell: m.isShell(row.sess.Tool),
-				Asking: m.workspace.surfaces.inbox.Asking(row.sess.ID),
+				Asking: m.workspace.surfaces.inbox.Asking(row.sess.ID), Babysitting: m.babysitting(row.sess.ID),
 			}
 		}
 	}

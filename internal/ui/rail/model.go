@@ -50,6 +50,9 @@ type Session struct {
 	// Pending is the action this manager has queued on the row, worded as
 	// it is happening ("archiving"), until the action completes.
 	Pending string
+	// Babysitting is whether the session runs `fractory babysit` under its
+	// babysit Session Mark.
+	Babysitting bool
 }
 
 // Snapshot is an immutable-by-convention inventory copied at the root

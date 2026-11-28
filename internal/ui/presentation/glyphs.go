@@ -56,7 +56,7 @@ type GlyphSet struct {
 	RestartGlyph, DeleteGlyph, MoveGlyph, ResetGlyph, ReviewGlyph, SetupGlyph                     string
 	FeedGlyph, UpdateGlyph, DownloadGlyph, RefreshGlyph                                           string
 	WarningGlyph, CardErrorGlyph, DiffErrorGlyph, DiffCleanGlyph, DiffDoneGlyph, DiffPendingGlyph string
-	WorktreeGlyph, AfterTurnArchiveGlyph, AfterTurnKillGlyph, AskingGlyph                         string
+	WorktreeGlyph, AfterTurnArchiveGlyph, AfterTurnKillGlyph, AskingGlyph, BabysitGlyph           string
 	WorkingGlyph, StartingGlyph, WaitingGlyph, FinishedGlyph, DeadGlyph, CrossGlyph, IdleGlyph    string
 	ReorderGrip, InboxGlyph, BranchGlyph, GroupOpenGlyph, GroupClosedGlyph                        string
 	ShellGlyph, LoaderHead, LoaderTail, LoaderRest                                                string
@@ -76,7 +76,7 @@ func GlyphsFor(mode GlyphMode) GlyphSet {
 			RestartGlyph: "↻", DeleteGlyph: "⚠", MoveGlyph: "⇄", ResetGlyph: "↺", ReviewGlyph: "⌥", SetupGlyph: "◈",
 			FeedGlyph: "◆", UpdateGlyph: "↑", DownloadGlyph: "↓", RefreshGlyph: "↻",
 			WarningGlyph: "▲", CardErrorGlyph: "⚠", DiffErrorGlyph: "✖", DiffCleanGlyph: "✓", DiffDoneGlyph: "✔", DiffPendingGlyph: "○",
-			WorktreeGlyph: "⎇", AfterTurnArchiveGlyph: "↓", AfterTurnKillGlyph: "■", AskingGlyph: "?",
+			WorktreeGlyph: "⎇", AfterTurnArchiveGlyph: "↓", AfterTurnKillGlyph: "■", AskingGlyph: "?", BabysitGlyph: "🍼",
 			HeadsUpGlyph: "▲", TipGlyph: "✧", FeatureGlyph: "✚", FixGlyph: "●", OtherGlyph: "◌", StartedGlyph: "◇", PeopleGlyph: "♥",
 			SectionBarGlyph: "▍", UnreadGlyph: "●", HighlightGlyph: "◆",
 			StartupFrames: advancedStartupFrames[:],
@@ -92,7 +92,7 @@ func GlyphsFor(mode GlyphMode) GlyphSet {
 		RestartGlyph: "R", DeleteGlyph: "!", MoveGlyph: "M", ResetGlyph: "R", ReviewGlyph: "D", SetupGlyph: "!",
 		FeedGlyph: "i", UpdateGlyph: "^", DownloadGlyph: "v", RefreshGlyph: "R",
 		WarningGlyph: "!", CardErrorGlyph: "x", DiffErrorGlyph: "x", DiffCleanGlyph: "+", DiffDoneGlyph: "+", DiffPendingGlyph: ".",
-		WorktreeGlyph: branchGlyph, AfterTurnArchiveGlyph: "A", AfterTurnKillGlyph: "K", AskingGlyph: "?",
+		WorktreeGlyph: branchGlyph, AfterTurnArchiveGlyph: "A", AfterTurnKillGlyph: "K", AskingGlyph: "?", BabysitGlyph: "b",
 		ShellGlyph: ">", LoaderHead: "*", LoaderTail: ":", LoaderRest: ".", StartupFrames: startupFrames[:],
 		HeadsUpGlyph: "!", TipGlyph: "?", FeatureGlyph: "+", FixGlyph: "*", OtherGlyph: "-", StartedGlyph: "o", PeopleGlyph: "&",
 		SectionBarGlyph: "|", UnreadGlyph: "*", HighlightGlyph: ">",
