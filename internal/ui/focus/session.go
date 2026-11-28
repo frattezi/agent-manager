@@ -29,6 +29,8 @@ type KeyHost interface {
 	// Resize arms the split's divider gesture over the focused pane.
 	Resize() tea.Cmd
 	Saved() tea.Cmd
+	// Surface opens what the focused session asks, over the conversation.
+	Surface() tea.Cmd
 	Leave() tea.Cmd
 	LeaveMode() tea.Cmd
 }
@@ -49,6 +51,7 @@ type Bindings struct {
 	Editor      bool
 	Review      bool
 	Saved       bool
+	Surface     bool
 	ArrowStep   bool
 	AtInputHead bool
 }
@@ -91,6 +94,9 @@ func (s *Model) KeyPress(h KeyHost, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	keys := h.Bindings(msg.String())
 	if keys.Saved {
 		return nil, h.Saved()
+	}
+	if keys.Surface {
+		return nil, h.Surface()
 	}
 	result := s.Key(msg, KeyContext{
 		SessionID:   id,
@@ -140,7 +146,7 @@ func (s *Model) ExtendedKeyPress(h KeyHost, msg ExtendedKeyMsg) tea.Cmd {
 		return h.Leave()
 	}
 	if key, ok := BindableKey(msg.Name); ok {
-		if keys := h.Bindings(key.String()); keys.Saved || keys.Detach || keys.Editor || keys.Review || keys.Resize {
+		if keys := h.Bindings(key.String()); keys.Saved || keys.Surface || keys.Detach || keys.Editor || keys.Review || keys.Resize {
 			_, cmd := s.KeyPress(h, key)
 			return cmd
 		}

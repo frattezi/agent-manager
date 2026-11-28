@@ -328,6 +328,9 @@ func sessionHelpRows(keys keybind.Table, arrowStep, attachedBack bool, mouseRows
 	if label := keys.Binding(keybind.SavedPrompt).Label(); label != "" {
 		rows = append(rows, [2]string{label, "focused: open saved prompts and paste the pick"})
 	}
+	if label := keys.Binding(keybind.AgentSurface).Label(); label != "" {
+		rows = append(rows, [2]string{label, "focused: open what the session asks, over the conversation"})
+	}
 	if label := keys.Binding(keybind.TmuxPrefix).Label(); label != "" {
 		rows = append(rows, [2]string{label, "attached: tmux's prefix, in place of yours"})
 	}

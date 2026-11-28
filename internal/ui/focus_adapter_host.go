@@ -32,6 +32,7 @@ func (h focusHost) Bindings(pressed string) uifocus.Bindings {
 		Editor:    keys.Binding(keybind.Editor).Has(pressed),
 		Review:    keys.Binding(keybind.Review).Has(pressed),
 		Saved:     keys.Binding(keybind.SavedPrompt).Has(pressed),
+		Surface:   keys.Binding(keybind.AgentSurface).Has(pressed),
 		ArrowStep: h.m.prefs.arrowStep,
 	}
 	if sess, ok := h.m.selected(); ok {
@@ -101,6 +102,12 @@ func (h focusHost) Review(id string) (tea.Model, tea.Cmd) {
 }
 
 func (h focusHost) Saved() tea.Cmd { return h.m.openFocusSaved() }
+
+// Surface opens the card over the focused conversation; it pops back to it.
+func (h focusHost) Surface() tea.Cmd {
+	h.m.openAgentSurface()
+	return nil
+}
 
 func (h focusHost) Leave() tea.Cmd { return h.m.leaveFocus() }
 
