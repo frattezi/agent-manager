@@ -357,6 +357,11 @@ func run() (resultErr error) {
 	if err != nil {
 		return err
 	}
+	releaseManager, err := app.LockManager(dir, driver.SocketPath())
+	if err != nil {
+		return err
+	}
+	defer releaseManager()
 	local, err := app.OpenLocal(dir, version, driver)
 	if err != nil {
 		return err
