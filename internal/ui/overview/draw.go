@@ -114,11 +114,11 @@ func (p painter) block(project Project, width int) []string {
 	rows = append(rows, wrap(p.fg(p.palette.Dim).Render(strings.Join(facts, " · ")), body)...)
 	rows = append(rows, "")
 	rows = append(rows, p.inFlight(project, body))
+	rows = append(rows, p.tree(project, body)...)
 	rows = append(rows, p.throughput(project, body)...)
 	rows = append(rows, p.funnel(project.Funnel, body)...)
 	rows = append(rows, p.durations(project.Durations, body))
 	rows = append(rows, p.latest(project.Latest, body)...)
-	rows = append(rows, p.tree(project.Tree, body)...)
 	box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color(color)).Padding(0, 1).Width(width - 2)
 	return strings.Split(box.Render(strings.Join(rows, "\n")), "\n")
 }

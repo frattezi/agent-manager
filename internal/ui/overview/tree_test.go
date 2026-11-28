@@ -67,16 +67,17 @@ func TestBlockerTreeShapes(t *testing.T) {
 		{"a blocker with no Run", []runs.Record{
 			run1("o/api#2", runs.StatusQueued, blocked("o/api#9")),
 		}, nil, "o/api#9(o/api#2)"},
-		{"no blockers anywhere", []runs.Record{run1("o/api#1", runs.StatusRunning, nil)}, nil, ""},
+		{"a lone unfinished Ticket is its own root", []runs.Record{run1("o/api#1", runs.StatusRunning, nil)}, nil, "o/api#1"},
+		{"a lone finished Ticket is not", []runs.Record{run1("o/api#1", runs.StatusDone, nil)}, nil, ""},
 		{"held blockers win over the Run's", []runs.Record{
 			run1("o/api#1", runs.StatusRunning, nil),
 			run1("o/api#4", runs.StatusRunning, nil),
 			run1("o/api#2", runs.StatusQueued, blocked("o/api#1")),
 		}, []runs.HeldTicket{{RepoPath: "/src/api", TicketRef: "o/api#2", Blockers: []string{"o/api#4"}, Holds: []runs.Hold{{Blocker: "o/api#4", Reason: "not done"}}}},
-			"o/api#4(o/api#2)"},
+			"o/api#1,o/api#4(o/api#2)"},
 		{"a held Ticket of another Project is ignored", []runs.Record{
 			run1("o/api#2", runs.StatusQueued, nil),
-		}, []runs.HeldTicket{{RepoPath: "/src/web", TicketRef: "o/api#2", Blockers: []string{"o/api#4"}}}, ""},
+		}, []runs.HeldTicket{{RepoPath: "/src/web", TicketRef: "o/api#2", Blockers: []string{"o/api#4"}}}, "o/api#2"},
 		{"a cycle is drawn once, as roots", []runs.Record{
 			run1("o/api#1", runs.StatusQueued, blocked("o/api#2")),
 			run1("o/api#2", runs.StatusQueued, blocked("o/api#1")),
@@ -86,12 +87,12 @@ func TestBlockerTreeShapes(t *testing.T) {
 			run("1", "o/api#1", "api", runs.StatusDone, 40*24*time.Hour, nil),
 			run("2", "o/api#2", "api", runs.StatusDone, 40*24*time.Hour, blocked("o/api#1")),
 			run("3", "o/api#8", "api", runs.StatusRunning, time.Hour, nil),
-		}, nil, ""},
+		}, nil, "o/api#8"},
 		{"an unfinished tree outside the window is kept", []runs.Record{
 			run("1", "o/api#1", "api", runs.StatusDone, 40*24*time.Hour, nil),
 			run("2", "o/api#2", "api", runs.StatusQueued, 40*24*time.Hour, blocked("o/api#1")),
 			run("3", "o/api#8", "api", runs.StatusRunning, time.Hour, nil),
-		}, nil, "o/api#1(o/api#2)"},
+		}, nil, "o/api#1(o/api#2),o/api#8"},
 	} {
 		window := WindowAll
 		if strings.Contains(tc.name, "window") {
@@ -154,5 +155,67 @@ func TestDrawBlockerTreeUsesASCIIUnderTheCompatibleGlyphMode(t *testing.T) {
 		if strings.ContainsRune(tree, r) {
 			t.Errorf("box-drawing %q in the tree under Compatible mode:\n%s", r, tree)
 		}
+	}
+}
+
+func progressSample() Runs {
+	list := []runs.Record{
+		run("1", "o/api#1", "api", runs.StatusDone, 3*time.Hour, func(r *runs.Record) {
+			r.CreatedAt, r.FinishedAt = now.Add(-3*time.Hour), now.Add(-3*time.Hour+20*time.Minute)
+		}),
+		run("2", "o/api#2", "api", runs.StatusDone, 2*time.Hour, func(r *runs.Record) {
+			r.CreatedAt, r.FinishedAt = now.Add(-2*time.Hour), now.Add(-2*time.Hour+24*time.Minute)
+		}),
+		run("3", "o/api#3", "api", runs.StatusRunning, time.Minute, func(r *runs.Record) {
+			r.Title, r.CreatedAt, r.LogTail = "Seed the data", now.Add(-11*time.Minute), "writing seed.sql"
+		}),
+		run("4", "o/api#4", "api", runs.StatusNeedsHuman, time.Hour, func(r *runs.Record) {
+			r.Title, r.Result = "Pick a store", &runs.Result{Question: "Postgres or SQLite?\nThe spec says both."}
+		}),
+	}
+	return Compute(list, WindowAll, now, nil)
+}
+
+func TestUsualRunTimeIsTheMedianOfFinishedRuns(t *testing.T) {
+	if got := progressSample().Projects[0].Usual; got != 22*time.Minute {
+		t.Errorf("Usual = %v, want 22m", got)
+	}
+}
+
+func TestDrawRunningTicketShowsProgressAndLogLine(t *testing.T) {
+	for _, mode := range []presentation.GlyphMode{presentation.GlyphModeAdvanced, presentation.GlyphModeBasic} {
+		for _, width := range []int{34, 100} {
+			text := ansi.Strip(strings.Join(Draw(progressSample(), width, "W", mode, testPalette).Lines, "\n"))
+			flat := strings.Join(strings.Fields(strings.ReplaceAll(text, "│", " ")), " ")
+			if width == 100 {
+				for _, want := range []string{"11m of a usual 22m", "writing seed.sql", "Postgres or SQLite?"} {
+					if !strings.Contains(flat, want) {
+						t.Errorf("mode %v width %d: lacks %q:\n%s", mode, width, want, text)
+					}
+				}
+				if strings.Contains(flat, "The spec says both") {
+					t.Errorf("question is more than its first line:\n%s", text)
+				}
+			}
+			if tree, charts := strings.Index(text, "Blocker Tree"), strings.Index(text, "Finished per day"); tree < 0 || charts >= 0 && tree > charts {
+				t.Errorf("mode %v width %d: tree is not before the charts:\n%s", mode, width, text)
+			}
+			if mode == presentation.GlyphModeBasic && strings.ContainsAny(text[strings.Index(text, "Blocker Tree"):strings.Index(text, "Finished per day")], "█░├└") {
+				t.Errorf("non-ASCII glyph under Compatible mode:\n%s", text)
+			}
+			for _, line := range strings.Split(text, "\n") {
+				if w := ansi.StringWidth(line); w > width {
+					t.Errorf("width %d: line is %d cells: %q", width, w, line)
+				}
+			}
+		}
+	}
+}
+
+func TestDrawRunningTicketWithNoFinishedRunsShowsOnlyItsTime(t *testing.T) {
+	list := []runs.Record{run("3", "o/api#3", "api", runs.StatusRunning, time.Minute, func(r *runs.Record) { r.CreatedAt = now.Add(-13 * time.Minute) })}
+	text := ansi.Strip(strings.Join(Draw(Compute(list, WindowAll, now, nil), 100, "W", presentation.GlyphModeAdvanced, testPalette).Lines, "\n"))
+	if !strings.Contains(text, "13m") || strings.Contains(text, "usual") {
+		t.Errorf("want the elapsed time alone:\n%s", text)
 	}
 }

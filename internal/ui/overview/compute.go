@@ -59,8 +59,11 @@ type Project struct {
 	// Durations are created-to-finished, oldest finish first.
 	Durations []time.Duration
 	Latest    []Finished
-	// Tree is the Blocker Tree's roots; empty when no Ticket has a blocker or is one.
+	// Tree is the Blocker Tree's roots: every unfinished Ticket and the Tickets
+	// that wait on each other.
 	Tree []*Node
+	// Usual is the median of Durations, the usual Run time; zero with none.
+	Usual time.Duration
 }
 
 // Runs is the Runs Overview.
@@ -160,6 +163,11 @@ func computeProject(name string, all []runs.Record, window Window, now time.Time
 		if !run.CreatedAt.IsZero() && !run.FinishedAt.Before(run.CreatedAt) {
 			project.Durations = append(project.Durations, run.FinishedAt.Sub(run.CreatedAt))
 		}
+	}
+	if n := len(project.Durations); n > 0 {
+		sorted := slices.Clone(project.Durations)
+		slices.Sort(sorted)
+		project.Usual = (sorted[(n-1)/2] + sorted[n/2]) / 2
 	}
 	project.Buckets = buckets(finished, window, now)
 	for i := len(finished) - 1; i >= 0 && len(project.Latest) < Latest; i-- {
