@@ -11,6 +11,7 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/testenv"
 	"github.com/YoanWai/agent-manager/internal/tmux"
+	"github.com/YoanWai/agent-manager/internal/ui/focus"
 )
 
 // A serving control client owns an admitted command even when tmux rejects it:
@@ -842,5 +843,38 @@ func TestFocusWatchPassesTheWatchedSessionsClipboard(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("the new focused session's copy was not passed on")
+	}
+}
+
+// A scrolled-back view captures only its window; it must show the rows the
+// whole-history capture trimmed to that window showed, at any depth, with a
+// view shorter than the pane, and clamped at the top of the history.
+func TestFocusWatchWindowMatchesTheTrimmedHistory(t *testing.T) {
+	driver, id, arrivals, watch := startFocusArrivalWatch(t)
+	fill := `i=0; while [ $i -lt 300 ]; do printf "\033[3%dmline%03d\033[0m\n" $((i%7+1)) $i; i=$((i+1)); done; echo filled`
+	if err := driver.SendText(id, fill); err != nil {
+		t.Fatalf("SendText: %v", err)
+	}
+	waitFocusArrival(t, arrivals, "\nfilled")
+	reply, ok := watch.Query(`display-message -p -t ` + tmux.PaneTarget(id) + ` "#{history_size}"`)
+	if !ok {
+		t.Fatal("history size query failed")
+	}
+	var history int
+	fmt.Sscan(strings.TrimSpace(reply), &history)
+	const rows = 20
+	for _, offset := range []int{1, 7, 150, history} {
+		whole, ok := watch.History(id, offset+rows)
+		if !ok {
+			t.Fatal("history capture failed")
+		}
+		want := focus.BottomWindow(whole, rows, offset)
+		got, ok := watch.Window(id, offset, rows)
+		if !ok {
+			t.Fatal("window capture failed")
+		}
+		if got != want {
+			t.Fatalf("offset %d: window\n%q\nwant\n%q", offset, got, want)
+		}
 	}
 }
