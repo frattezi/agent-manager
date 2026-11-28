@@ -26,18 +26,30 @@ type HostState struct {
 	HeldTickets []HeldTicket `json:"heldTickets"`
 }
 
-// HeldTicket is a Ticket Fractory holds, with the blockers it lists for it.
+// HeldTicket is a Ticket Fractory holds, as host-state.ts writes it: the refs
+// of its blockers, and for some of them why they hold it.
 type HeldTicket struct {
-	Repo      string    `json:"repo"`
-	TicketRef string    `json:"ticketRef"`
-	BlockedBy []Blocker `json:"blockedBy"`
+	RepoPath  string   `json:"repoPath"`
+	TicketRef string   `json:"ticketRef"`
+	Blockers  []string `json:"blockers"`
+	Holds     []Hold   `json:"holds"`
 }
 
-// Blocker is one blocker of a held Ticket and why it holds it, in Fractory's
-// words: "not done: its latest Run failed".
-type Blocker struct {
-	Ref    string `json:"ref"`
-	Reason string `json:"reason"`
+// Hold is why one blocker holds a Ticket, in Fractory's words: "not done: its
+// latest Run failed".
+type Hold struct {
+	Blocker string `json:"blocker"`
+	Reason  string `json:"reason"`
+}
+
+// Reason is the hold reason for blocker, empty when Fractory gave none.
+func (h HeldTicket) Reason(blocker string) string {
+	for _, hold := range h.Holds {
+		if hold.Blocker == blocker {
+			return hold.Reason
+		}
+	}
+	return ""
 }
 
 // HostPath is `host.json` beside the registry: $FRACTORY_HOME/host.json.
