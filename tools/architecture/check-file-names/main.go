@@ -42,6 +42,7 @@ var packaged = map[string]string{
 	"launchhint":   "the launch fix adapter, its copy and the CLI install effect",
 	"marks":        "the Session Marks poll: which named activity, such as babysit, each session's row wears",
 	"notices":      "the notices adapter",
+	"overview":     "the Runs Overview adapter: what it is given, the window and scroll it keeps, and its keys, wheel and click",
 	"onboarding":   "the first-run setup adapter, live preview and import effects",
 	"pathcomplete": "the directory completer's adapter: which field a read lands on",
 	"preview":      "the session preview adapter, its poll and the detail view",

@@ -138,6 +138,9 @@ func (m *Model) routePreviewMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 
 // Captured panes use the whole column to preserve terminal layout.
 func (m *Model) contentLines(width, height int) []contentLine {
+	if lines, ok := m.overviewContentLines(width, height); ok {
+		return lines
+	}
 	if lines, ok := m.runContentLines(width); ok {
 		return lines
 	}

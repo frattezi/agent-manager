@@ -316,6 +316,9 @@ func (m *Model) listWheel(msg tea.MouseMsg, ctx uirail.MouseContext) (tea.Model,
 	if m.layout.split.ResizeMode || m.layout.split.Dragging || m.swallowsFlick(ctx.Now) {
 		return m, nil
 	}
+	if m.overviewWheel(msg) {
+		return m, nil
+	}
 	if !m.quickPicking() {
 		return m.applyRailDecision(m.rail.Mouse(msg, m.layout.displayedRail, ctx))
 	}
@@ -359,6 +362,9 @@ func (m *Model) listPress(msg tea.MouseMsg, ctx uirail.MouseContext) (tea.Model,
 		return m, m.handleQuickClick(hit)
 	}
 	if msg.Button == tea.MouseButtonLeft && m.onContentColumn(msg.X, msg.Y) {
+		if m.overviewClick(msg) {
+			return m, nil
+		}
 		if url := m.layout.previewLinks.ShownAt(msg.X, msg.Y); url != "" {
 			return m, openLinkCmd(url)
 		}

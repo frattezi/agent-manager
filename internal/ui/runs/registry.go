@@ -50,6 +50,10 @@ type Record struct {
 	Mode   string   `json:"mode"`
 	Flow   string   `json:"flow"`
 	Agents []string `json:"agents"`
+	// PRState and FinishedAt are optional: a record written before the pull
+	// request was looked at, or before the Run ended, does not carry them.
+	PRState    string    `json:"prState"`
+	FinishedAt time.Time `json:"finishedAt"`
 	// Title is the Run Title Fractory recorded; empty on older records.
 	Title string `json:"ticketTitle"`
 	// CleanedAt is when Fractory's cleanup removed the Run's worktree after
@@ -67,10 +71,12 @@ type Trigger struct {
 	Kind string `json:"kind"`
 }
 
-// Result is the agent's final answer; the manager reads only a question.
+// Result is the agent's final answer; the manager reads its question and the
+// summary of what it did.
 type Result struct {
 	Outcome  string `json:"outcome"`
 	Question string `json:"question"`
+	Summary  string `json:"summary"`
 }
 
 // Active reports whether the Run is still going.

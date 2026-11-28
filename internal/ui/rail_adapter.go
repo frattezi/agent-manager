@@ -449,6 +449,9 @@ func (m *Model) applyRailDecision(decision uirail.Decision) (tea.Model, tea.Cmd)
 // handleRailKey runs a list key through the Rail and then the root: the
 // package consumes the keys that change only the Rail's own state.
 func (m *Model) handleRailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if cmd, ok := m.overviewKey(msg); ok {
+		return m, cmd
+	}
 	return m.applyRailKey(m.rail.Update(msg, m.layout.displayedRail, m.railKeyContext()))
 }
 

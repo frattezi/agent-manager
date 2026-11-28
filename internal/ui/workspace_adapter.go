@@ -27,6 +27,8 @@ type workspace struct {
 	sessions []store.Session
 	// runs is Fractory's Run registry, listed read-only beside the sessions.
 	runs runsState
+	// overview is the Runs Overview's window and scroll, which the poll keeps.
+	overview overviewState
 	// automations is the clock that fires due Automations.
 	automations automationsState
 	// surfaces is which sessions are asking the owner something.
