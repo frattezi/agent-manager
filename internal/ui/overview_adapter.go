@@ -173,7 +173,7 @@ func (m *Model) overviewDrawing(width int, now time.Time) uioverview.Drawing {
 		computed := uioverview.ComputeAutomations(m.workspace.automations.entries, state.window, now)
 		drawing = uioverview.DrawAutomations(computed, width, key.key, m.prefs.glyphMode.Effective(), palette)
 	} else {
-		computed := uioverview.Compute(m.workspace.runs.list, state.window, now)
+		computed := uioverview.Compute(m.workspace.runs.list, state.window, now, m.heldTickets())
 		drawing = uioverview.Draw(computed, width, key.key, m.prefs.glyphMode.Effective(), palette)
 	}
 	state.cache = overviewCache{valid: true, key: key, drawing: drawing}
@@ -241,4 +241,11 @@ func (m *Model) overviewClick(msg tea.MouseMsg) bool {
 	}
 	m.stepOverviewWindow()
 	return true
+}
+
+func (m *Model) heldTickets() []runs.HeldTicket {
+	if m.workspace.runs.host == nil {
+		return nil
+	}
+	return m.workspace.runs.host.HeldTickets
 }

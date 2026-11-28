@@ -60,3 +60,19 @@ func TestHeldLine(t *testing.T) {
 		}
 	}
 }
+
+func TestParseHostReadsHeldTicketsAndToleratesTheirAbsence(t *testing.T) {
+	body := `{"version":1,"heldTickets":[{"repo":"/w/api","ticketRef":"o/api#2","blockedBy":[{"ref":"o/api#1","reason":"not done: its latest Run failed"}]}]}`
+	state, err := ParseHost([]byte(body))
+	if err != nil || len(state.HeldTickets) != 1 {
+		t.Fatalf("state = %+v, err = %v", state, err)
+	}
+	held := state.HeldTickets[0]
+	if held.TicketRef != "o/api#2" || held.Repo != "/w/api" || len(held.BlockedBy) != 1 || held.BlockedBy[0].Reason != "not done: its latest Run failed" {
+		t.Fatalf("held = %+v", held)
+	}
+	old, err := ParseHost([]byte(`{"version":1,"held":true}`))
+	if err != nil || old.HeldTickets != nil {
+		t.Fatalf("old = %+v, err = %v", old, err)
+	}
+}

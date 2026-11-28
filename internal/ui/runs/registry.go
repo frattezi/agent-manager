@@ -56,6 +56,9 @@ type Record struct {
 	FinishedAt time.Time `json:"finishedAt"`
 	// Title is the Run Title Fractory recorded; empty on older records.
 	Title string `json:"ticketTitle"`
+	// BlockedBy is the Ticket Refs of the Ticket's blockers, read from its
+	// Relations when the Run was queued; empty on older records.
+	BlockedBy []string `json:"blockedBy"`
 	// CleanedAt is when Fractory's cleanup removed the Run's worktree after
 	// its PR merged; zero while it has not.
 	CleanedAt time.Time `json:"cleanedAt"`

@@ -118,6 +118,7 @@ func (p painter) block(project Project, width int) []string {
 	rows = append(rows, p.funnel(project.Funnel, body)...)
 	rows = append(rows, p.durations(project.Durations, body))
 	rows = append(rows, p.latest(project.Latest, body)...)
+	rows = append(rows, p.tree(project.Tree, body)...)
 	box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color(color)).Padding(0, 1).Width(width - 2)
 	return strings.Split(box.Render(strings.Join(rows, "\n")), "\n")
 }
