@@ -59,6 +59,8 @@ type Project struct {
 	// Durations are created-to-finished, oldest finish first.
 	Durations []time.Duration
 	Latest    []Finished
+	// Tree is the Blocker Tree's roots; empty when no Ticket has a blocker or is one.
+	Tree []*Node
 }
 
 // Runs is the Runs Overview.
@@ -73,8 +75,9 @@ const NoProject = "(no project)"
 // Compute builds the Runs Overview at now. A Project is listed when it has a
 // Run updated inside the window; its in-flight counts ignore the window. A Run
 // without finishedAt is in no bucket and has no duration, and a Ticket without
-// prState reaches no funnel stage past its pull request URL.
-func Compute(list []runs.Record, window Window, now time.Time) Runs {
+// prState reaches no funnel stage past its pull request URL. A Project with an
+// unfinished Blocker Tree is listed whatever the window.
+func Compute(list []runs.Record, window Window, now time.Time, held []runs.HeldTicket) Runs {
 	byProject := map[string][]runs.Record{}
 	var names []string
 	for _, run := range list {
@@ -86,7 +89,7 @@ func Compute(list []runs.Record, window Window, now time.Time) Runs {
 	}
 	out := Runs{Window: window}
 	for _, name := range names {
-		if project, ok := computeProject(name, byProject[name], window, now); ok {
+		if project, ok := computeProject(name, byProject[name], window, now, held); ok {
 			out.Projects = append(out.Projects, project)
 		}
 	}
@@ -99,7 +102,7 @@ func Compute(list []runs.Record, window Window, now time.Time) Runs {
 	return out
 }
 
-func computeProject(name string, all []runs.Record, window Window, now time.Time) (Project, bool) {
+func computeProject(name string, all []runs.Record, window Window, now time.Time, held []runs.HeldTicket) (Project, bool) {
 	project := Project{Name: name, Hourly: window == Window24h}
 	var inside []runs.Record
 	var baseAt time.Time
@@ -123,7 +126,8 @@ func computeProject(name string, all []runs.Record, window Window, now time.Time
 			inside = append(inside, run)
 		}
 	}
-	if len(inside) == 0 {
+	project.Tree = blockerTree(name, all, held, window, now)
+	if len(inside) == 0 && len(project.Tree) == 0 {
 		return Project{}, false
 	}
 	// A Run that does not say its Mode or base leaves it to the newest that does.

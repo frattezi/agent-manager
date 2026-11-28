@@ -21,6 +21,23 @@ type HostState struct {
 	HeldSince time.Time `json:"heldSince"`
 	Queued    int       `json:"queued"`
 	UpdatedAt time.Time `json:"updatedAt"`
+	// HeldTickets are the Tickets Fractory holds for their blockers; absent
+	// from host state written before it listed them.
+	HeldTickets []HeldTicket `json:"heldTickets"`
+}
+
+// HeldTicket is a Ticket Fractory holds, with the blockers it lists for it.
+type HeldTicket struct {
+	Repo      string    `json:"repo"`
+	TicketRef string    `json:"ticketRef"`
+	BlockedBy []Blocker `json:"blockedBy"`
+}
+
+// Blocker is one blocker of a held Ticket and why it holds it, in Fractory's
+// words: "not done: its latest Run failed".
+type Blocker struct {
+	Ref    string `json:"ref"`
+	Reason string `json:"reason"`
 }
 
 // HostPath is `host.json` beside the registry: $FRACTORY_HOME/host.json.

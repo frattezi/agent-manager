@@ -1,6 +1,7 @@
 package runs
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -172,5 +173,17 @@ func TestRepositoriesAreEachRunsCheckoutOnceSorted(t *testing.T) {
 	}
 	if got := Repositories(nil); len(got) != 0 {
 		t.Fatalf("Repositories of no Runs = %q", got)
+	}
+}
+
+func TestParseReadsBlockedByAndToleratesItsAbsence(t *testing.T) {
+	base := `{"version":1,"id":"a","ticketRef":"o/r#2","logPath":"/l","status":"queued","updatedAt":"2026-11-25T12:00:00Z"%s}`
+	with, err := Parse([]byte(fmt.Sprintf(base, `,"blockedBy":["o/r#1","o/r#3"]`)))
+	if err != nil || len(with.BlockedBy) != 2 || with.BlockedBy[0] != "o/r#1" {
+		t.Fatalf("record = %+v, err = %v", with, err)
+	}
+	without, err := Parse([]byte(fmt.Sprintf(base, "")))
+	if err != nil || without.BlockedBy != nil {
+		t.Fatalf("record = %+v, err = %v", without, err)
 	}
 }
