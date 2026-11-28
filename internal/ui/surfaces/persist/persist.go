@@ -29,14 +29,8 @@ func (s Store) LatestSurfaces() ([]surfaces.Stored, error) {
 // the path a message between agents takes, so it is typed in only once the
 // pane is at rest and never twice.
 func (s Store) AnswerSurface(r surfaces.AnswerRequest) error {
-	_, err := s.Store.AnswerAgentSurface(r.SurfaceID, r.Answer, store.InboxMessage{
-		SessionID:   r.SessionID,
-		SenderName:  "the user",
-		Body:        r.Answer,
-		Fingerprint: "surface:" + r.SurfaceID,
-		SentAt:      time.Now(),
-		SurfaceName: r.SurfaceName,
-	}, store.DefaultInboxLimits)
+	_, err := s.Store.AnswerAgentSurface(r.SurfaceID, r.Answer,
+		store.SurfaceAnswerMessage(r.SessionID, r.SurfaceID, r.SurfaceName, r.Answer, time.Now()), store.DefaultInboxLimits)
 	return err
 }
 

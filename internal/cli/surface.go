@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
 )
@@ -13,13 +12,15 @@ import (
 const (
 	usageSurfacePublish = "surface publish [file|-] [--json]"
 	usageSurfaceList    = "surface list [<session-id>] [--json]"
-	usageSurfaceShow    = "surface show <surface-id> [--width <cells>] [--json]"
+	usageSurfaceShow    = "surface show <surface-id> [--width <cells>] [--document] [--json]"
+	usageSurfaceAnswer  = "surface answer <surface-id> [file|-] [--json]"
 )
 
 type surfaceCommands interface {
 	PublishSurface(sessionID string, document []byte) (sessioncmd.AgentSurface, error)
 	Surfaces(sessionID, targetID string) ([]sessioncmd.AgentSurface, error)
-	ShowSurface(sessionID, id string, width int) (sessioncmd.RenderedSurface, error)
+	ShowSurface(sessionID, id string, width int, withDocument bool) (sessioncmd.RenderedSurface, error)
+	AnswerSurface(sessionID, id, answer string) (sessioncmd.AgentSurface, error)
 }
 
 func newSurfaces(configDir string) surfaceCommands {
@@ -34,10 +35,14 @@ func surfaceVerbsWith(open func(string) surfaceCommands, input io.Reader) []comm
 	publish := func(out io.Writer, surfaces surfaceCommands, args []string, sessionID string) error {
 		return runSurfacePublish(out, input, surfaces, args, sessionID)
 	}
+	answer := func(out io.Writer, surfaces surfaceCommands, args []string, sessionID string) error {
+		return runSurfaceAnswer(out, input, surfaces, args, sessionID)
+	}
 	return []command{
 		{name: "publish", usage: usageSurfacePublish, about: "ask the user something richer than prose: store an A2UI document, read from the file or stdin, as this session's Agent Surface; a refusal names the field to fix", run: bind(open, publish)},
 		{name: "list", usage: usageSurfaceList, about: "the Agent Surfaces a session published, oldest first, and whether each is answered; omit the session to list your own", run: bind(open, runSurfaceList)},
-		{name: "show", usage: usageSurfaceShow, about: "draw one stored Agent Surface as text", run: bind(open, runSurfaceShow)},
+		{name: "show", usage: usageSurfaceShow, about: "draw one stored Agent Surface as text; --document adds the A2UI document as it was published, for a host that draws it itself", run: bind(open, runSurfaceShow)},
+		{name: "answer", usage: usageSurfaceAnswer, about: "answer a stored Agent Surface for the user, read from the file or stdin, as sending from the manager's card does: the round is marked answered and the answer is typed into the session that asked once it is at rest", run: bind(open, answer)},
 	}
 }
 
@@ -97,17 +102,44 @@ func runSurfaceList(out io.Writer, surfaces surfaceCommands, args []string, sess
 func runSurfaceShow(out io.Writer, surfaces surfaceCommands, args []string, sessionID string) error {
 	set := newFlagSet(usageSurfaceShow)
 	width := set.Int("width", 0, fmt.Sprintf("cells to draw the surface in, default %d", sessioncmd.DefaultSurfaceWidth))
+	withDocument := set.Bool("document", false, "also return the A2UI document as it was published")
 	asJSON := jsonFlag(set)
 	operands, err := parseCommand(out, set, args, 1, 1)
 	if err != nil {
 		return err
 	}
-	shown, err := surfaces.ShowSurface(sessionID, operands[0], *width)
+	shown, err := surfaces.ShowSurface(sessionID, operands[0], *width, *withDocument)
 	if err != nil {
 		return err
 	}
 	if *asJSON {
 		return writeJSON(out, shown)
 	}
-	return emit(out, false, nil, strings.TrimRight(shown.Text, "\n"))
+	return emit(out, false, nil, sessioncmd.FormatSurfaceShown(shown))
+}
+
+func runSurfaceAnswer(out io.Writer, input io.Reader, surfaces surfaceCommands, args []string, sessionID string) error {
+	set := newFlagSet(usageSurfaceAnswer)
+	asJSON := jsonFlag(set)
+	operands, err := parseCommand(out, set, args, 1, 2)
+	if err != nil {
+		return err
+	}
+	if len(operands) == 2 && operands[1] != "-" {
+		file, err := os.Open(operands[1])
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		input = file
+	}
+	answer, err := io.ReadAll(input)
+	if err != nil {
+		return err
+	}
+	answered, err := surfaces.AnswerSurface(sessionID, operands[0], string(answer))
+	if err != nil {
+		return err
+	}
+	return emit(out, *asJSON, answered, sessioncmd.FormatSurfaceAnswered(answered))
 }
