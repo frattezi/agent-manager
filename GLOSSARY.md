@@ -48,6 +48,12 @@ owner should see or decide, and the manager draws it. It is never painted inside
 Pane, which belongs to that Session's CLI.
 _Avoid_: Surface, widget, card, A2UI surface, agent UI
 
+**Overview**:
+What the manager shows for a section of the rail as a whole, rather than for one of its rows: a
+read-only summary of that section's things, composed from what is already recorded. It is never
+written by an agent; what was done is told by the work that did it.
+_Avoid_: Dashboard, summary, report, stats page
+
 ## Automations
 
 **Automation**:

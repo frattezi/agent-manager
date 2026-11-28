@@ -25,10 +25,10 @@ func (w *surfaceWorkspace) open(t *testing.T) *store.Store {
 	return st
 }
 
-func (w *surfaceWorkspace) answer(t *testing.T, sessionID, id, answer string) (sessioncmd.AgentSurface, error) {
+func (w *surfaceWorkspace) answer(t *testing.T, sessionID, id, answer string, flags ...string) (sessioncmd.AgentSurface, error) {
 	t.Helper()
 	var out bytes.Buffer
-	if err := runSurfaceAnswer(&out, strings.NewReader(answer), w.surfaces, []string{id, "--json"}, sessionID); err != nil {
+	if err := runSurfaceAnswer(&out, strings.NewReader(answer), w.surfaces, append([]string{id, "--json"}, flags...), sessionID); err != nil {
 		return sessioncmd.AgentSurface{}, err
 	}
 	var answered sessioncmd.AgentSurface
@@ -142,5 +142,41 @@ func TestAnAnswerThatCannotBeRecordedIsRefusedWithTheReason(t *testing.T) {
 	}
 	if queued, err := w.open(t).QueuedCount(w.agent.ID); err != nil || queued != 1 {
 		t.Fatalf("queued %d answers (%v), want 1", queued, err)
+	}
+}
+
+func TestADeliveredAnswerClosesTheRoundWithoutQueuingIt(t *testing.T) {
+	w := newSurfaceWorkspace(t)
+	published := w.publish(t, surfaceRound(t))
+	st := w.open(t)
+
+	if _, err := w.answer(t, "", published.ID, "yes", "--delivered"); err == nil || !strings.Contains(err.Error(), "never reach that conversation") {
+		t.Fatalf("delivered from outside = %v", err)
+	}
+	if _, err := w.answer(t, w.agent.ID, published.ID, "yes"); err == nil || !strings.Contains(err.Error(), "only the user answers it") {
+		t.Fatalf("undelivered from the asker = %v", err)
+	}
+	if _, err := w.answer(t, w.agent.ID, published.ID, " ", "--delivered"); err == nil || !strings.Contains(err.Error(), "the answer is empty") {
+		t.Fatalf("empty delivered answer = %v", err)
+	}
+	if _, err := w.answer(t, w.agent.ID, "nosuch12", "yes", "--delivered"); err == nil || !strings.Contains(err.Error(), "does not exist") {
+		t.Fatalf("delivered to an unknown surface = %v", err)
+	}
+
+	if _, err := w.answer(t, w.agent.ID, published.ID, "keep it narrow", "--delivered"); err != nil {
+		t.Fatalf("delivered answer: %v", err)
+	}
+	if got := w.stored(t, w.agent.ID); got[0].AnsweredAt.IsZero() || got[0].Answer != "keep it narrow" {
+		t.Fatalf("stored = %+v", got)
+	}
+	inbox, err := (uisurfaces.ReadRequest{}).Run(uisurfacespersist.Services(st))
+	if err != nil || inbox.(uisurfaces.Inbox).Asking(w.agent.ID) {
+		t.Fatalf("the row still asks: %v", err)
+	}
+	if _, ok, err := st.HeadMessage(w.agent.ID); err != nil || ok {
+		t.Fatalf("a delivered answer was queued: %v", err)
+	}
+	if _, err := w.answer(t, w.agent.ID, published.ID, "again", "--delivered"); err == nil || !strings.Contains(err.Error(), "already answered") {
+		t.Fatalf("second delivered answer = %v", err)
 	}
 }

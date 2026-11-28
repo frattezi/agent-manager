@@ -13,14 +13,14 @@ const (
 	usageSurfacePublish = "surface publish [file|-] [--json]"
 	usageSurfaceList    = "surface list [<session-id>] [--json]"
 	usageSurfaceShow    = "surface show <surface-id> [--width <cells>] [--document] [--json]"
-	usageSurfaceAnswer  = "surface answer <surface-id> [file|-] [--json]"
+	usageSurfaceAnswer  = "surface answer <surface-id> [file|-] [--delivered] [--json]"
 )
 
 type surfaceCommands interface {
 	PublishSurface(sessionID string, document []byte) (sessioncmd.AgentSurface, error)
 	Surfaces(sessionID, targetID string) ([]sessioncmd.AgentSurface, error)
 	ShowSurface(sessionID, id string, width int, withDocument bool) (sessioncmd.RenderedSurface, error)
-	AnswerSurface(sessionID, id, answer string) (sessioncmd.AgentSurface, error)
+	AnswerSurface(sessionID, id, answer string, delivered bool) (sessioncmd.AgentSurface, error)
 }
 
 func newSurfaces(configDir string) surfaceCommands {
@@ -42,7 +42,7 @@ func surfaceVerbsWith(open func(string) surfaceCommands, input io.Reader) []comm
 		{name: "publish", usage: usageSurfacePublish, about: "ask the user something richer than prose: store an A2UI document, read from the file or stdin, as this session's Agent Surface; a refusal names the field to fix", run: bind(open, publish)},
 		{name: "list", usage: usageSurfaceList, about: "the Agent Surfaces a session published, oldest first, and whether each is answered; omit the session to list your own", run: bind(open, runSurfaceList)},
 		{name: "show", usage: usageSurfaceShow, about: "draw one stored Agent Surface as text; --document adds the A2UI document as it was published, for a host that draws it itself", run: bind(open, runSurfaceShow)},
-		{name: "answer", usage: usageSurfaceAnswer, about: "answer a stored Agent Surface for the user, read from the file or stdin, as sending from the manager's card does: the round is marked answered and the answer is typed into the session that asked once it is at rest", run: bind(open, answer)},
+		{name: "answer", usage: usageSurfaceAnswer, about: "answer a stored Agent Surface for the user, read from the file or stdin, as sending from the manager's card does: the round is marked answered and the answer is typed into the session that asked once it is at rest; --delivered, from the session that asked, records an answer it already received as a user turn without queuing it", run: bind(open, answer)},
 	}
 }
 
@@ -120,6 +120,7 @@ func runSurfaceShow(out io.Writer, surfaces surfaceCommands, args []string, sess
 
 func runSurfaceAnswer(out io.Writer, input io.Reader, surfaces surfaceCommands, args []string, sessionID string) error {
 	set := newFlagSet(usageSurfaceAnswer)
+	delivered := set.Bool("delivered", false, "record an answer the asking session already received as a user turn; nothing is queued")
 	asJSON := jsonFlag(set)
 	operands, err := parseCommand(out, set, args, 1, 2)
 	if err != nil {
@@ -137,7 +138,7 @@ func runSurfaceAnswer(out io.Writer, input io.Reader, surfaces surfaceCommands, 
 	if err != nil {
 		return err
 	}
-	answered, err := surfaces.AnswerSurface(sessionID, operands[0], string(answer))
+	answered, err := surfaces.AnswerSurface(sessionID, operands[0], string(answer), *delivered)
 	if err != nil {
 		return err
 	}
