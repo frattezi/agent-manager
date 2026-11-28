@@ -68,13 +68,7 @@ func (p painter) status(status string) string {
 func Draw(o Runs, width int, windowKey string, mode presentation.GlyphMode, palette Palette) Drawing {
 	p := painter{palette: palette, basic: mode == presentation.GlyphModeBasic}
 	inner := max(width-2, 10)
-	label := p.fg(palette.Dim).Render("Window ") + p.fg(palette.Bright).Bold(true).Render(o.Window.Label())
-	hint := "click"
-	if windowKey != "" {
-		hint = windowKey + " or click"
-	}
-	label += p.fg(palette.Dim).Render("  " + hint + " for " + o.Window.Next().Label())
-	d := Drawing{Lines: []string{fit(label, inner), ""}}
+	d := Drawing{Lines: []string{p.windowLabel(o.Window, windowKey, inner), ""}}
 	if len(o.Projects) == 0 {
 		empty := "No Runs yet"
 		if o.Window != WindowAll {
@@ -88,6 +82,16 @@ func Draw(o Runs, width int, windowKey string, mode presentation.GlyphMode, pale
 		d.Lines = append(d.Lines, "")
 	}
 	return d
+}
+
+func (p painter) windowLabel(window Window, windowKey string, width int) string {
+	label := p.fg(p.palette.Dim).Render("Window ") + p.fg(p.palette.Bright).Bold(true).Render(window.Label())
+	hint := "click"
+	if windowKey != "" {
+		hint = windowKey + " or click"
+	}
+	label += p.fg(p.palette.Dim).Render("  " + hint + " for " + window.Next().Label())
+	return fit(label, width)
 }
 
 func fit(s string, width int) string { return ansi.Truncate(s, width, "…") }
