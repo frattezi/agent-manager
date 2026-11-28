@@ -93,7 +93,7 @@ func TestFocusBringsTheWholeFieldIntoView(t *testing.T) {
 	}
 	press(card, h, runes("hello"))
 	card.View(h, "")
-	if !strings.Contains(h.body, "> hello_") {
+	if !strings.Contains(h.body, "> hello▏") {
 		t.Fatalf("what is typed is off the card:\n%s", h.body)
 	}
 	for i, label := range []string{"Question 5", "Question 4", "Question 3", "Question 2", "Question 1"} {
@@ -113,7 +113,7 @@ func TestAFieldTallerThanTheCardShowsItsInput(t *testing.T) {
 	lines := strings.Split(h.body, "\n")
 	input := -1
 	for i, line := range lines {
-		if strings.Contains(line, "> _") {
+		if strings.Contains(line, "> ▏") {
 			input = i
 		}
 	}
@@ -122,7 +122,7 @@ func TestAFieldTallerThanTheCardShowsItsInput(t *testing.T) {
 	}
 	press(card, h, runes("yes"))
 	card.View(h, "")
-	if !strings.Contains(h.body, "> yes_") {
+	if !strings.Contains(h.body, "> yes▏") {
 		t.Fatalf("what is typed is off the card:\n%s", h.body)
 	}
 }

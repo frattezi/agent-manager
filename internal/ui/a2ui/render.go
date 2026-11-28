@@ -15,10 +15,7 @@ const columnGap = "  "
 
 // The gutter is the column a form keeps left of every field it answers, so
 // the block a focused field is filled as starts clear of its text.
-const (
-	gutter = "  "
-	caret  = "_"
-)
+const gutter = "  "
 
 // Target is what a drawn line belongs to: Field is a field's number, 0 for
 // a line no field drew, and Option the 1-based choice of a ChoicePicker the
@@ -243,32 +240,37 @@ func drawButton(p pen, n Node, width int) []line {
 	return []line{{segs: seg(variantRole(n, RoleBody), ansi.Truncate("[ "+label+" ]", width, "…"))}}
 }
 
+// drawTextField draws a field's input after "> ": an empty one as a run of
+// blanks, a typed one as its value. A form keeps the input's last cell free
+// whether or not the field is focused, so the caret focus puts there moves
+// nothing.
 func drawTextField(p pen, n Node, width int) []line {
 	lines := under(RoleLabel, wrap(n.Label, width))
 	focused := p.focused(n)
-	value := n.Value
-	if focused {
-		value += caret
+	if n.Value == "" {
+		blanks := max(min(width-2, 24), 1)
+		if !focused {
+			return append(lines, line{segs: seg(RoleMuted, "> "+strings.Repeat("_", blanks))})
+		}
+		segs := seg(RoleMuted, "> ").add(RoleFocused, p.chrome.CaretGlyph)
+		if blanks > 1 {
+			segs = segs.add(RoleMuted, strings.Repeat("_", blanks-1))
+		}
+		return append(lines, line{segs: segs})
 	}
-	if value == "" {
-		return append(lines, line{segs: seg(RoleMuted, "> "+strings.Repeat("_", max(min(width-2, 24), 1)))})
+	room := width
+	if p.form {
+		room = width - 1
 	}
-	answer := hang(seg(RoleMuted, "> "), value, RoleValue, width)
+	answer := hang(seg(RoleMuted, "> "), n.Value, RoleValue, room)
 	if focused {
 		last := len(answer) - 1
-		answer[last] = withCaret(answer[last])
+		answer[last] = answer[last].add(RoleFocused, p.chrome.CaretGlyph)
 	}
 	for _, segs := range answer {
 		lines = append(lines, line{segs: segs})
 	}
 	return lines
-}
-
-// withCaret gives the caret that ends a focused value the focused role.
-func withCaret(l Line) Line {
-	end := l[len(l)-1]
-	text := strings.TrimSuffix(end.Text, caret)
-	return append(l[:len(l)-1:len(l)-1], seg(end.Role, text)...).add(RoleFocused, caret)
 }
 
 func drawCheckBox(p pen, n Node, width int) []line {
