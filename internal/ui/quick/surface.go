@@ -25,8 +25,6 @@ type Aim struct {
 type Surface struct {
 	Bar
 	composer.Composer
-	// CloseAfterSend is the setting: a confirmed send takes the bar down.
-	CloseAfterSend bool
 	// Aim is the row the bar was pointed at, where enter must still land.
 	Aim              Aim
 	OriginX, OriginY int

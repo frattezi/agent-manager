@@ -55,6 +55,17 @@ type Runner struct {
 	// next poll, since that work no longer runs inline.
 	captureErr error
 
+	// holdMu guards held apart from mu, so a bind that waits on the database
+	// under holdMu never stalls SetInput on the UI thread.
+	holdMu sync.Mutex
+	// held are the panes a lifecycle action is ending or relaunching, which
+	// the poll leaves alone until the action is done.
+	held map[string]bool
+	// holdSeq counts hold starts and ends; holdChangedAt is the count at each
+	// session's latest one, so a bind can see a hold that changed mid-pass.
+	holdSeq       uint64
+	holdChangedAt map[string]uint64
+
 	// captureBusy guards the single in-flight id-capture goroutine.
 	captureBusy atomic.Bool
 	captureWait sync.WaitGroup
@@ -279,8 +290,9 @@ func StoredPreview(st *store.Store, driver *tmux.Driver, sessID string) (string,
 
 // refreshOnce polls every live session's pane, derives and stores status,
 // and samples system stats. Liveness and pane pids come from one tmux
-// call, and every process tree from one ps pass with a second scoped to
-// the pane children, so the poll cost stays flat as sessions are added.
+// call, the panes' text from one or two more, and every process tree from
+// one ps pass with a second scoped to the pane children, so the poll cost
+// stays flat as sessions are added.
 // runMu serializes the loop with one-off refreshes issued as tea commands.
 func (p *Runner) Step() Result { return p.step(context.Background()) }
 
@@ -297,6 +309,9 @@ func (p *Runner) step(ctx context.Context) Result {
 	captureErr := p.captureErr
 	p.captureErr = nil
 	p.mu.Unlock()
+	p.holdMu.Lock()
+	held := maps.Clone(p.held)
+	p.holdMu.Unlock()
 	if captureErr != nil {
 		return Result{Err: captureErr}
 	}
@@ -333,6 +348,7 @@ func (p *Runner) step(ctx context.Context) Result {
 	p.tick++
 
 	listedAt := time.Now()
+	holdGeneration := p.holdGeneration()
 	sessions, err := p.store.ListSessions(includeArchived)
 	if err != nil {
 		return Result{Err: err}
@@ -352,9 +368,11 @@ func (p *Runner) step(ctx context.Context) Result {
 		}
 	}
 	var livePIDs []int
+	var liveIDs []string
 	for _, sess := range sessions {
-		if !sess.Archived && panes[sess.ID].PID > 0 {
+		if !sess.Archived && !held[sess.ID] && panes[sess.ID].PID > 0 {
 			livePIDs = append(livePIDs, panes[sess.ID].PID)
+			liveIDs = append(liveIDs, sess.ID)
 		}
 	}
 	trees := sysstat.Trees(livePIDs)
@@ -363,6 +381,20 @@ func (p *Runner) step(ctx context.Context) Result {
 	now := time.Now()
 	elapsed := now.Sub(p.prevTreeAt).Seconds()
 	haveDelta := !p.prevTreeAt.IsZero() && elapsed > 0.05
+	// Where one tmux call reads every pane, the pass reads them all ahead of
+	// the rows, until a send or a delivery: that can take seconds, and a
+	// capture taken before it describes the pane as it was then.
+	readAhead := tmux.CapturesAsList
+	var captured, histories map[string]string
+	var awaiting map[string]int
+	if readAhead {
+		var err error
+		if awaiting, err = p.store.QueuedCounts(); err != nil {
+			return Result{Err: err}
+		}
+		captured = p.tmux.CapturePanes(liveIDs)
+		histories = p.quoteHistories(ctx, sessions, captured)
+	}
 	nextTreeCPU := make(map[int]float64, len(livePIDs))
 
 	preview := ""
@@ -376,7 +408,7 @@ func (p *Runner) step(ctx context.Context) Result {
 	followFailures := make(map[string]error, len(sessions))
 	var turnsEnded []string
 	for i, sess := range sessions {
-		if sess.Archived {
+		if sess.Archived || held[sess.ID] {
 			continue
 		}
 		// A session belongs to the tmux server its pane runs on. Panes on
@@ -428,22 +460,15 @@ func (p *Runner) step(ctx context.Context) Result {
 				agents.Count++
 				agents.RSS += stat.RSS
 				var hostCPU float64
-				if haveDelta {
-					delta := stat.CPUSeconds - p.prevTreeCPU[pid]
-					if delta < 0 {
-						delta = 0
-					}
+				if delta, seen := intervalCPU(p.prevTreeCPU, pid, stat.CPUSeconds); haveDelta && seen {
 					cpuSecDelta += delta
 					hostCPU = sysstat.HostCPUFromDelta(delta, elapsed, ncpu)
 				} else {
 					hostCPU = sysstat.HostCPUPercent(stat.PCPU, ncpu)
+					agents.CPU += stat.PCPU
 				}
 				stat.CPUPercent = hostCPU
 				stat.RamPercent = sysstat.HostRAMPercent(stat.RSS, memTotal)
-				if !haveDelta {
-					// First sample: fleet CPU still uses pcpu sum path below.
-					agents.CPU += stat.PCPU
-				}
 				if sess.ID == selectedID {
 					proc = stat
 				}
@@ -464,8 +489,18 @@ func (p *Runner) step(ctx context.Context) Result {
 			// taken at the start of the pass still names the previous one,
 			// and the quote read next is that conversation's.
 			sess = sessions[i]
-			if pane, err := p.tmux.CapturePane(sess.ID); err == nil {
-				paneLastLines[sess.ID], panePrompts[sess.ID] = p.rowLines(ctx, sess, pane, panes[sess.ID].Path)
+			// A delivery ends in Enter and an end asked for after the turn
+			// acts on the rest read here, so a row with either pending is
+			// read as it is now, not as it was when the pass began.
+			fresh := !readAhead || len(sess.PendingInputs) > 0 || awaiting[sess.ID] > 0 || sess.AfterTurn != ""
+			pane, readable := captured[sess.ID]
+			if fresh {
+				current, err := p.tmux.CapturePane(sess.ID)
+				pane, readable = current, err == nil
+				delete(histories, sess.ID)
+			}
+			if readable {
+				paneLastLines[sess.ID], panePrompts[sess.ID] = p.rowLines(ctx, sess, pane, panes[sess.ID].Path, histories)
 				derived, err := p.derivePaneStatus(sess, pane, agentAlive, paneHashes)
 				if err != nil {
 					return Result{Err: err}
@@ -502,7 +537,7 @@ func (p *Runner) step(ctx context.Context) Result {
 				// describing the moment before it was typed, so the message
 				// waits for the next capture rather than landing on a pane
 				// that is already starting a turn.
-				if !sent && len(sessions[i].PendingInputs) == 0 {
+				if fresh && !sent && len(sessions[i].PendingInputs) == 0 {
 					delivered, err = p.maybeDeliverInbox(sess, pane, derived, agentAlive)
 					if err != nil {
 						return Result{Err: err}
@@ -521,6 +556,9 @@ func (p *Runner) step(ctx context.Context) Result {
 				}
 				if sess.ID == selectedID {
 					preview = pane
+				}
+				if sent || delivered {
+					readAhead, histories = false, nil
 				}
 			}
 		}
@@ -570,7 +608,7 @@ func (p *Runner) step(ctx context.Context) Result {
 	}
 	if preview == "" && selectedID != "" {
 		for _, sess := range sessions {
-			if sess.ID == selectedID && (sess.Archived || panes[sess.ID].PID == 0) {
+			if sess.ID == selectedID && !held[sess.ID] && (sess.Archived || panes[sess.ID].PID == 0) {
 				snapshot, err := StoredPreview(p.store, p.tmux, sess.ID)
 				if err != nil {
 					return Result{Err: err}
@@ -580,7 +618,7 @@ func (p *Runner) step(ctx context.Context) Result {
 			}
 		}
 	}
-	p.startCaptureIfIdle(sessions, panes)
+	p.startCaptureIfIdle(sessions, panes, holdGeneration)
 	p.paneHashes = paneHashes
 	p.turnMarks = turnMarks
 	followWarning := p.newFollowFailure(sessions, followFailures)
@@ -633,11 +671,7 @@ func (p *Runner) step(ctx context.Context) Result {
 	}
 
 	if agents.Count > 0 {
-		if haveDelta {
-			agents.CPU = sysstat.HostCPUFromDelta(cpuSecDelta, elapsed, ncpu)
-		} else {
-			agents.CPU = sysstat.HostCPUPercent(agents.CPU, ncpu)
-		}
+		agents.CPU = fleetCPU(agents.CPU, cpuSecDelta, haveDelta, elapsed, ncpu)
 		agents.RAM = sysstat.HostRAMPercent(agents.RSS, memTotal)
 	}
 	p.prevTreeCPU = nextTreeCPU
@@ -747,6 +781,66 @@ func (p *Runner) ReflowSessions(ids []string, reflow func()) error {
 		delete(p.quietSince, id)
 	}
 	reflow()
+	return nil
+}
+
+// intervalCPU is the CPU time pid spent since the last pass. A pid that
+// pass skipped (held, or new) has no baseline, and its whole cumulative
+// time is no interval.
+// fleetCPU adds the pcpu of pids sampled for the first time to the interval
+// time of the rest. The two are separate estimates, so their sum is capped.
+func fleetCPU(firstSamplePCPU, intervalSeconds float64, haveDelta bool, elapsed float64, ncpu int) float64 {
+	cpu := sysstat.HostCPUPercent(firstSamplePCPU, ncpu)
+	if haveDelta {
+		cpu = min(cpu+sysstat.HostCPUFromDelta(intervalSeconds, elapsed, ncpu), 100)
+	}
+	return cpu
+}
+
+func intervalCPU(prev map[int]float64, pid int, seconds float64) (float64, bool) {
+	before, seen := prev[pid]
+	if !seen {
+		return 0, false
+	}
+	return max(seconds-before, 0), true
+}
+
+// HoldSessions runs a lifecycle action on ids while the poll carries on
+// with every other pane. It waits out a pass in flight, so no status read
+// before the action lands after it, then keeps later passes off the held
+// panes until work returns.
+func (p *Runner) HoldSessions(ids []string, work func()) error {
+	p.runMu.Lock()
+	if p.stopped {
+		p.runMu.Unlock()
+		return errors.New("execution runner stopped before UI effect")
+	}
+	for _, id := range ids {
+		delete(p.paneHashes, id)
+		delete(p.quietSince, id)
+	}
+	p.holdMu.Lock()
+	if p.held == nil {
+		p.held = map[string]bool{}
+		p.holdChangedAt = map[string]uint64{}
+	}
+	p.holdSeq++
+	for _, id := range ids {
+		p.held[id] = true
+		p.holdChangedAt[id] = p.holdSeq
+	}
+	p.holdMu.Unlock()
+	p.runMu.Unlock()
+	defer func() {
+		p.holdMu.Lock()
+		p.holdSeq++
+		for _, id := range ids {
+			delete(p.held, id)
+			p.holdChangedAt[id] = p.holdSeq
+		}
+		p.holdMu.Unlock()
+	}()
+	work()
 	return nil
 }
 

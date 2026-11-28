@@ -39,6 +39,14 @@ type State struct {
 	// spawns on the keystroke itself rather than opening a form that would
 	// swallow them.
 	TerminalKeyAt time.Time
+	// Pending is the action queued on each row whose run has not completed,
+	// which the row shows and a repeat press on it is refused by.
+	Pending map[string]Action
+	// reserved are the rows and group paths an in-flight run covers beyond
+	// the rows it shows: a kill's skipped dead terminals, an empty group's
+	// archive, restore or delete.
+	reservedRows   map[string]bool
+	reservedGroups map[string]bool
 }
 
 // AwaitedRename is the prompt a spawned session carries and the name the
@@ -225,4 +233,77 @@ func sessionGone(sessions []store.Session, id string) bool {
 		}
 	}
 	return true
+}
+
+// MarkPending records the action queued on each row the target holds, from
+// the confirming key until its run completes.
+func (s *State) MarkPending(target Target) {
+	if s.Pending == nil {
+		s.Pending = map[string]Action{}
+		s.reservedRows = map[string]bool{}
+		s.reservedGroups = map[string]bool{}
+	}
+	for _, sess := range target.Sessions {
+		s.Pending[sess.ID] = target.Action
+	}
+	for _, sess := range target.Selection.Members {
+		s.reservedRows[sess.ID] = true
+	}
+	if reservesGroup(target) {
+		s.reservedGroups[target.Path] = true
+	}
+}
+
+// ClearPending drops the rows a completed run held, whether it succeeded or
+// failed.
+func (s *State) ClearPending(target Target) {
+	for _, sess := range target.Sessions {
+		delete(s.Pending, sess.ID)
+	}
+	for _, sess := range target.Selection.Members {
+		delete(s.reservedRows, sess.ID)
+	}
+	if reservesGroup(target) {
+		delete(s.reservedGroups, target.Path)
+	}
+}
+
+func reservesGroup(target Target) bool {
+	return target.Path != "" && (target.Action == Remove || target.Action == Archive || target.Action == Restore)
+}
+
+// Overlaps reports whether a run still in flight covers any row the target
+// holds or waits on, or, for a group action, a group nested with its path.
+func (s *State) Overlaps(target Target) bool {
+	busy := func(sessions []store.Session) bool {
+		for _, sess := range sessions {
+			if _, pending := s.Pending[sess.ID]; pending || s.reservedRows[sess.ID] {
+				return true
+			}
+		}
+		return false
+	}
+	if busy(target.Sessions) || busy(target.Selection.Members) {
+		return true
+	}
+	if reservesGroup(target) {
+		for path := range s.reservedGroups {
+			if InSubtree(path, target.Path) || InSubtree(target.Path, path) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// PendingWord is what a row with action in flight says it is doing.
+func PendingWord(action Action) string {
+	return map[Action]string{
+		Archive: "archiving",
+		Restore: "restoring",
+		Remove:  "deleting",
+		Kill:    "killing",
+		Restart: "restarting",
+		Revive:  "reviving",
+	}[action]
 }

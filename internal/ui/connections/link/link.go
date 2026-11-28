@@ -46,9 +46,6 @@ type Root interface {
 	// CloseRename closes the name field a completed rename came from, when
 	// it still holds the name that was sent or names a group.
 	CloseRename(gen int, name string)
-	// SettleAccepted closes the quick bar a delivered send came from when
-	// it asks to and nothing reached it since.
-	SettleAccepted(composerGen int, submitted uint64, closeAfterSend bool)
 	// RestoreRefused gives a refused prompt back to the quick bar it came
 	// from, unless that bar has moved on to a newer one.
 	RestoreRefused(composerGen int, submission spawn.Submission)

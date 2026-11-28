@@ -47,6 +47,9 @@ type Session struct {
 	// has not answered; AskingGlyph is root's mark for it.
 	Asking      bool
 	AskingGlyph string
+	// Pending is the action this manager has queued on the row, worded as
+	// it is happening ("archiving"), until the action completes.
+	Pending string
 }
 
 // Snapshot is an immutable-by-convention inventory copied at the root

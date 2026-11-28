@@ -15,6 +15,7 @@ import (
 	uidialogs "github.com/YoanWai/agent-manager/internal/ui/dialogs"
 	uiquick "github.com/YoanWai/agent-manager/internal/ui/quick"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
+	uilifecycle "github.com/YoanWai/agent-manager/internal/ui/session/lifecycle"
 	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	tea "github.com/charmbracelet/bubbletea"
@@ -1247,4 +1248,174 @@ func TestHostTextCannotDriveTheTerminal(t *testing.T) {
 	setHost(m, "box", uilink.Facts(remote.HostState{Snapshot: raw, Failures: 1, Err: errors.New("box: denied" + hostile)}))
 	m.rail.Focus(boxRow)
 	frame("an offline host")
+}
+
+// A remote lifecycle call marks its row while it is on its way, and the
+// same action pressed again in that time asks nothing.
+func TestRemoteArchiveShowsOnTheRowAndRefusesARepeat(t *testing.T) {
+	fake := &fakeSSH{}
+	m := connectedModel(t, fake)
+	_, cmd := m.runRailIntent(uirail.Intent{Kind: uirail.Archive, Target: boxSession("s1")})
+	m.answerRemote(t, fake, cmd, "y")
+	if m.remoteIdle() {
+		t.Fatal("the confirmed archive was not queued")
+	}
+	pending := ""
+	for _, host := range m.railSnapshot().Hosts {
+		for _, session := range host.Sessions {
+			if host.Name == "box" && session.ID == "s1" {
+				pending = session.Pending
+			}
+		}
+	}
+	if pending != "archiving" {
+		t.Fatalf("remote row pending = %q, want archiving", pending)
+	}
+	m.runRailIntent(uirail.Intent{Kind: uirail.Archive, Target: boxSession("s1")})
+	if confirmOpen(m) {
+		t.Fatal("a repeat archive opened another confirm")
+	}
+	jobs := len(m.effects.Remote.Pending)
+	if m.effects.Remote.Active != nil {
+		jobs++
+	}
+	if jobs != 1 {
+		t.Fatalf("remote jobs after a repeat archive = %d, want 1", jobs)
+	}
+}
+
+func TestRemoteGroupDeleteAndAMemberActionRefuseEachOther(t *testing.T) {
+	fake := &fakeSSH{}
+	m := connectedModel(t, fake)
+	_, cmd := m.runRailIntent(uirail.Intent{Kind: uirail.Archive, Target: boxSession("s1")})
+	m.answerRemote(t, fake, cmd, "y")
+	m.rail.Focus(boxGroup)
+	m.runRailIntent(uirail.Intent{Kind: uirail.Delete, Target: boxGroup})
+	if confirmOpen(m) {
+		t.Fatal("a group delete over a member in flight opened a confirm")
+	}
+
+	fake = &fakeSSH{}
+	m = connectedModel(t, fake)
+	m.rail.Focus(boxGroup)
+	_, cmd = m.runRailIntent(uirail.Intent{Kind: uirail.Delete, Target: boxGroup})
+	m.answerRemote(t, fake, cmd, "y")
+	if m.remoteIdle() {
+		t.Fatal("the confirmed group delete was not queued")
+	}
+	if action, busy := m.remoteLifecycleInFlight("box", "s2"); !busy || action != uilifecycle.Remove {
+		t.Fatalf("member s2 in flight = %q %t, want remove", action, busy)
+	}
+	m.runRailIntent(uirail.Intent{Kind: uirail.Archive, Target: boxSession("s2")})
+	if confirmOpen(m) {
+		t.Fatal("a member archive during a group delete opened a confirm")
+	}
+}
+
+func remotePendingWord(m *Model, id string) string {
+	for _, host := range m.railSnapshot().Hosts {
+		for _, session := range host.Sessions {
+			if host.Name == "box" && session.ID == id {
+				return session.Pending
+			}
+		}
+	}
+	return ""
+}
+
+func TestFailedRemoteArchiveClearsTheMarkAndAllowsARetry(t *testing.T) {
+	fake := &fakeSSH{}
+	m := connectedModel(t, fake)
+	fake.mu.Lock()
+	fake.stderr, fake.code = "agent-manager: no session named s1\n", 1
+	fake.mu.Unlock()
+	_, cmd := m.runRailIntent(uirail.Intent{Kind: uirail.Archive, Target: boxSession("s1")})
+	cmd = m.answerRemote(t, fake, cmd, "y")
+	if !m.needsLoaderTick() {
+		t.Fatal("a queued remote archive did not keep the row's spinner ticking")
+	}
+	m.runRemoteCmd(t, cmd)
+	if !m.remoteIdle() || remotePendingWord(m, "s1") != "" {
+		t.Fatalf("after the failure: idle %t, pending %q", m.remoteIdle(), remotePendingWord(m, "s1"))
+	}
+	if !strings.Contains(m.errBar.text, "no session named s1") {
+		t.Fatalf("error bar = %q", m.errBar.text)
+	}
+	m.runRailIntent(uirail.Intent{Kind: uirail.Archive, Target: boxSession("s1")})
+	if !confirmOpen(m) {
+		t.Fatal("a retry after the failure opened no confirm")
+	}
+}
+
+func TestRemoteDeleteMarksTheTerminalsItTakes(t *testing.T) {
+	fake := &fakeSSH{}
+	m := connectedModel(t, fake)
+	fake.snapshot.Terminals = append(fake.snapshot.Terminals,
+		sessioncmd.Terminal{ID: "t2", Name: "api-sh", Group: "web", Status: "idle", Running: true, ParentID: "s1"})
+	setHost(m, "box", uilink.Facts(remote.HostState{OK: true, Snapshot: fake.snapshot}))
+	_, cmd := m.runRailIntent(uirail.Intent{Kind: uirail.Delete, Target: boxSession("s1")})
+	m.answerRemote(t, fake, cmd, "y")
+	if action, busy := m.remoteLifecycleInFlight("box", "t2"); !busy || action != uilifecycle.Remove {
+		t.Fatalf("nested terminal in flight = %q %t, want remove", action, busy)
+	}
+	m.runRailIntent(uirail.Intent{Kind: uirail.Kill, Target: boxSession("t2")})
+	if confirmOpen(m) {
+		t.Fatal("a kill on a terminal its agent's delete takes opened a confirm")
+	}
+}
+
+func TestRemoteKillOnAnAgentWaitsForItsTerminals(t *testing.T) {
+	fake := &fakeSSH{}
+	m := connectedModel(t, fake)
+	fake.snapshot.Terminals = append(fake.snapshot.Terminals,
+		sessioncmd.Terminal{ID: "t2", Name: "api-sh", Group: "web", Status: "idle", Running: true, ParentID: "s1"})
+	setHost(m, "box", uilink.Facts(remote.HostState{OK: true, Snapshot: fake.snapshot}))
+	_, cmd := m.runRailIntent(uirail.Intent{Kind: uirail.Kill, Target: boxSession("t2")})
+	m.answerRemote(t, fake, cmd, "y")
+	if _, busy := m.remoteLifecycleInFlight("box", "t2"); !busy {
+		t.Fatal("terminal kill is not in flight")
+	}
+	for _, kind := range []uirail.ActionKind{uirail.Kill, uirail.Revive} {
+		m.runRailIntent(uirail.Intent{Kind: kind, Target: boxSession("s1")})
+		if confirmOpen(m) {
+			t.Fatalf("%v on an agent whose terminal is in flight opened a confirm", kind)
+		}
+	}
+	if _, busy := m.remoteLifecycleInFlight("box", "s1"); busy {
+		t.Fatal("the agent's row was marked for a call that never queued")
+	}
+}
+
+func TestRemoteTerminalCloseWaitsForItsAgentsKill(t *testing.T) {
+	fake := &fakeSSH{}
+	m := connectedModel(t, fake)
+	fake.snapshot.Terminals = append(fake.snapshot.Terminals,
+		sessioncmd.Terminal{ID: "t2", Name: "api-sh", Group: "web", Status: "idle", Running: true, ParentID: "s1"})
+	setHost(m, "box", uilink.Facts(remote.HostState{OK: true, Snapshot: fake.snapshot}))
+	_, cmd := m.runRailIntent(uirail.Intent{Kind: uirail.Kill, Target: boxSession("s1")})
+	m.answerRemote(t, fake, cmd, "y")
+	if _, busy := m.remoteLifecycleInFlight("box", "s1"); !busy {
+		t.Fatal("agent kill is not in flight")
+	}
+	m.runRailIntent(uirail.Intent{Kind: uirail.Kill, Target: boxSession("t2")})
+	if confirmOpen(m) {
+		t.Fatal("a close of a terminal under an agent being killed opened a confirm")
+	}
+	if _, busy := m.remoteLifecycleInFlight("box", "t2"); busy {
+		t.Fatal("the terminal's row was marked for a call that never queued")
+	}
+}
+
+func TestRemoteDeleteOfANestedEmptyGroupWaitsForItsParent(t *testing.T) {
+	m := connectedModel(t, &fakeSSH{})
+	m.queueRemote(uilink.Call{Op: uilink.DeleteGroup, Host: "box", Name: "web"})
+	m.queueRemote(uilink.Call{Op: uilink.DeleteGroup, Host: "box", Name: "web/api"})
+	m.queueRemote(uilink.Call{Op: uilink.DeleteGroup, Host: "box", Name: "website"})
+	var queued []string
+	for _, call := range m.remoteLifecycleJobs() {
+		queued = append(queued, call.Name)
+	}
+	if !slices.Equal(queued, []string{"web", "website"}) {
+		t.Fatalf("queued group deletes %q, want web and website", queued)
+	}
 }

@@ -96,3 +96,78 @@ func TestDeletedGroupLeavesTheListing(t *testing.T) {
 		t.Fatal("deleted group kept its base")
 	}
 }
+
+// A queued action marks every row it targets until its run completes.
+func TestPendingCoversTheTargetUntilCleared(t *testing.T) {
+	t.Parallel()
+	state := State{}
+	target := Target{Action: Archive, Sessions: []store.Session{session("a"), session("b")}}
+	state.MarkPending(target)
+
+	if got := PendingWord(state.Pending["b"]); got != "archiving" {
+		t.Fatalf("pending word = %q, want archiving", got)
+	}
+	if !state.Overlaps(Target{Action: Kill, Sessions: []store.Session{session("c"), session("a")}}) {
+		t.Fatal("a set holding a pending row must read as pending")
+	}
+	state.ClearPending(target)
+	if state.Overlaps(target) {
+		t.Fatalf("cleared target still pending: %v", state.Pending)
+	}
+}
+
+func TestPendingWordNamesEachAction(t *testing.T) {
+	for action, want := range map[Action]string{
+		Archive: "archiving", Restore: "restoring", Remove: "deleting",
+		Kill: "killing", Restart: "restarting", Revive: "reviving", None: "",
+	} {
+		if got := PendingWord(action); got != want {
+			t.Errorf("PendingWord(%v) = %q, want %q", action, got, want)
+		}
+	}
+}
+
+// A run reserves the rows it waits on and an empty group's path, both ways.
+func TestPendingReservesMembersAndGroupPaths(t *testing.T) {
+	t.Parallel()
+	state := State{}
+	kill := Target{Action: Kill, Sessions: []store.Session{session("agent")},
+		Selection: Selection{Kind: SelectSession, RootID: "agent", Members: []store.Session{session("agent"), session("shell")}}}
+	state.MarkPending(kill)
+	if !state.Overlaps(Target{Action: Revive, Sessions: []store.Session{session("shell")}}) {
+		t.Fatal("a revive on a terminal the kill skipped was admitted")
+	}
+	if state.Overlaps(Target{Action: Revive, Sessions: []store.Session{session("other")}}) {
+		t.Fatal("an unrelated row was refused")
+	}
+	state.ClearPending(kill)
+	if state.Overlaps(Target{Action: Revive, Sessions: []store.Session{session("shell")}}) {
+		t.Fatal("the cleared kill still reserves its terminal")
+	}
+
+	web := Target{Action: Remove, Path: "web"}
+	state.MarkPending(web)
+	for path, want := range map[string]bool{"web": true, "web/api": true, "website": false} {
+		if got := state.Overlaps(Target{Action: Remove, Path: path}); got != want {
+			t.Fatalf("delete of %s overlaps = %t, want %t", path, got, want)
+		}
+	}
+	state.ClearPending(web)
+	if state.Overlaps(Target{Action: Remove, Path: "web/api"}) {
+		t.Fatal("the cleared group delete still reserves its path")
+	}
+}
+
+func TestGroupArchiveAndRestoreReserveTheirPath(t *testing.T) {
+	t.Parallel()
+	for _, action := range []Action{Archive, Restore} {
+		state := State{}
+		state.MarkPending(Target{Action: action, Path: "web"})
+		if !state.Overlaps(Target{Action: action, Path: "web"}) {
+			t.Fatalf("%v: a repeat on the same empty group was admitted", action)
+		}
+		if state.Overlaps(Target{Action: action, Path: "website"}) {
+			t.Fatalf("%v: an unrelated group was refused", action)
+		}
+	}
+}

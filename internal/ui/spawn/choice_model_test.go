@@ -20,16 +20,3 @@ func TestSettingKeysCoverEveryCLI(t *testing.T) {
 		}
 	}
 }
-
-// Only the stored "close" takes the bar down after a send.
-func TestCloseAfterSendReadsTheStoredValue(t *testing.T) {
-	t.Parallel()
-	if !CloseAfterSend("close") {
-		t.Fatal(`"close" should close the bar`)
-	}
-	for _, value := range []string{"", "keep", "stay"} {
-		if CloseAfterSend(value) {
-			t.Fatalf("%q should leave the bar up", value)
-		}
-	}
-}

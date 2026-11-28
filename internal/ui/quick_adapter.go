@@ -53,7 +53,6 @@ func (m *Model) openQuickModeWithReader(reader uipersist.Reader) tea.Cmd {
 	aim, _ := m.rail.Selected()
 	q := newQuickSurface(m)
 	q.Composer = composer.Composer{Input: input, MaxRows: uiquick.BarMaxRows, Gen: m.nextComposerGen()}
-	q.CloseAfterSend = m.closeAfterSend()
 	q.Aim = quickAim(aim)
 	// The bar is on the stack before its choice starts, so a bar aimed at
 	// a connection starts on the host's defaults.
@@ -73,7 +72,6 @@ func (m *Model) applyCachedQuickDefaults() tea.Cmd {
 	q := m.quick()
 	before := q.Tool()
 	q.SetTools(m.cachedDefaultToolSelection())
-	q.CloseAfterSend = m.closeAfterSend()
 	q.DefaultWorktree(m.cachedSpawnWorktreeDefault(m.quickTargetGroup()))
 	toolName := q.Tool()
 	if toolName == before || toolName == "" {
@@ -234,10 +232,6 @@ func (m *Model) quickAnswerRow(entry treeRow, name string, width int) string {
 // quickSendRoot is the root as a finished send reaches it.
 type quickSendRoot struct{ m *Model }
 
-func (r quickSendRoot) SettleAccepted(request uiquicksend.SendRequest) {
-	r.m.settleAccepted(request.ComposerGen, request.Submission.ID, request.CloseAfterSend)
-}
-
 func (r quickSendRoot) ReturnRefused(request uiquicksend.SendRequest) tea.Cmd {
 	return r.m.returnQuickSendImages(request)
 }
@@ -269,12 +263,6 @@ func (m *Model) acceptQuick(submission spawn.Submission) {
 	q := m.quick()
 	q.Accept(submission)
 	q.ResetEnterDebounce()
-}
-
-func (m *Model) settleAccepted(composerGen int, submitted uint64, closeAfterSend bool) {
-	if q, ok := m.quickFor(composerGen); ok && closeAfterSend && q.Untouched(submitted) {
-		m.closeQuick()
-	}
 }
 
 func (m *Model) restoreRefused(composerGen int, submission spawn.Submission) bool {

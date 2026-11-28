@@ -78,10 +78,6 @@ func (r linkRoot) CloseRename(gen int, name string) {
 	}
 }
 
-func (r linkRoot) SettleAccepted(composerGen int, submitted uint64, closeAfterSend bool) {
-	r.settleAccepted(composerGen, submitted, closeAfterSend)
-}
-
 func (r linkRoot) RestoreRefused(composerGen int, submission spawn.Submission) {
 	r.restoreRefused(composerGen, submission)
 }
@@ -241,5 +237,7 @@ func (m *Model) applyConnectionSave(request uilink.SaveRequest, connections []st
 // applyRemoteCall hands what a call left to the runtime, which reports it and
 // picks the host up again.
 func (m *Model) applyRemoteCall(request uilink.Call, result uilink.Result, err error) tea.Cmd {
-	return m.ssh.ApplyCall(linkRoot{m}, request, result, err)
+	cmd := m.ssh.ApplyCall(linkRoot{m}, request, result, err)
+	m.rebuildRows()
+	return cmd
 }

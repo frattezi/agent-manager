@@ -39,12 +39,12 @@ func firstKey(label string) string {
 }
 
 func pressKey(name string) (tea.KeyMsg, bool) {
-	if key, drawn := legendGlyphKeys[name]; drawn {
-		name = key
-	}
 	alt := false
 	if rest, ok := strings.CutPrefix(name, "alt+"); ok && rest != "" {
 		alt, name = true, rest
+	}
+	if key, drawn := legendGlyphKeys[name]; drawn {
+		name = key
 	}
 	if keyType, ok := namedKeyTypes[name]; ok {
 		key := tea.KeyMsg{Type: keyType, Alt: alt}
